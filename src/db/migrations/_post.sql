@@ -56,3 +56,26 @@ CREATE TRIGGER trg_order_practice_immutable
   BEFORE UPDATE ON order_practice
   FOR EACH ROW
   EXECUTE FUNCTION order_practice_immutable_snapshots();
+
+-- ─── RLS en todas las tablas de public ───────────────────────────────────────
+-- El front usa supabase-js SOLO para Auth y el backend se conecta como owner
+-- (bypassa RLS), asi que habilitar RLS sin policies bloquea unicamente el
+-- acceso directo via PostgREST con el anon key (que es publico en el bundle).
+-- Idempotente.
+ALTER TABLE public."attachment" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."doctor" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."insurer" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."lab_config" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."order" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."order_practice" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."patient" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."payment" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."practice" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."result" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."ub_value" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."user" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."laboratorio" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."preferencia_pdf" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."unidad_medida" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."practice_unidad" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."order_practice_unidad_value" ENABLE ROW LEVEL SECURITY;
