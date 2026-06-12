@@ -45,10 +45,7 @@ export const orderPracticeUnidadValue = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({
-    uniqueOpUnidad: uniqueIndex('idx_op_unidad_value_unique').on(
-      t.orderPracticeId,
-      t.unidadId,
-    ),
+    uniqueOpUnidad: uniqueIndex('idx_op_unidad_value_unique').on(t.orderPracticeId, t.unidadId),
     opIdx: index('idx_op_unidad_value_op').on(t.orderPracticeId),
   }),
 );

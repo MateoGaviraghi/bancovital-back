@@ -54,11 +54,7 @@ export async function resolveAssetDataUri(
   value: string | null | undefined,
 ): Promise<string | null> {
   if (!value) return null;
-  if (
-    value.startsWith('data:') ||
-    value.startsWith('http://') ||
-    value.startsWith('https://')
-  ) {
+  if (value.startsWith('data:') || value.startsWith('http://') || value.startsWith('https://')) {
     return value;
   }
   const { data, error } = await storage.storage.from(ASSETS_BUCKET).download(value);

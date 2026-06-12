@@ -7,8 +7,6 @@
       "Bash(node -e ' *)",
       "Bash(git cherry-pick *)"
     ],
-    "additionalDirectories": [
-      "/home/sfs/Projects/lab-front"
-    ]
+    "additionalDirectories": ["/home/sfs/Projects/lab-front"]
   }
 }

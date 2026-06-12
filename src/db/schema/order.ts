@@ -52,9 +52,7 @@ export const order = pgTable(
     totalParticular: numeric('total_particular', { precision: 12, scale: 2 })
       .notNull()
       .default('0.00'),
-    totalInsurer: numeric('total_insurer', { precision: 12, scale: 2 })
-      .notNull()
-      .default('0.00'),
+    totalInsurer: numeric('total_insurer', { precision: 12, scale: 2 }).notNull().default('0.00'),
     totalPatientCopay: numeric('total_patient_copay', { precision: 12, scale: 2 })
       .notNull()
       .default('0.00'),

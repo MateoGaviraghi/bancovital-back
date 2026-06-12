@@ -1,12 +1,3 @@
-import {
-  ConflictException,
-  Inject,
-  Injectable,
-  InternalServerErrorException,
-  NotFoundException,
-} from '@nestjs/common';
-import type { SupabaseClient } from '@supabase/supabase-js';
-import { and, asc, eq, inArray } from 'drizzle-orm';
 import type { Db } from '@/db/client';
 import { DATABASE, SUPABASE_ADMIN } from '@/db/database.module';
 import {
@@ -22,9 +13,18 @@ import {
   result,
 } from '@/db/schema';
 import type { Order, OrderPracticeUnidadValue, Result } from '@/db/schema';
-import { renderFichaPdf, renderInformePdf } from '@/pdf/render';
 import { resolveAssetDataUri } from '@/modules/lab-config/asset-storage';
-import { OrdersService } from '@/modules/orders/orders.service';
+import type { OrdersService } from '@/modules/orders/orders.service';
+import { renderFichaPdf, renderInformePdf } from '@/pdf/render';
+import {
+  ConflictException,
+  Inject,
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { and, asc, eq, inArray } from 'drizzle-orm';
 
 export const REPORTS_BUCKET = 'reports';
 
@@ -55,7 +55,11 @@ export class ReportsService {
     private readonly orders: OrdersService,
   ) {}
 
-  async emit(labId: number, orderId: number, signedBy: string): Promise<{ ok: true; path: string }> {
+  async emit(
+    labId: number,
+    orderId: number,
+    signedBy: string,
+  ): Promise<{ ok: true; path: string }> {
     const ord = await this.requireOrderForEmit(labId, orderId);
     const path = await this.renderAndUpload(ord);
     await this.orders.markEmitted(labId, orderId, path, signedBy);
@@ -144,9 +148,24 @@ export class ReportsService {
     const ord = await this.requireOrder(labId, orderId);
 
     const [lab, pat, ins, lines] = await Promise.all([
-      this.db.select().from(laboratorio).where(eq(laboratorio.id, labId)).limit(1).then((r) => r[0]),
-      this.db.select().from(patient).where(eq(patient.id, ord.patientId)).limit(1).then((r) => r[0]),
-      this.db.select({ name: insurer.name }).from(insurer).where(eq(insurer.id, ord.insurerId)).limit(1).then((r) => r[0]),
+      this.db
+        .select()
+        .from(laboratorio)
+        .where(eq(laboratorio.id, labId))
+        .limit(1)
+        .then((r) => r[0]),
+      this.db
+        .select()
+        .from(patient)
+        .where(eq(patient.id, ord.patientId))
+        .limit(1)
+        .then((r) => r[0]),
+      this.db
+        .select({ name: insurer.name })
+        .from(insurer)
+        .where(eq(insurer.id, ord.insurerId))
+        .limit(1)
+        .then((r) => r[0]),
       this.db
         .select()
         .from(orderPractice)
@@ -166,7 +185,8 @@ export class ReportsService {
         .select({ id: practice.id, section: practice.section, isElaborated: practice.isElaborated })
         .from(practice)
         .where(inArray(practice.id, practiceIds));
-      for (const p of practices) practiceMap.set(p.id, { section: p.section, isElaborated: p.isElaborated });
+      for (const p of practices)
+        practiceMap.set(p.id, { section: p.section, isElaborated: p.isElaborated });
     }
 
     const enrichedLines = lines.map((l) => {
@@ -174,7 +194,11 @@ export class ReportsService {
       return {
         nbuCodeSnapshot: l.nbuCodeSnapshot,
         nameSnapshot: l.nameSnapshot,
-        authorizationStatus: l.authorizationStatus as 'no_aplica' | 'pendiente' | 'autorizada' | 'rechazada',
+        authorizationStatus: l.authorizationStatus as
+          | 'no_aplica'
+          | 'pendiente'
+          | 'autorizada'
+          | 'rechazada',
         authorizationCode: l.authorizationCode,
         section: p?.section ?? null,
         isElaborated: p?.isElaborated ?? false,
@@ -183,7 +207,14 @@ export class ReportsService {
 
     const logoDataUri = await resolveAssetDataUri(this.storage, lab.logoPath);
 
-    return renderFichaPdf({ order: ord, patient: pat, insurer: ins, lines: enrichedLines, lab, logoDataUri });
+    return renderFichaPdf({
+      order: ord,
+      patient: pat,
+      insurer: ins,
+      lines: enrichedLines,
+      lab,
+      logoDataUri,
+    });
   }
 
   // ----- helpers -----
@@ -272,13 +303,24 @@ export class ReportsService {
       .orderBy(orderPractice.sortOrder, orderPractice.id);
 
     const practiceIds = lines.map((l) => l.practiceId).filter((id): id is number => id !== null);
-    const practiceDataById = new Map<number, { methodology: string | null; referenceValue: string | null }>();
+    const practiceDataById = new Map<
+      number,
+      { methodology: string | null; referenceValue: string | null }
+    >();
     if (practiceIds.length > 0) {
       const practiceRows = await this.db
-        .select({ id: practice.id, methodology: practice.methodology, referenceValue: practice.referenceValue })
+        .select({
+          id: practice.id,
+          methodology: practice.methodology,
+          referenceValue: practice.referenceValue,
+        })
         .from(practice)
         .where(inArray(practice.id, practiceIds));
-      for (const p of practiceRows) practiceDataById.set(p.id, { methodology: p.methodology, referenceValue: p.referenceValue });
+      for (const p of practiceRows)
+        practiceDataById.set(p.id, {
+          methodology: p.methodology,
+          referenceValue: p.referenceValue,
+        });
     }
 
     const resultRows = await this.db
@@ -346,9 +388,7 @@ export class ReportsService {
       upsert: true,
     });
     if (upload.error) {
-      throw new InternalServerErrorException(
-        `No se pudo guardar el PDF: ${upload.error.message}`,
-      );
+      throw new InternalServerErrorException(`No se pudo guardar el PDF: ${upload.error.message}`);
     }
     return path;
   }

@@ -4,7 +4,8 @@ export class CreateLaboratorioDto {
   @IsString()
   @MaxLength(63)
   @Matches(/^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$/, {
-    message: 'slug debe tener formato válido (minúsculas, números, guiones; no puede empezar ni terminar con guion)',
+    message:
+      'slug debe tener formato válido (minúsculas, números, guiones; no puede empezar ni terminar con guion)',
   })
   slug!: string;
 
@@ -55,7 +56,8 @@ export class UpdateLaboratorioDto {
   @IsString()
   @MaxLength(63)
   @Matches(/^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$/, {
-    message: 'slug debe tener formato válido (minúsculas, números, guiones; no puede empezar ni terminar con guion)',
+    message:
+      'slug debe tener formato válido (minúsculas, números, guiones; no puede empezar ni terminar con guion)',
   })
   slug?: string;
 
@@ -107,7 +109,9 @@ export class UpdateLaboratorioDto {
 
   @IsOptional()
   @IsString()
-  @Matches(/^#[0-9a-fA-F]{6}$/, { message: 'primaryColor debe ser un hex de 6 dígitos (ej: #3a7bd5)' })
+  @Matches(/^#[0-9a-fA-F]{6}$/, {
+    message: 'primaryColor debe ser un hex de 6 dígitos (ej: #3a7bd5)',
+  })
   primaryColor?: string | null;
 
   @IsOptional()

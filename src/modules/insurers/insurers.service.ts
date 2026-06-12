@@ -1,5 +1,3 @@
-import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { and, asc, desc, eq, isNull, sql } from 'drizzle-orm';
 import type { Db } from '@/db/client';
 import { DATABASE } from '@/db/database.module';
 import {
@@ -10,6 +8,8 @@ import {
   insurer,
   ubValue,
 } from '@/db/schema';
+import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { and, asc, desc, eq, isNull, sql } from 'drizzle-orm';
 import type { CreateInsurerDto } from './dto/create-insurer.dto';
 import type { SetUbValueDto } from './dto/set-ub-value.dto';
 import type { UpdateInsurerDto } from './dto/update-insurer.dto';
@@ -38,13 +38,7 @@ export class InsurersService {
         ubValidFrom: ubValue.validFrom,
       })
       .from(insurer)
-      .leftJoin(
-        ubValue,
-        and(
-          eq(ubValue.insurerId, insurer.id),
-          isNull(ubValue.validTo),
-        ),
-      )
+      .leftJoin(ubValue, and(eq(ubValue.insurerId, insurer.id), isNull(ubValue.validTo)))
       .orderBy(asc(insurer.name));
 
     return rows.map((r) => ({

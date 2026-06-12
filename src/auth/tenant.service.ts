@@ -1,8 +1,8 @@
-import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
-import { eq } from 'drizzle-orm';
 import type { Db } from '@/db/client';
 import { DATABASE } from '@/db/database.module';
 import { user } from '@/db/schema';
+import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
+import { eq } from 'drizzle-orm';
 import type { UserRole } from './session';
 
 interface CachedTenant {

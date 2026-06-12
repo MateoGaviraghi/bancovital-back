@@ -1,5 +1,5 @@
-import { ConflictException, NotFoundException } from '@nestjs/common';
 import type { Session } from '@/auth/session';
+import { ConflictException, NotFoundException } from '@nestjs/common';
 import { UsersService } from './users.service';
 
 /**
@@ -9,15 +9,18 @@ import { UsersService } from './users.service';
 
 const LAB_ID = 1;
 const SELF: Session = { userId: 'self-uuid', email: 'self@test.com', role: 'admin', labId: LAB_ID };
-const OTHER: Session = { userId: 'other-uuid', email: 'other@test.com', role: 'admin', labId: LAB_ID };
+const OTHER: Session = {
+  userId: 'other-uuid',
+  email: 'other@test.com',
+  role: 'admin',
+  labId: LAB_ID,
+};
 
 function makeService(opts: {
   updateUserResponse?: { error: { message: string; status?: number } | null };
   publicUserRow?: { id: string; role: string; active: boolean } | null;
 }): UsersService {
-  const updateUserById = jest
-    .fn()
-    .mockResolvedValue(opts.updateUserResponse ?? { error: null });
+  const updateUserById = jest.fn().mockResolvedValue(opts.updateUserResponse ?? { error: null });
 
   const admin = {
     auth: {
@@ -34,8 +37,7 @@ function makeService(opts: {
     update: jest.fn().mockImplementation(() => ({
       set: () => ({
         where: () => ({
-          returning: () =>
-            Promise.resolve(opts.publicUserRow ? [opts.publicUserRow] : []),
+          returning: () => Promise.resolve(opts.publicUserRow ? [opts.publicUserRow] : []),
         }),
       }),
     })),

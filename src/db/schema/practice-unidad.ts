@@ -1,11 +1,4 @@
-import {
-  bigint,
-  index,
-  integer,
-  pgTable,
-  timestamp,
-  uniqueIndex,
-} from 'drizzle-orm/pg-core';
+import { bigint, index, integer, pgTable, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
 import { laboratorio } from './laboratorio';
 import { practice } from './practice';
 import { unidadMedida } from './unidad-medida';

@@ -6,11 +6,7 @@ export const patientSexEnum = pgEnum('patient_sex', ['F', 'M', 'X']);
 
 export const userRoleEnum = pgEnum('user_role', ['admin', 'recepcion', 'bioquimico', 'super']);
 
-export const orderOriginEnum = pgEnum('order_origin', [
-  'ambulatorio',
-  'internacion',
-  'urgencia',
-]);
+export const orderOriginEnum = pgEnum('order_origin', ['ambulatorio', 'internacion', 'urgencia']);
 
 export const orderStatusEnum = pgEnum('order_status', [
   'borrador',

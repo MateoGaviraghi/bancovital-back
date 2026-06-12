@@ -70,4 +70,7 @@ async function main() {
   console.log('\n✓ Migración completada: ub_value ahora es global');
 }
 
-main().catch(async (e) => { console.error(e); process.exit(1); });
+main().catch(async (e) => {
+  console.error(e);
+  process.exit(1);
+});

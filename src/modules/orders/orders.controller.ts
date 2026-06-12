@@ -1,3 +1,7 @@
+import { type Session, requireLabId } from '@/auth/session';
+import { CurrentUser } from '@/common/decorators/current-user.decorator';
+import { Roles } from '@/common/decorators/roles.decorator';
+import type { ResultsService } from '@/modules/results/results.service';
 import {
   Body,
   Controller,
@@ -11,15 +15,11 @@ import {
   Query,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { requireLabId, type Session } from '@/auth/session';
-import { CurrentUser } from '@/common/decorators/current-user.decorator';
-import { Roles } from '@/common/decorators/roles.decorator';
-import { ResultsService } from '@/modules/results/results.service';
-import { CancelOrderDto } from './dto/cancel-order.dto';
-import { CreateOrderDto } from './dto/create-order.dto';
-import { ListOrdersDto } from './dto/list-orders.dto';
-import { UpdateOrderDto } from './dto/update-order.dto';
-import { OrdersService } from './orders.service';
+import type { CancelOrderDto } from './dto/cancel-order.dto';
+import type { CreateOrderDto } from './dto/create-order.dto';
+import type { ListOrdersDto } from './dto/list-orders.dto';
+import type { UpdateOrderDto } from './dto/update-order.dto';
+import type { OrdersService } from './orders.service';
 
 @ApiTags('orders')
 @ApiBearerAuth()
@@ -49,7 +49,9 @@ export class OrdersController {
   }
 
   @Get(':id/results')
-  @ApiOperation({ summary: 'Lineas con resultados hidratados (incluye rango aplicable al paciente)' })
+  @ApiOperation({
+    summary: 'Lineas con resultados hidratados (incluye rango aplicable al paciente)',
+  })
   resultsByOrder(@CurrentUser() user: Session, @Param('id', ParseIntPipe) id: number) {
     return this.results.byOrder(requireLabId(user), id);
   }
@@ -96,7 +98,10 @@ export class OrdersController {
 
   @Patch(':id/revert')
   @Roles('admin')
-  @ApiOperation({ summary: 'Revertir a borrador (solo admin): confirmada / en_proceso / resultados_cargados / emitida -> borrador' })
+  @ApiOperation({
+    summary:
+      'Revertir a borrador (solo admin): confirmada / en_proceso / resultados_cargados / emitida -> borrador',
+  })
   revert(@CurrentUser() user: Session, @Param('id', ParseIntPipe) id: number) {
     return this.orders.revertToBorrador(requireLabId(user), id);
   }

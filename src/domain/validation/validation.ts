@@ -77,7 +77,8 @@ export function pickRangeRule(
           : (r.ageFromYears == null || age >= r.ageFromYears) &&
             (r.ageToYears == null || age < r.ageToYears);
       if (!sexMatch || !ageOk) return null;
-      const score = (ruleSex !== null ? 2 : 0) + (r.ageFromYears != null || r.ageToYears != null ? 1 : 0);
+      const score =
+        (ruleSex !== null ? 2 : 0) + (r.ageFromYears != null || r.ageToYears != null ? 1 : 0);
       return { rule: r, score };
     })
     .filter((x): x is { rule: RangeRule; score: number } => x !== null);

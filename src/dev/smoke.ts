@@ -9,9 +9,9 @@
  * y se pueden borrar manualmente si molestan.
  */
 import 'dotenv/config';
-import { createClient } from '@supabase/supabase-js';
 import { closeDb, getDb } from '@/db/client';
 import { laboratorio, user } from '@/db/schema';
+import { createClient } from '@supabase/supabase-js';
 
 const API = process.env.API_URL ?? 'http://localhost:4000/api';
 const SMOKE_EMAIL = 'smoke-admin@laboratorio.test';
@@ -154,9 +154,7 @@ async function main() {
         city: 'Santa Fe',
       }),
     );
-    results.push(
-      await call('GET /patients?q=DNI', 'GET', `/patients?q=${smokeDni}`, token),
-    );
+    results.push(await call('GET /patients?q=DNI', 'GET', `/patients?q=${smokeDni}`, token));
   }
 
   const iapos = (results[2].body as Array<{ id: number; code: string }>).find(
@@ -221,17 +219,35 @@ async function main() {
         orderId = (createOrder.body as { order: { id: number } }).order.id;
 
         results.push(await call('GET /orders/:id', 'GET', `/orders/${orderId}`, token));
-        const linesResp = await call('GET /orders/:id/lines', 'GET', `/orders/${orderId}/lines`, token);
+        const linesResp = await call(
+          'GET /orders/:id/lines',
+          'GET',
+          `/orders/${orderId}/lines`,
+          token,
+        );
         results.push(linesResp);
-        results.push(await call('PATCH /orders/:id/confirm', 'PATCH', `/orders/${orderId}/confirm`, token));
-        results.push(await call('PATCH /orders/:id/start', 'PATCH', `/orders/${orderId}/start`, token));
+        results.push(
+          await call('PATCH /orders/:id/confirm', 'PATCH', `/orders/${orderId}/confirm`, token),
+        );
+        results.push(
+          await call('PATCH /orders/:id/start', 'PATCH', `/orders/${orderId}/start`, token),
+        );
 
         // === Results flow ===
         results.push(
-          await call('GET /orders/:id/results (hidrata rangos)', 'GET', `/orders/${orderId}/results`, token),
+          await call(
+            'GET /orders/:id/results (hidrata rangos)',
+            'GET',
+            `/orders/${orderId}/results`,
+            token,
+          ),
         );
         const lines = Array.isArray(linesResp.body)
-          ? (linesResp.body as Array<{ id: number; practiceId: number | null; nbuCodeSnapshot: string }>)
+          ? (linesResp.body as Array<{
+              id: number;
+              practiceId: number | null;
+              nbuCodeSnapshot: string;
+            }>)
           : [];
         // Glucemia line (NBU 0301) tiene reference template -> debe clasificar.
         const glucoLine = lines.find((l) => l.practiceId !== null && l.nbuCodeSnapshot === '0301');
@@ -244,16 +260,20 @@ async function main() {
             }),
           );
           results.push(
-            await call('POST /results (upsert -> glucemia=180 -> high)', 'POST', '/results', token, {
-              orderPracticeId: glucoLine.id,
-              valueNumeric: '180',
-              unit: 'mg/dL',
-            }),
+            await call(
+              'POST /results (upsert -> glucemia=180 -> high)',
+              'POST',
+              '/results',
+              token,
+              {
+                orderPracticeId: glucoLine.id,
+                valueNumeric: '180',
+                unit: 'mg/dL',
+              },
+            ),
           );
         }
-        const otherLine = lines.find(
-          (l) => l.practiceId !== null && l.nbuCodeSnapshot !== '0301',
-        );
+        const otherLine = lines.find((l) => l.practiceId !== null && l.nbuCodeSnapshot !== '0301');
         if (otherLine) {
           results.push(
             await call('POST /results (texto libre, sin flag)', 'POST', '/results', token, {
@@ -285,7 +305,9 @@ async function main() {
           ),
         );
 
-        results.push(await call('PATCH /orders/:id/finalize', 'PATCH', `/orders/${orderId}/finalize`, token));
+        results.push(
+          await call('PATCH /orders/:id/finalize', 'PATCH', `/orders/${orderId}/finalize`, token),
+        );
         results.push(
           await call(
             'PATCH /orders/:id/confirm (esperando 409 FSM)',
@@ -320,15 +342,26 @@ async function main() {
           ),
         );
         results.push(
-          await call('GET /orders (filtro status=emitida)', 'GET', '/orders?status=emitida&limit=5', token),
+          await call(
+            'GET /orders (filtro status=emitida)',
+            'GET',
+            '/orders?status=emitida&limit=5',
+            token,
+          ),
         );
 
         // === Users flow (Fase 9) — self-demotion / self-deactivation ===
         results.push(await call('GET /users', 'GET', '/users', token));
         results.push(
-          await call('PATCH /users/:self/role admin (no-op)', 'PATCH', `/users/${smokeUserId}/role`, token, {
-            role: 'admin',
-          }),
+          await call(
+            'PATCH /users/:self/role admin (no-op)',
+            'PATCH',
+            `/users/${smokeUserId}/role`,
+            token,
+            {
+              role: 'admin',
+            },
+          ),
         );
         results.push(
           await call(
@@ -351,9 +384,15 @@ async function main() {
           ),
         );
         results.push(
-          await call('PATCH /users/:self/active=true (no-op)', 'PATCH', `/users/${smokeUserId}/active`, token, {
-            active: true,
-          }),
+          await call(
+            'PATCH /users/:self/active=true (no-op)',
+            'PATCH',
+            `/users/${smokeUserId}/active`,
+            token,
+            {
+              active: true,
+            },
+          ),
         );
       }
     }

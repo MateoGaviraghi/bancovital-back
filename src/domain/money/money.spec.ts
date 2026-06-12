@@ -1,3 +1,4 @@
+import Decimal from 'decimal.js';
 import {
   ZERO,
   addMoney,
@@ -10,7 +11,6 @@ import {
   toDecimal,
   toMoneyString,
 } from './money';
-import Decimal from 'decimal.js';
 
 describe('toDecimal', () => {
   it('rechaza JS number con TypeError explicito', () => {

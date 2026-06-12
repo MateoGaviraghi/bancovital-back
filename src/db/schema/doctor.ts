@@ -28,10 +28,7 @@ export const doctor = pgTable(
     matriculaActive: uniqueIndex('idx_doctor_lab_matricula_active')
       .on(t.labId, t.matricula)
       .where(sql`deleted_at IS NULL`),
-    lastNameTrgmIdx: index('idx_doctor_lastname_trgm').using(
-      'gin',
-      sql`last_name gin_trgm_ops`,
-    ),
+    lastNameTrgmIdx: index('idx_doctor_lastname_trgm').using('gin', sql`last_name gin_trgm_ops`),
     labIdx: index('idx_doctor_lab').on(t.labId),
   }),
 );

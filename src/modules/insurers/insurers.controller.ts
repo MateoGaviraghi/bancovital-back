@@ -1,12 +1,22 @@
-import { Body, Controller, Get, Param, ParseBoolPipe, ParseIntPipe, Patch, Post, Query } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Session } from '@/auth/session';
 import { CurrentUser } from '@/common/decorators/current-user.decorator';
 import { Roles } from '@/common/decorators/roles.decorator';
-import { CreateInsurerDto } from './dto/create-insurer.dto';
-import { SetUbValueDto } from './dto/set-ub-value.dto';
-import { SetActiveDto, UpdateInsurerDto } from './dto/update-insurer.dto';
-import { InsurersService } from './insurers.service';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseBoolPipe,
+  ParseIntPipe,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import type { CreateInsurerDto } from './dto/create-insurer.dto';
+import type { SetUbValueDto } from './dto/set-ub-value.dto';
+import type { SetActiveDto, UpdateInsurerDto } from './dto/update-insurer.dto';
+import type { InsurersService } from './insurers.service';
 
 @ApiTags('insurers')
 @ApiBearerAuth()

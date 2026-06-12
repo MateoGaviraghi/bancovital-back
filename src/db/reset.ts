@@ -26,9 +26,7 @@ async function runSqlFile(client: postgres.Sql, filename: string): Promise<void>
 
 async function main() {
   if (!process.argv.includes('--yes')) {
-    console.error(
-      'Refusing to run without --yes. This command DROPS all tables in schema public.',
-    );
+    console.error('Refusing to run without --yes. This command DROPS all tables in schema public.');
     process.exit(2);
   }
 

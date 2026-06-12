@@ -1,3 +1,6 @@
+import { type Session, requireLabId } from '@/auth/session';
+import { CurrentUser } from '@/common/decorators/current-user.decorator';
+import { Roles } from '@/common/decorators/roles.decorator';
 import {
   BadRequestException,
   Body,
@@ -19,12 +22,9 @@ import {
   ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
-import { requireLabId, type Session } from '@/auth/session';
-import { CurrentUser } from '@/common/decorators/current-user.decorator';
-import { Roles } from '@/common/decorators/roles.decorator';
 import { ALLOWED_IMAGE_MIME } from './asset-storage';
-import { UpdateLabConfigDto } from './dto/update-lab-config.dto';
-import { LabConfigService } from './lab-config.service';
+import type { UpdateLabConfigDto } from './dto/update-lab-config.dto';
+import type { LabConfigService } from './lab-config.service';
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
@@ -39,9 +39,7 @@ function validateImage(file: UploadedImage | undefined): void {
     throw new BadRequestException('Falta el archivo (campo "file").');
   }
   if (!ALLOWED_IMAGE_MIME.includes(file.mimetype as (typeof ALLOWED_IMAGE_MIME)[number])) {
-    throw new BadRequestException(
-      `Formato no permitido: ${file.mimetype}. Use PNG, JPG o WEBP.`,
-    );
+    throw new BadRequestException(`Formato no permitido: ${file.mimetype}. Use PNG, JPG o WEBP.`);
   }
   if (file.size > MAX_IMAGE_BYTES) {
     throw new BadRequestException('La imagen supera el maximo de 5 MB.');

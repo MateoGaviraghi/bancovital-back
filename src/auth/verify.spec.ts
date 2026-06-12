@@ -27,7 +27,9 @@ describe('parseBearer', () => {
 });
 
 type MockGetUserResult = {
-  data: { user: { id: string; email: string | null; app_metadata: Record<string, unknown> } | null };
+  data: {
+    user: { id: string; email: string | null; app_metadata: Record<string, unknown> } | null;
+  };
   error: { message: string } | null;
 };
 

@@ -1,5 +1,5 @@
-import { type ExecutionContext, createParamDecorator } from '@nestjs/common';
 import type { Session } from '@/auth/session';
+import { type ExecutionContext, createParamDecorator } from '@nestjs/common';
 
 export const CurrentUser = createParamDecorator(
   (field: keyof Session | undefined, ctx: ExecutionContext): Session | Session[keyof Session] => {

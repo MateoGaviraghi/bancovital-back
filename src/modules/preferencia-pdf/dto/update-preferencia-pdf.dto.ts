@@ -1,13 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import {
-  IsInt,
-  IsObject,
-  IsOptional,
-  Max,
-  Min,
-  ValidateNested,
-} from 'class-validator';
+import { IsInt, IsObject, IsOptional, Max, Min, ValidateNested } from 'class-validator';
 
 export class PdfLayoutCampoDto {
   @ApiProperty({ example: 120 })

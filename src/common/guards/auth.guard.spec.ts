@@ -1,9 +1,9 @@
-import { type ExecutionContext, UnauthorizedException } from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
 import type { Session } from '@/auth/session';
 import type { TenantService } from '@/auth/tenant.service';
 import type { JwtVerifier } from '@/auth/verify';
 import { IS_PUBLIC_KEY } from '@/common/decorators/public.decorator';
+import { type ExecutionContext, UnauthorizedException } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { AuthGuard } from './auth.guard';
 
 function makeCtx(headers: Record<string, string | undefined>): {

@@ -131,7 +131,9 @@ export function calculateOrderPricing(input: PricingInput): PricingOutput {
 
   const ubInsurerSnapshot = toMoneyString(new Decimal(ubInsurer));
 
-  const userLines: PricedLine[] = practices.map((p) => priceLine(p, ubInsurer, ubInsurerSnapshot, ubParticular, copayRate, false));
+  const userLines: PricedLine[] = practices.map((p) =>
+    priceLine(p, ubInsurer, ubInsurerSnapshot, ubParticular, copayRate, false),
+  );
 
   const specialInputs = buildSpecialActLines({ isUrgent, practices });
   const specialLines: PricedLine[] = specialInputs.map((p) =>
@@ -145,10 +147,7 @@ export function calculateOrderPricing(input: PricingInput): PricingOutput {
     totals: {
       particular: sumMoney(lines.map((l) => l.priceParticular)),
       insurer: sumMoney(lines.map((l) => l.priceInsurer)),
-      patientCopay: lines.reduce<MoneyString>(
-        (acc, l) => addMoney(acc, l.patientCopay),
-        ZERO,
-      ),
+      patientCopay: lines.reduce<MoneyString>((acc, l) => addMoney(acc, l.patientCopay), ZERO),
     },
     ubValueUsed: ubInsurerSnapshot,
   };

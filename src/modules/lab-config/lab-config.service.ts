@@ -1,9 +1,9 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import type { SupabaseClient } from '@supabase/supabase-js';
-import { eq } from 'drizzle-orm';
 import type { Db } from '@/db/client';
 import { DATABASE, SUPABASE_ADMIN } from '@/db/database.module';
 import { type Laboratorio, type NewLaboratorio, laboratorio } from '@/db/schema';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { eq } from 'drizzle-orm';
 import { ASSETS_BUCKET, extFromMime, uploadAssetToBucket } from './asset-storage';
 import type { UpdateLabConfigDto } from './dto/update-lab-config.dto';
 
@@ -21,7 +21,9 @@ export class LabConfigService {
       .where(eq(laboratorio.id, labId))
       .limit(1);
     if (!row) {
-      throw new NotFoundException('Laboratorio no encontrado. Contacte al administrador del sistema.');
+      throw new NotFoundException(
+        'Laboratorio no encontrado. Contacte al administrador del sistema.',
+      );
     }
     return row;
   }
@@ -63,8 +65,7 @@ export class LabConfigService {
     const current = await this.get(labId);
     const path = `lab/${labId}/${kind}.${extFromMime(file.mimetype)}`;
     await uploadAssetToBucket(this.storage, path, file.buffer, file.mimetype);
-    const column =
-      kind === 'logo' ? { logoPath: path } : { signingSignaturePath: path };
+    const column = kind === 'logo' ? { logoPath: path } : { signingSignaturePath: path };
     const [row] = await this.db
       .update(laboratorio)
       .set({ ...column, updatedAt: new Date() })
@@ -83,16 +84,11 @@ export class LabConfigService {
       .from(laboratorio)
       .where(eq(laboratorio.id, labId))
       .limit(1);
-    const value =
-      kind === 'logo' ? (row?.logoPath ?? null) : (row?.signingSignaturePath ?? null);
+    const value = kind === 'logo' ? (row?.logoPath ?? null) : (row?.signingSignaturePath ?? null);
     if (!value) {
       return { url: null, expiresInSeconds: ttlSeconds };
     }
-    if (
-      value.startsWith('http://') ||
-      value.startsWith('https://') ||
-      value.startsWith('data:')
-    ) {
+    if (value.startsWith('http://') || value.startsWith('https://') || value.startsWith('data:')) {
       return { url: value, expiresInSeconds: ttlSeconds };
     }
     const signed = await this.storage.storage

@@ -14,7 +14,10 @@ async function main() {
     WHERE table_schema = 'public' AND table_name = 'user'
     ORDER BY ordinal_position
   `;
-  console.log('Columnas actuales en public.user:', cols.map((c: Record<string, string>) => c.column_name).join(', '));
+  console.log(
+    'Columnas actuales en public.user:',
+    cols.map((c: Record<string, string>) => c.column_name).join(', '),
+  );
 
   const enumVals = await sql`
     SELECT enumlabel FROM pg_enum e
@@ -22,7 +25,10 @@ async function main() {
     WHERE t.typname = 'user_role'
     ORDER BY e.enumsortorder
   `;
-  console.log('Valores actuales de user_role enum:', enumVals.map((r: Record<string, string>) => r.enumlabel).join(', '));
+  console.log(
+    'Valores actuales de user_role enum:',
+    enumVals.map((r: Record<string, string>) => r.enumlabel).join(', '),
+  );
 
   // ── 1. Crear tabla laboratorio si no existe ──────────────────────────────
   await sql`
@@ -110,7 +116,9 @@ async function main() {
       WHERE table_schema = 'public' AND table_name = ${table} AND column_name = ${column}
     `;
     if (tableCols.length === 0) {
-      await sql.unsafe(`ALTER TABLE "${table}" ADD COLUMN lab_id bigint REFERENCES laboratorio(id) ON DELETE RESTRICT`);
+      await sql.unsafe(
+        `ALTER TABLE "${table}" ADD COLUMN lab_id bigint REFERENCES laboratorio(id) ON DELETE RESTRICT`,
+      );
       console.log(`✓ lab_id agregado a ${table}`);
     } else {
       console.log(`✓ lab_id ya existe en ${table}`);
@@ -121,4 +129,7 @@ async function main() {
   console.log('\n✓ Schema actualizado correctamente');
 }
 
-main().catch(async (e) => { console.error(e); process.exit(1); });
+main().catch(async (e) => {
+  console.error(e);
+  process.exit(1);
+});

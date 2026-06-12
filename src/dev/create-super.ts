@@ -3,14 +3,16 @@
  * Uso: pnpm tsx src/dev/create-super.ts
  */
 import 'dotenv/config';
-import { createClient } from '@supabase/supabase-js';
 import { closeDb, getDb } from '@/db/client';
 import { user } from '@/db/schema';
+import { createClient } from '@supabase/supabase-js';
 
 const SUPER_EMAIL = process.env.SUPER_EMAIL ?? 'super@bancovital.app';
 const SUPER_PASSWORD = process.env.SUPER_PASSWORD;
 if (!SUPER_PASSWORD) {
-  throw new Error('SUPER_PASSWORD no esta seteada en el entorno (.env). No se hardcodea en el repo.');
+  throw new Error(
+    'SUPER_PASSWORD no esta seteada en el entorno (.env). No se hardcodea en el repo.',
+  );
 }
 
 async function main() {
@@ -51,7 +53,7 @@ async function main() {
     .insert(user)
     .values({
       id: userId,
-      labId: null,          // cross-tenant
+      labId: null, // cross-tenant
       email: SUPER_EMAIL,
       displayName: 'Super Admin',
       role: 'super',
@@ -62,7 +64,7 @@ async function main() {
       set: { role: 'super', active: true, labId: null },
     });
 
-  console.log(`✓ Fila en public.user upserted`);
+  console.log('✓ Fila en public.user upserted');
   console.log('');
   console.log('Superusuario listo:');
   console.log(`  Email:    ${SUPER_EMAIL}`);
@@ -70,5 +72,12 @@ async function main() {
 }
 
 main()
-  .then(async () => { await closeDb(); process.exit(0); })
-  .catch(async (err) => { console.error('Error:', err); await closeDb(); process.exit(1); });
+  .then(async () => {
+    await closeDb();
+    process.exit(0);
+  })
+  .catch(async (err) => {
+    console.error('Error:', err);
+    await closeDb();
+    process.exit(1);
+  });

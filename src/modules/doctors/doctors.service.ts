@@ -1,8 +1,8 @@
-import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { and, desc, eq, ilike, isNull, or, sql } from 'drizzle-orm';
 import type { Db } from '@/db/client';
 import { DATABASE } from '@/db/database.module';
 import { type Doctor, type NewDoctor, doctor } from '@/db/schema';
+import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { and, desc, eq, ilike, isNull, or, sql } from 'drizzle-orm';
 import type { CreateDoctorDto } from './dto/create-doctor.dto';
 import type { UpdateDoctorDto } from './dto/update-doctor.dto';
 
@@ -52,7 +52,9 @@ export class DoctorsService {
     const [existing] = await this.db
       .select({ id: doctor.id })
       .from(doctor)
-      .where(and(eq(doctor.labId, labId), eq(doctor.matricula, dto.matricula), isNull(doctor.deletedAt)))
+      .where(
+        and(eq(doctor.labId, labId), eq(doctor.matricula, dto.matricula), isNull(doctor.deletedAt)),
+      )
       .limit(1);
     if (existing) throw new ConflictException('Ya existe un medico activo con esa matricula');
 

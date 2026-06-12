@@ -1,3 +1,4 @@
+import { Roles } from '@/common/decorators/roles.decorator';
 import {
   BadRequestException,
   Body,
@@ -15,13 +16,12 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { Roles } from '@/common/decorators/roles.decorator';
 import { ALLOWED_IMAGE_MIME } from '../lab-config/asset-storage';
-import { LabConfigService } from '../lab-config/lab-config.service';
-import { InviteUserDto } from '../users/dto/invite-user.dto';
-import { UsersService } from '../users/users.service';
-import { CreateLaboratorioDto, UpdateLaboratorioDto } from './dto/create-laboratorio.dto';
-import { SuperService } from './super.service';
+import type { LabConfigService } from '../lab-config/lab-config.service';
+import type { InviteUserDto } from '../users/dto/invite-user.dto';
+import type { UsersService } from '../users/users.service';
+import type { CreateLaboratorioDto, UpdateLaboratorioDto } from './dto/create-laboratorio.dto';
+import type { SuperService } from './super.service';
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
@@ -72,7 +72,9 @@ export class SuperController {
   @HttpCode(HttpStatus.OK)
   @UseInterceptors(FileInterceptor('file'))
   @ApiConsumes('multipart/form-data')
-  @ApiBody({ schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' } } } })
+  @ApiBody({
+    schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' } } },
+  })
   @ApiOperation({ summary: 'Subir / reemplazar logo de un laboratorio (desde super admin)' })
   uploadLogo(
     @Param('id', ParseIntPipe) id: number,
@@ -82,7 +84,8 @@ export class SuperController {
     if (!ALLOWED_IMAGE_MIME.includes(file.mimetype as (typeof ALLOWED_IMAGE_MIME)[number])) {
       throw new BadRequestException(`Formato no permitido: ${file.mimetype}. Use PNG, JPG o WEBP.`);
     }
-    if (file.size > MAX_IMAGE_BYTES) throw new BadRequestException('La imagen supera el máximo de 5 MB.');
+    if (file.size > MAX_IMAGE_BYTES)
+      throw new BadRequestException('La imagen supera el máximo de 5 MB.');
     return this.labConfig.uploadAsset(id, 'logo', { buffer: file.buffer, mimetype: file.mimetype });
   }
 

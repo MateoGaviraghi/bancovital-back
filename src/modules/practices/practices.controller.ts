@@ -1,3 +1,4 @@
+import { Roles } from '@/common/decorators/roles.decorator';
 import {
   BadRequestException,
   Body,
@@ -13,11 +14,10 @@ import {
   Query,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { Roles } from '@/common/decorators/roles.decorator';
-import { CatalogQueryDto } from './dto/catalog-query.dto';
-import { CreatePracticeDto } from './dto/create-practice.dto';
-import { UpdatePracticeDto } from './dto/update-practice.dto';
-import { PracticesService } from './practices.service';
+import type { CatalogQueryDto } from './dto/catalog-query.dto';
+import type { CreatePracticeDto } from './dto/create-practice.dto';
+import type { UpdatePracticeDto } from './dto/update-practice.dto';
+import type { PracticesService } from './practices.service';
 
 @ApiTags('practices')
 @ApiBearerAuth()
@@ -32,7 +32,11 @@ export class PracticesController {
     @Query('limit', new ParseIntPipe({ optional: true })) limit = 50,
     @Query('section') section?: string,
   ) {
-    return this.practices.search(q.trim(), Math.min(Math.max(limit, 1), 500), section?.trim() || undefined);
+    return this.practices.search(
+      q.trim(),
+      Math.min(Math.max(limit, 1), 500),
+      section?.trim() || undefined,
+    );
   }
 
   @Get('catalog')

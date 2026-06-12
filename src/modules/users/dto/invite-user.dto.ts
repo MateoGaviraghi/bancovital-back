@@ -1,6 +1,6 @@
+import { USER_ROLES, type UserRole } from '@/auth/session';
 import { ApiProperty } from '@nestjs/swagger';
 import { IsEmail, IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
-import { USER_ROLES, type UserRole } from '@/auth/session';
 
 export class InviteUserDto {
   @ApiProperty({ format: 'email' })
@@ -28,7 +28,10 @@ export class InviteUserDto {
   @MaxLength(40)
   matricula?: string;
 
-  @ApiProperty({ required: false, description: 'URL a la que Supabase redirige tras la invitación' })
+  @ApiProperty({
+    required: false,
+    description: 'URL a la que Supabase redirige tras la invitación',
+  })
   @IsOptional()
   @IsString()
   @MaxLength(500)

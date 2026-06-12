@@ -1,11 +1,3 @@
-import {
-  BadRequestException,
-  ConflictException,
-  Inject,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
-import { type SQL, and, asc, eq, ilike, inArray, sql } from 'drizzle-orm';
 import type { Db } from '@/db/client';
 import { DATABASE } from '@/db/database.module';
 import {
@@ -19,18 +11,21 @@ import {
   practiceUnidad,
   unidadMedida,
 } from '@/db/schema';
+import {
+  BadRequestException,
+  ConflictException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { type SQL, and, asc, eq, ilike, inArray, sql } from 'drizzle-orm';
 import type { AssociateUnidadDto } from './dto/associate-unidad.dto';
 import type { CreateUnidadMedidaDto } from './dto/create-unidad-medida.dto';
 import type { ListUnidadesMedidaDto } from './dto/list-unidades-medida.dto';
 import type { UpdateUnidadMedidaDto } from './dto/update-unidad-medida.dto';
 import type { UpsertUnidadValueDto } from './dto/upsert-unidad-value.dto';
 
-const LOADABLE_STATUSES = new Set([
-  'borrador',
-  'confirmada',
-  'en_proceso',
-  'resultados_cargados',
-]);
+const LOADABLE_STATUSES = new Set(['borrador', 'confirmada', 'en_proceso', 'resultados_cargados']);
 
 export interface UnidadCatalogResult {
   data: UnidadMedida[];
@@ -89,10 +84,7 @@ export class UnidadesMedidaService {
         .orderBy(asc(unidadMedida.nombre))
         .limit(pageSize)
         .offset((page - 1) * pageSize),
-      this.db
-        .select({ n: sql<number>`count(*)::int` })
-        .from(unidadMedida)
-        .where(where),
+      this.db.select({ n: sql<number>`count(*)::int` }).from(unidadMedida).where(where),
     ]);
 
     return { data: rows, total: totalRows[0]?.n ?? 0, page, pageSize };
@@ -120,14 +112,13 @@ export class UnidadesMedidaService {
       .select({ id: unidadMedida.id })
       .from(unidadMedida)
       .where(
-        and(
-          eq(unidadMedida.labId, labId),
-          sql`lower(${unidadMedida.nombre}) = lower(${nombre})`,
-        ),
+        and(eq(unidadMedida.labId, labId), sql`lower(${unidadMedida.nombre}) = lower(${nombre})`),
       )
       .limit(1);
     if (dup) {
-      throw new ConflictException(`Ya existe una unidad con nombre "${nombre}" en este laboratorio`);
+      throw new ConflictException(
+        `Ya existe una unidad con nombre "${nombre}" en este laboratorio`,
+      );
     }
 
     const [row] = await this.db
@@ -142,23 +133,19 @@ export class UnidadesMedidaService {
     return row;
   }
 
-  async update(
-    labId: number,
-    id: number,
-    dto: UpdateUnidadMedidaDto,
-  ): Promise<UnidadMedida> {
+  async update(labId: number, id: number, dto: UpdateUnidadMedidaDto): Promise<UnidadMedida> {
     const current = await this.byId(labId, id);
 
-    if (dto.nombre !== undefined && dto.nombre.trim().toLowerCase() !== current.nombre.toLowerCase()) {
+    if (
+      dto.nombre !== undefined &&
+      dto.nombre.trim().toLowerCase() !== current.nombre.toLowerCase()
+    ) {
       const nombre = dto.nombre.trim();
       const [dup] = await this.db
         .select({ id: unidadMedida.id })
         .from(unidadMedida)
         .where(
-          and(
-            eq(unidadMedida.labId, labId),
-            sql`lower(${unidadMedida.nombre}) = lower(${nombre})`,
-          ),
+          and(eq(unidadMedida.labId, labId), sql`lower(${unidadMedida.nombre}) = lower(${nombre})`),
         )
         .limit(1);
       if (dup && dup.id !== id) {
@@ -215,9 +202,7 @@ export class UnidadesMedidaService {
       })
       .from(practiceUnidad)
       .innerJoin(unidadMedida, eq(unidadMedida.id, practiceUnidad.unidadId))
-      .where(
-        and(eq(practiceUnidad.labId, labId), eq(practiceUnidad.practiceId, practiceId)),
-      )
+      .where(and(eq(practiceUnidad.labId, labId), eq(practiceUnidad.practiceId, practiceId)))
       .orderBy(asc(practiceUnidad.sortOrder), asc(practiceUnidad.id));
     return rows;
   }
@@ -285,14 +270,15 @@ export class UnidadesMedidaService {
       .where(and(eq(order.labId, labId), eq(orderPractice.practiceId, practiceId)));
 
     if (affectedOpIds.length > 0) {
-      await this.db
-        .delete(orderPracticeUnidadValue)
-        .where(
-          and(
-            inArray(orderPracticeUnidadValue.orderPracticeId, affectedOpIds.map((r) => r.id)),
-            eq(orderPracticeUnidadValue.unidadId, unidadId),
+      await this.db.delete(orderPracticeUnidadValue).where(
+        and(
+          inArray(
+            orderPracticeUnidadValue.orderPracticeId,
+            affectedOpIds.map((r) => r.id),
           ),
-        );
+          eq(orderPracticeUnidadValue.unidadId, unidadId),
+        ),
+      );
     }
 
     await this.db.delete(practiceUnidad).where(eq(practiceUnidad.id, assoc.id));
@@ -316,9 +302,7 @@ export class UnidadesMedidaService {
       })
       .from(practiceUnidad)
       .innerJoin(unidadMedida, eq(unidadMedida.id, practiceUnidad.unidadId))
-      .where(
-        and(eq(practiceUnidad.labId, labId), eq(practiceUnidad.practiceId, op.practiceId)),
-      )
+      .where(and(eq(practiceUnidad.labId, labId), eq(practiceUnidad.practiceId, op.practiceId)))
       .orderBy(asc(practiceUnidad.sortOrder), asc(practiceUnidad.id));
 
     if (associations.length === 0) return [];
@@ -452,11 +436,7 @@ export class UnidadesMedidaService {
   // ───────────────────────────── helpers ─────────────────────────────
 
   private async requirePractice(id: number) {
-    const [row] = await this.db
-      .select()
-      .from(practice)
-      .where(eq(practice.id, id))
-      .limit(1);
+    const [row] = await this.db.select().from(practice).where(eq(practice.id, id)).limit(1);
     if (!row) throw new NotFoundException(`Práctica ${id} no encontrada`);
     return row;
   }

@@ -92,12 +92,8 @@
           "name": "attachment_order_id_order_id_fk",
           "tableFrom": "attachment",
           "tableTo": "order",
-          "columnsFrom": [
-            "order_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["order_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -105,12 +101,8 @@
           "name": "attachment_uploaded_by_user_id_fk",
           "tableFrom": "attachment",
           "tableTo": "user",
-          "columnsFrom": [
-            "uploaded_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["uploaded_by"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -247,12 +239,8 @@
           "name": "audit_log_actor_id_user_id_fk",
           "tableFrom": "audit_log",
           "tableTo": "user",
-          "columnsFrom": [
-            "actor_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["actor_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -391,12 +379,8 @@
           "name": "doctor_created_by_user_id_fk",
           "tableFrom": "doctor",
           "tableTo": "user",
-          "columnsFrom": [
-            "created_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["created_by"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -476,9 +460,7 @@
         "insurer_code_unique": {
           "name": "insurer_code_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "code"
-          ]
+          "columns": ["code"]
         }
       },
       "policies": {},
@@ -850,12 +832,8 @@
           "name": "order_patient_id_patient_id_fk",
           "tableFrom": "order",
           "tableTo": "patient",
-          "columnsFrom": [
-            "patient_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["patient_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -863,12 +841,8 @@
           "name": "order_insurer_id_insurer_id_fk",
           "tableFrom": "order",
           "tableTo": "insurer",
-          "columnsFrom": [
-            "insurer_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["insurer_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -876,12 +850,8 @@
           "name": "order_referring_doctor_id_doctor_id_fk",
           "tableFrom": "order",
           "tableTo": "doctor",
-          "columnsFrom": [
-            "referring_doctor_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["referring_doctor_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -889,12 +859,8 @@
           "name": "order_pdf_report_signed_by_user_id_fk",
           "tableFrom": "order",
           "tableTo": "user",
-          "columnsFrom": [
-            "pdf_report_signed_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["pdf_report_signed_by"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -902,12 +868,8 @@
           "name": "order_created_by_user_id_fk",
           "tableFrom": "order",
           "tableTo": "user",
-          "columnsFrom": [
-            "created_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["created_by"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1052,12 +1014,8 @@
           "name": "order_practice_order_id_order_id_fk",
           "tableFrom": "order_practice",
           "tableTo": "order",
-          "columnsFrom": [
-            "order_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["order_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1065,12 +1023,8 @@
           "name": "order_practice_practice_id_practice_id_fk",
           "tableFrom": "order_practice",
           "tableTo": "practice",
-          "columnsFrom": [
-            "practice_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["practice_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -1243,12 +1197,8 @@
           "name": "patient_created_by_user_id_fk",
           "tableFrom": "patient",
           "tableTo": "user",
-          "columnsFrom": [
-            "created_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["created_by"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1341,12 +1291,8 @@
           "name": "payment_order_id_order_id_fk",
           "tableFrom": "payment",
           "tableTo": "order",
-          "columnsFrom": [
-            "order_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["order_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1354,12 +1300,8 @@
           "name": "payment_created_by_user_id_fk",
           "tableFrom": "payment",
           "tableTo": "user",
-          "columnsFrom": [
-            "created_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["created_by"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1643,12 +1585,8 @@
           "name": "result_order_practice_id_order_practice_id_fk",
           "tableFrom": "result",
           "tableTo": "order_practice",
-          "columnsFrom": [
-            "order_practice_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["order_practice_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1656,12 +1594,8 @@
           "name": "result_entered_by_user_id_fk",
           "tableFrom": "result",
           "tableTo": "user",
-          "columnsFrom": [
-            "entered_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["entered_by"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1669,12 +1603,8 @@
           "name": "result_reviewed_by_user_id_fk",
           "tableFrom": "result",
           "tableTo": "user",
-          "columnsFrom": [
-            "reviewed_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["reviewed_by"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1684,9 +1614,7 @@
         "result_order_practice_id_unique": {
           "name": "result_order_practice_id_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "order_practice_id"
-          ]
+          "columns": ["order_practice_id"]
         }
       },
       "policies": {},
@@ -1781,12 +1709,8 @@
           "name": "ub_value_insurer_id_insurer_id_fk",
           "tableFrom": "ub_value",
           "tableTo": "insurer",
-          "columnsFrom": [
-            "insurer_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["insurer_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -1794,12 +1718,8 @@
           "name": "ub_value_created_by_user_id_fk",
           "tableFrom": "ub_value",
           "tableTo": "user",
-          "columnsFrom": [
-            "created_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["created_by"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1867,9 +1787,7 @@
         "user_email_unique": {
           "name": "user_email_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "email"
-          ]
+          "columns": ["email"]
         }
       },
       "policies": {},
@@ -1881,31 +1799,17 @@
     "public.attachment_kind": {
       "name": "attachment_kind",
       "schema": "public",
-      "values": [
-        "prescripcion",
-        "autorizacion",
-        "dni",
-        "otros"
-      ]
+      "values": ["prescripcion", "autorizacion", "dni", "otros"]
     },
     "public.authorization_status": {
       "name": "authorization_status",
       "schema": "public",
-      "values": [
-        "no_aplica",
-        "pendiente",
-        "autorizada",
-        "rechazada"
-      ]
+      "values": ["no_aplica", "pendiente", "autorizada", "rechazada"]
     },
     "public.order_origin": {
       "name": "order_origin",
       "schema": "public",
-      "values": [
-        "ambulatorio",
-        "internacion",
-        "urgencia"
-      ]
+      "values": ["ambulatorio", "internacion", "urgencia"]
     },
     "public.order_status": {
       "name": "order_status",
@@ -1923,43 +1827,22 @@
     "public.patient_sex": {
       "name": "patient_sex",
       "schema": "public",
-      "values": [
-        "F",
-        "M",
-        "X"
-      ]
+      "values": ["F", "M", "X"]
     },
     "public.payment_method": {
       "name": "payment_method",
       "schema": "public",
-      "values": [
-        "efectivo",
-        "debito",
-        "credito",
-        "transferencia",
-        "mp",
-        "cuenta_corriente"
-      ]
+      "values": ["efectivo", "debito", "credito", "transferencia", "mp", "cuenta_corriente"]
     },
     "public.result_flag": {
       "name": "result_flag",
       "schema": "public",
-      "values": [
-        "normal",
-        "low",
-        "high",
-        "critical_low",
-        "critical_high"
-      ]
+      "values": ["normal", "low", "high", "critical_low", "critical_high"]
     },
     "public.user_role": {
       "name": "user_role",
       "schema": "public",
-      "values": [
-        "admin",
-        "recepcion",
-        "bioquimico"
-      ]
+      "values": ["admin", "recepcion", "bioquimico"]
     }
   },
   "schemas": {},

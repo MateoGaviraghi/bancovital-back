@@ -1,6 +1,5 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { Font, renderToBuffer } from '@react-pdf/renderer';
 import type {
   Laboratorio,
   Order,
@@ -10,8 +9,9 @@ import type {
   PreferenciaPdf,
   Result,
 } from '@/db/schema';
-import { type InformeData, type InformeUnidadRow, InformeTemplate } from './templates/informe';
+import { Font, renderToBuffer } from '@react-pdf/renderer';
 import { type FichaData, FichaTemplate } from './templates/ficha';
+import { type InformeData, InformeTemplate, type InformeUnidadRow } from './templates/informe';
 
 const FONTS_DIR = join(__dirname, 'fonts');
 let fontsRegistered = false;
@@ -135,14 +135,26 @@ export async function renderFichaPdf(input: RenderFichaInput): Promise<Buffer> {
 }
 
 export function buildInformeData(input: RenderInformeInput): InformeData {
-  const { order, patient, insurer, lines, resultsByLineId, unidadValuesByLineId, practiceDataById, lab } = input;
+  const {
+    order,
+    patient,
+    insurer,
+    lines,
+    resultsByLineId,
+    unidadValuesByLineId,
+    practiceDataById,
+    lab,
+  } = input;
   const logoSrc =
     input.logoDataUri !== undefined
       ? (input.logoDataUri ?? getLogoFallback())
       : lab.logoPath || getLogoFallback();
 
   const pref = input.preferenciaPdf;
-  const rawLayout = pref?.layoutConfig as { campos?: Record<string, { x: number; y: number; fontSize?: number; color?: string }> } | null | undefined;
+  const rawLayout = pref?.layoutConfig as
+    | { campos?: Record<string, { x: number; y: number; fontSize?: number; color?: string }> }
+    | null
+    | undefined;
   const layoutConfig = rawLayout?.campos ?? null;
 
   return {

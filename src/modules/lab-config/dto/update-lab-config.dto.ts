@@ -67,7 +67,11 @@ export class UpdateLabConfigDto {
   @MaxLength(500)
   logoUrl?: string;
 
-  @ApiProperty({ required: false, nullable: true, description: 'Solo lectura — ignorado en PATCH (usar POST /lab-config/logo)' })
+  @ApiProperty({
+    required: false,
+    nullable: true,
+    description: 'Solo lectura — ignorado en PATCH (usar POST /lab-config/logo)',
+  })
   @IsOptional()
   logoPath?: unknown;
 

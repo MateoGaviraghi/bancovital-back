@@ -66,19 +66,28 @@ export class CreatePracticeDto {
   @IsBoolean()
   active?: boolean;
 
-  @ApiPropertyOptional({ description: 'Valores de referencia orientativos para el bioquimico', nullable: true })
+  @ApiPropertyOptional({
+    description: 'Valores de referencia orientativos para el bioquimico',
+    nullable: true,
+  })
   @IsOptional()
   @IsString()
   @MaxLength(2000)
   referenceValue?: string | null;
 
-  @ApiPropertyOptional({ description: 'Metodologia por defecto (se imprime en el PDF)', nullable: true })
+  @ApiPropertyOptional({
+    description: 'Metodologia por defecto (se imprime en el PDF)',
+    nullable: true,
+  })
   @IsOptional()
   @IsString()
   @MaxLength(500)
   methodology?: string | null;
 
-  @ApiPropertyOptional({ default: false, description: 'true = el laboratorio la elabora; false = se deriva' })
+  @ApiPropertyOptional({
+    default: false,
+    description: 'true = el laboratorio la elabora; false = se deriva',
+  })
   @IsOptional()
   @IsBoolean()
   isElaborated?: boolean;

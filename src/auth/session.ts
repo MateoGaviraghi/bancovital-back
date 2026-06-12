@@ -2,7 +2,12 @@ import { ForbiddenException } from '@nestjs/common';
 
 export type UserRole = 'admin' | 'recepcion' | 'bioquimico' | 'super';
 
-export const USER_ROLES: readonly UserRole[] = ['admin', 'recepcion', 'bioquimico', 'super'] as const;
+export const USER_ROLES: readonly UserRole[] = [
+  'admin',
+  'recepcion',
+  'bioquimico',
+  'super',
+] as const;
 
 export interface Session {
   userId: string;
@@ -15,7 +20,9 @@ export interface Session {
 /** Extrae el labId de la sesión o lanza 403 si es superusuario (que no tiene lab propio). */
 export function requireLabId(session: Session): number {
   if (session.labId === null) {
-    throw new ForbiddenException('Los superusuarios no pueden operar sobre recursos de un laboratorio específico');
+    throw new ForbiddenException(
+      'Los superusuarios no pueden operar sobre recursos de un laboratorio específico',
+    );
   }
   return session.labId;
 }

@@ -1,11 +1,3 @@
-import {
-  BadRequestException,
-  ConflictException,
-  Inject,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
-import { and, asc, eq, inArray } from 'drizzle-orm';
 import type { Db } from '@/db/client';
 import { DATABASE } from '@/db/database.module';
 import {
@@ -22,19 +14,18 @@ import {
   result,
   unidadMedida,
 } from '@/db/schema';
+import { type RangeRule, classifyResult, pickRangeRule } from '@/domain/validation/validation';
 import {
-  type RangeRule,
-  classifyResult,
-  pickRangeRule,
-} from '@/domain/validation/validation';
+  BadRequestException,
+  ConflictException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { and, asc, eq, inArray } from 'drizzle-orm';
 import type { UpsertResultDto } from './dto/upsert-result.dto';
 
-const LOADABLE_STATUSES = new Set([
-  'borrador',
-  'confirmada',
-  'en_proceso',
-  'resultados_cargados',
-]);
+const LOADABLE_STATUSES = new Set(['borrador', 'confirmada', 'en_proceso', 'resultados_cargados']);
 
 export interface HydratedUnidadEntry {
   associationId: number;
@@ -109,10 +100,7 @@ export class ResultsService {
             .from(practiceUnidad)
             .innerJoin(unidadMedida, eq(unidadMedida.id, practiceUnidad.unidadId))
             .where(
-              and(
-                eq(practiceUnidad.labId, labId),
-                inArray(practiceUnidad.practiceId, practiceIds),
-              ),
+              and(eq(practiceUnidad.labId, labId), inArray(practiceUnidad.practiceId, practiceIds)),
             )
             .orderBy(asc(practiceUnidad.sortOrder), asc(practiceUnidad.id)),
       opIds.length === 0
@@ -196,7 +184,12 @@ export class ResultsService {
     }
 
     const [ord] = await this.db
-      .select({ id: order.id, status: order.status, patientId: order.patientId, labId: order.labId })
+      .select({
+        id: order.id,
+        status: order.status,
+        patientId: order.patientId,
+        labId: order.labId,
+      })
       .from(order)
       .where(and(eq(order.id, line.orderId), eq(order.labId, labId)))
       .limit(1);

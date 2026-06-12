@@ -1,3 +1,6 @@
+import { type Session, requireLabId } from '@/auth/session';
+import { CurrentUser } from '@/common/decorators/current-user.decorator';
+import { Roles } from '@/common/decorators/roles.decorator';
 import {
   Body,
   Controller,
@@ -10,11 +13,8 @@ import {
   Post,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { requireLabId, type Session } from '@/auth/session';
-import { CurrentUser } from '@/common/decorators/current-user.decorator';
-import { Roles } from '@/common/decorators/roles.decorator';
-import { UpsertUnidadValueDto } from './dto/upsert-unidad-value.dto';
-import { UnidadesMedidaService } from './unidades-medida.service';
+import type { UpsertUnidadValueDto } from './dto/upsert-unidad-value.dto';
+import type { UnidadesMedidaService } from './unidades-medida.service';
 
 @ApiTags('unidades-medida')
 @ApiBearerAuth()

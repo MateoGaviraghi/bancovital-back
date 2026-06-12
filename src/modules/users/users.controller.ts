@@ -1,12 +1,23 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, ParseUUIDPipe, Patch, Post } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { requireLabId, type Session } from '@/auth/session';
+import { type Session, requireLabId } from '@/auth/session';
 import { CurrentUser } from '@/common/decorators/current-user.decorator';
 import { Roles } from '@/common/decorators/roles.decorator';
-import { InviteUserDto } from './dto/invite-user.dto';
-import { SetActiveDto } from './dto/set-active.dto';
-import { SetRoleDto } from './dto/set-role.dto';
-import { UsersService } from './users.service';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+} from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import type { InviteUserDto } from './dto/invite-user.dto';
+import type { SetActiveDto } from './dto/set-active.dto';
+import type { SetRoleDto } from './dto/set-role.dto';
+import type { UsersService } from './users.service';
 
 @ApiTags('users')
 @ApiBearerAuth()
@@ -23,7 +34,9 @@ export class UsersController {
 
   @Post('invite')
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: 'Invita por email (magic link automatico). El usuario queda en este laboratorio.' })
+  @ApiOperation({
+    summary: 'Invita por email (magic link automatico). El usuario queda en este laboratorio.',
+  })
   invite(@CurrentUser() user: Session, @Body() dto: InviteUserDto) {
     return this.users.invite(requireLabId(user), dto);
   }

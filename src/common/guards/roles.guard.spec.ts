@@ -1,7 +1,7 @@
-import { type ExecutionContext, ForbiddenException } from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
 import type { Session, UserRole } from '@/auth/session';
 import { ROLES_KEY } from '@/common/decorators/roles.decorator';
+import { type ExecutionContext, ForbiddenException } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { RolesGuard } from './roles.guard';
 
 function ctxWithSession(session: Session | undefined): ExecutionContext {
@@ -23,23 +23,25 @@ describe('RolesGuard', () => {
 
   it('permite paso si el handler no tiene @Roles()', () => {
     jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(undefined);
-    expect(guard.canActivate(ctxWithSession({ userId: 'u', email: '', role: 'admin', labId: 1 }))).toBe(true);
+    expect(
+      guard.canActivate(ctxWithSession({ userId: 'u', email: '', role: 'admin', labId: 1 })),
+    ).toBe(true);
   });
 
   it('permite paso si @Roles() esta vacio', () => {
     jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue([] as UserRole[]);
-    expect(guard.canActivate(ctxWithSession({ userId: 'u', email: '', role: 'recepcion', labId: 1 }))).toBe(
-      true,
-    );
+    expect(
+      guard.canActivate(ctxWithSession({ userId: 'u', email: '', role: 'recepcion', labId: 1 })),
+    ).toBe(true);
   });
 
   it('permite paso si el rol del usuario esta en la lista', () => {
     jest
       .spyOn(reflector, 'getAllAndOverride')
       .mockImplementation((key) => (key === ROLES_KEY ? ['admin', 'recepcion'] : undefined));
-    expect(guard.canActivate(ctxWithSession({ userId: 'u', email: '', role: 'recepcion', labId: 1 }))).toBe(
-      true,
-    );
+    expect(
+      guard.canActivate(ctxWithSession({ userId: 'u', email: '', role: 'recepcion', labId: 1 })),
+    ).toBe(true);
   });
 
   it('lanza 403 si el rol no esta autorizado', () => {

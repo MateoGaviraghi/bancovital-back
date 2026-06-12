@@ -1,3 +1,6 @@
+import { type Session, requireLabId } from '@/auth/session';
+import { CurrentUser } from '@/common/decorators/current-user.decorator';
+import { Roles } from '@/common/decorators/roles.decorator';
 import {
   BadRequestException,
   Body,
@@ -21,13 +24,10 @@ import {
   ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
-import { requireLabId, type Session } from '@/auth/session';
-import { CurrentUser } from '@/common/decorators/current-user.decorator';
-import { Roles } from '@/common/decorators/roles.decorator';
 // WEBP no es soportado por @react-pdf/renderer, solo PNG y JPEG para el fondo
 const ALLOWED_FONDO_MIME = ['image/png', 'image/jpeg'] as const;
-import { UpdatePreferenciaPdfDto } from './dto/update-preferencia-pdf.dto';
-import { PreferenciaPdfService } from './preferencia-pdf.service';
+import type { UpdatePreferenciaPdfDto } from './dto/update-preferencia-pdf.dto';
+import type { PreferenciaPdfService } from './preferencia-pdf.service';
 
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 

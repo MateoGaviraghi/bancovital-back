@@ -1,5 +1,5 @@
-import { ConflictException, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import type { Order } from '@/db/schema';
+import { ConflictException, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 
 /**

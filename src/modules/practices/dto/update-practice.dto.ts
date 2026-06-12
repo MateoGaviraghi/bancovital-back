@@ -71,13 +71,19 @@ export class UpdatePracticeDto {
   @IsBoolean()
   active?: boolean;
 
-  @ApiPropertyOptional({ description: 'Valores de referencia orientativos para el bioquimico', nullable: true })
+  @ApiPropertyOptional({
+    description: 'Valores de referencia orientativos para el bioquimico',
+    nullable: true,
+  })
   @IsOptional()
   @IsString()
   @MaxLength(2000)
   referenceValue?: string | null;
 
-  @ApiPropertyOptional({ description: 'Metodologia por defecto (se imprime en el PDF)', nullable: true })
+  @ApiPropertyOptional({
+    description: 'Metodologia por defecto (se imprime en el PDF)',
+    nullable: true,
+  })
   @IsOptional()
   @IsString()
   @MaxLength(500)

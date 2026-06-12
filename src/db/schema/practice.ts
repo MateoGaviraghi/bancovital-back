@@ -1,3 +1,4 @@
+import type { ReferenceValueTemplate } from '@/domain/validation/validation';
 import { sql } from 'drizzle-orm';
 import {
   bigint,
@@ -10,7 +11,6 @@ import {
   timestamp,
   uniqueIndex,
 } from 'drizzle-orm/pg-core';
-import type { ReferenceValueTemplate } from '@/domain/validation/validation';
 
 export type { ReferenceValueTemplate } from '@/domain/validation/validation';
 

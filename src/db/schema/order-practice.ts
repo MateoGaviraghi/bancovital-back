@@ -30,9 +30,7 @@ export const orderPractice = pgTable(
     ubValueSnapshot: numeric('ub_value_snapshot', { precision: 12, scale: 2 }).notNull(),
     priceParticular: numeric('price_particular', { precision: 12, scale: 2 }).notNull(),
     priceInsurer: numeric('price_insurer', { precision: 12, scale: 2 }).notNull(),
-    patientCopay: numeric('patient_copay', { precision: 12, scale: 2 })
-      .notNull()
-      .default('0.00'),
+    patientCopay: numeric('patient_copay', { precision: 12, scale: 2 }).notNull().default('0.00'),
     authorizationStatus: authorizationStatusEnum('authorization_status')
       .notNull()
       .default('no_aplica'),

@@ -1,3 +1,6 @@
+import { type Session, requireLabId } from '@/auth/session';
+import { CurrentUser } from '@/common/decorators/current-user.decorator';
+import { Roles } from '@/common/decorators/roles.decorator';
 import {
   Body,
   Controller,
@@ -12,12 +15,9 @@ import {
   Query,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiNoContentResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { requireLabId, type Session } from '@/auth/session';
-import { CurrentUser } from '@/common/decorators/current-user.decorator';
-import { Roles } from '@/common/decorators/roles.decorator';
-import { DoctorsService } from './doctors.service';
-import { CreateDoctorDto } from './dto/create-doctor.dto';
-import { UpdateDoctorDto } from './dto/update-doctor.dto';
+import type { DoctorsService } from './doctors.service';
+import type { CreateDoctorDto } from './dto/create-doctor.dto';
+import type { UpdateDoctorDto } from './dto/update-doctor.dto';
 
 @ApiTags('doctors')
 @ApiBearerAuth()

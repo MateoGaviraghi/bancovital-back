@@ -46,19 +46,19 @@ export interface FichaData {
 }
 
 const C = {
-  primary:     '#0db5b0',
+  primary: '#0db5b0',
   primarySoft: '#e4f7f6',
-  ink:         '#1a2b3c',
-  muted:       '#4a6279',
-  subtle:      '#8ba3b5',
-  border:      '#dde4ea',
-  bandBg:      '#f4f7f9',
-  success:     '#15803d',
+  ink: '#1a2b3c',
+  muted: '#4a6279',
+  subtle: '#8ba3b5',
+  border: '#dde4ea',
+  bandBg: '#f4f7f9',
+  success: '#15803d',
   successSoft: '#dcfce7',
-  warning:     '#b45309',
+  warning: '#b45309',
   warningSoft: '#fef3c7',
-  danger:      '#b91c1c',
-  dangerSoft:  '#fee2e2',
+  danger: '#b91c1c',
+  dangerSoft: '#fee2e2',
 };
 
 const styles = StyleSheet.create({
@@ -89,7 +89,13 @@ const styles = StyleSheet.create({
   protocolLabel: { fontSize: 6, color: C.primary, fontWeight: 'bold', letterSpacing: 1.2 },
   protocolNumber: { fontSize: 9, fontWeight: 'bold', color: C.primary },
   protocolDate: { fontSize: 7, color: C.muted },
-  urgentBadge: { fontSize: 7, fontWeight: 'bold', color: C.danger, marginTop: 2, letterSpacing: 0.8 },
+  urgentBadge: {
+    fontSize: 7,
+    fontWeight: 'bold',
+    color: C.danger,
+    marginTop: 2,
+    letterSpacing: 0.8,
+  },
   infoGrid: { flexDirection: 'row', gap: 12, marginBottom: 16 },
   infoCard: {
     flex: 1,
@@ -99,11 +105,23 @@ const styles = StyleSheet.create({
     backgroundColor: C.bandBg,
     padding: 12,
   },
-  cardTitle: { fontSize: 7.5, color: C.primary, letterSpacing: 1.5, fontWeight: 'bold', marginBottom: 7 },
+  cardTitle: {
+    fontSize: 7.5,
+    color: C.primary,
+    letterSpacing: 1.5,
+    fontWeight: 'bold',
+    marginBottom: 7,
+  },
   row: { flexDirection: 'row', marginVertical: 1.5 },
   rowLabel: { width: 96, color: C.muted, fontSize: 9 },
   rowValue: { flex: 1, fontSize: 9, color: C.ink },
-  practicesTitle: { fontSize: 7.5, color: C.primary, letterSpacing: 1.5, fontWeight: 'bold', marginBottom: 6 },
+  practicesTitle: {
+    fontSize: 7.5,
+    color: C.primary,
+    letterSpacing: 1.5,
+    fontWeight: 'bold',
+    marginBottom: 6,
+  },
   table: { borderWidth: 1, borderColor: C.border, borderRadius: 6, overflow: 'hidden' },
   tableHeader: {
     flexDirection: 'row',
@@ -129,12 +147,19 @@ const styles = StyleSheet.create({
   practicaName: { fontSize: 9.5, fontWeight: 'bold', color: C.ink },
   nbuText: { fontSize: 7.5, color: C.subtle, marginTop: 1 },
   sectionText: { fontSize: 8.5, color: C.muted },
-  badge: { borderRadius: 4, paddingVertical: 2, paddingHorizontal: 5, fontSize: 7.5, fontWeight: 'bold', letterSpacing: 0.3 },
-  badgePropia:   { backgroundColor: C.successSoft, color: C.success },
-  badgeDerivar:  { backgroundColor: C.warningSoft, color: C.warning },
-  badgeAuth:     { backgroundColor: C.successSoft, color: C.success },
-  badgePendiente:{ backgroundColor: C.warningSoft, color: C.warning },
-  badgeRechazada:{ backgroundColor: C.dangerSoft, color: C.danger },
+  badge: {
+    borderRadius: 4,
+    paddingVertical: 2,
+    paddingHorizontal: 5,
+    fontSize: 7.5,
+    fontWeight: 'bold',
+    letterSpacing: 0.3,
+  },
+  badgePropia: { backgroundColor: C.successSoft, color: C.success },
+  badgeDerivar: { backgroundColor: C.warningSoft, color: C.warning },
+  badgeAuth: { backgroundColor: C.successSoft, color: C.success },
+  badgePendiente: { backgroundColor: C.warningSoft, color: C.warning },
+  badgeRechazada: { backgroundColor: C.dangerSoft, color: C.danger },
   footer: {
     position: 'absolute',
     bottom: 16,
@@ -148,7 +173,13 @@ const styles = StyleSheet.create({
     paddingTop: 6,
   },
   footerSignBox: { alignItems: 'flex-start' },
-  footerSignLine: { width: 140, borderBottomWidth: 0.5, borderBottomColor: C.border, marginTop: 32, marginBottom: 3 },
+  footerSignLine: {
+    width: 140,
+    borderBottomWidth: 0.5,
+    borderBottomColor: C.border,
+    marginTop: 32,
+    marginBottom: 3,
+  },
   footerLabel: { fontSize: 8, color: C.subtle },
   footerMeta: { textAlign: 'right', fontSize: 7.5, color: C.subtle },
 });
@@ -168,15 +199,20 @@ export function FichaTemplate({ data }: { data: FichaData }) {
   const sexLabel = data.patient.sex ? SEX_LABEL[data.patient.sex] : '—';
 
   return (
-    <Document title={`Ficha ${data.protocol.number}`} author={data.lab.legalName} subject="Ficha de trabajo">
+    <Document
+      title={`Ficha ${data.protocol.number}`}
+      author={data.lab.legalName}
+      subject="Ficha de trabajo"
+    >
       <Page size="A4" style={styles.page}>
-
         {/* ── Header ── */}
         <View style={styles.header}>
           {data.lab.logoSrc ? <Image src={data.lab.logoSrc} style={styles.logo} /> : null}
           <View style={styles.labInfo}>
             <Text style={styles.legalName}>{data.lab.legalName}</Text>
-            <Text style={styles.labLine}>{data.lab.address} — {data.lab.cityProvince}</Text>
+            <Text style={styles.labLine}>
+              {data.lab.address} — {data.lab.cityProvince}
+            </Text>
             <Text style={styles.labLine}>
               CUIT {data.lab.cuit}
               {data.lab.phone ? `  ·  Tel. ${data.lab.phone}` : ''}
@@ -208,13 +244,22 @@ export function FichaTemplate({ data }: { data: FichaData }) {
             <Text style={styles.cardTitle}>COBERTURA Y MÉDICO</Text>
             <InfoRow
               label="Obra social"
-              value={data.insurer.name + (data.insurer.affiliateNumber ? ` · ${data.insurer.affiliateNumber}` : '')}
+              value={
+                data.insurer.name +
+                (data.insurer.affiliateNumber ? ` · ${data.insurer.affiliateNumber}` : '')
+              }
             />
             <InfoRow
               label="Médico"
-              value={[data.doctor.name, data.doctor.mp ? `M.P. ${data.doctor.mp}` : null].filter(Boolean).join(' · ') || '—'}
+              value={
+                [data.doctor.name, data.doctor.mp ? `M.P. ${data.doctor.mp}` : null]
+                  .filter(Boolean)
+                  .join(' · ') || '—'
+              }
             />
-            {data.doctor.diagnosis ? <InfoRow label="Diagnóstico" value={data.doctor.diagnosis} /> : null}
+            {data.doctor.diagnosis ? (
+              <InfoRow label="Diagnóstico" value={data.doctor.diagnosis} />
+            ) : null}
             {data.doctor.notes ? <InfoRow label="Notas" value={data.doctor.notes} /> : null}
           </View>
         </View>
@@ -230,7 +275,11 @@ export function FichaTemplate({ data }: { data: FichaData }) {
             <Text style={[styles.th, styles.colAuth]}>AUTORIZACIÓN</Text>
           </View>
           {data.practices.map((p, idx) => (
-            <View key={p.nbuCode + idx} style={idx % 2 === 1 ? [styles.tableRow, styles.zebraRow] : styles.tableRow} wrap={false}>
+            <View
+              key={p.nbuCode}
+              style={idx % 2 === 1 ? [styles.tableRow, styles.zebraRow] : styles.tableRow}
+              wrap={false}
+            >
               <View style={styles.colPractica}>
                 <Text style={styles.practicaName}>{p.name}</Text>
                 <Text style={styles.nbuText}>NBU {p.nbuCode}</Text>
@@ -242,7 +291,9 @@ export function FichaTemplate({ data }: { data: FichaData }) {
                 <Text style={styles.sectionText}>{p.section ?? '—'}</Text>
               </View>
               <View style={styles.colElab}>
-                <Text style={[styles.badge, p.isElaborated ? styles.badgePropia : styles.badgeDerivar]}>
+                <Text
+                  style={[styles.badge, p.isElaborated ? styles.badgePropia : styles.badgeDerivar]}
+                >
                   {p.isElaborated ? 'PROPIA' : 'DERIVAR'}
                 </Text>
               </View>
@@ -274,7 +325,6 @@ export function FichaTemplate({ data }: { data: FichaData }) {
             <Text style={styles.footerMeta}>Impreso: {data.printedAt}</Text>
           </View>
         </View>
-
       </Page>
     </Document>
   );

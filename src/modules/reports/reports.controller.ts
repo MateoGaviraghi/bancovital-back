@@ -1,9 +1,20 @@
-import { Controller, Get, Header, HttpCode, HttpStatus, Param, ParseIntPipe, Post, Query, StreamableFile } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
-import { requireLabId, type Session } from '@/auth/session';
+import { type Session, requireLabId } from '@/auth/session';
 import { CurrentUser } from '@/common/decorators/current-user.decorator';
 import { Roles } from '@/common/decorators/roles.decorator';
-import { ReportsService } from './reports.service';
+import {
+  Controller,
+  Get,
+  Header,
+  HttpCode,
+  HttpStatus,
+  Param,
+  ParseIntPipe,
+  Post,
+  Query,
+  StreamableFile,
+} from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import type { ReportsService } from './reports.service';
 
 @ApiTags('reports')
 @ApiBearerAuth()
@@ -23,7 +34,11 @@ export class ReportsController {
 
   @Get(':orderId/signed-url')
   @Roles('admin', 'bioquimico', 'recepcion')
-  @ApiQuery({ name: 'ttlSeconds', required: false, schema: { type: 'integer', default: 900, minimum: 60, maximum: 86400 } })
+  @ApiQuery({
+    name: 'ttlSeconds',
+    required: false,
+    schema: { type: 'integer', default: 900, minimum: 60, maximum: 86400 },
+  })
   @ApiOperation({
     summary: 'URL firmada del PDF (self-healing: regenera si el blob falta)',
   })
@@ -40,7 +55,8 @@ export class ReportsController {
   @Roles('admin', 'bioquimico', 'recepcion')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Regenera el PDF de UNA orden con los datos actuales del laboratorio (resetea "stale")',
+    summary:
+      'Regenera el PDF de UNA orden con los datos actuales del laboratorio (resetea "stale")',
   })
   regenerateOne(@Param('orderId', ParseIntPipe) orderId: number, @CurrentUser() user: Session) {
     return this.reports.regenerateOne(requireLabId(user), orderId);

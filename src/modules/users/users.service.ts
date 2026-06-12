@@ -1,3 +1,9 @@
+import { type Session, USER_ROLES, type UserRole } from '@/auth/session';
+import type { TenantService } from '@/auth/tenant.service';
+import type { AppConfig } from '@/config';
+import type { Db } from '@/db/client';
+import { DATABASE, SUPABASE_ADMIN } from '@/db/database.module';
+import { type User, user } from '@/db/schema';
 import {
   ConflictException,
   Inject,
@@ -7,12 +13,6 @@ import {
 } from '@nestjs/common';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { and, eq } from 'drizzle-orm';
-import { TenantService } from '@/auth/tenant.service';
-import { USER_ROLES, type Session, type UserRole } from '@/auth/session';
-import { AppConfig } from '@/config';
-import type { Db } from '@/db/client';
-import { DATABASE, SUPABASE_ADMIN } from '@/db/database.module';
-import { type User, user } from '@/db/schema';
 import type { InviteUserDto } from './dto/invite-user.dto';
 
 export interface AdminUser {
@@ -39,10 +39,7 @@ export class UsersService {
   ) {}
 
   async list(labId: number): Promise<AdminUser[]> {
-    const projectRows = await this.db
-      .select()
-      .from(user)
-      .where(eq(user.labId, labId));
+    const projectRows = await this.db.select().from(user).where(eq(user.labId, labId));
 
     const userIds = new Set(projectRows.map((r) => r.id));
 
@@ -93,9 +90,7 @@ export class UsersService {
       app_metadata: { role: dto.role },
     });
     if (updated.error) {
-      throw new InternalServerErrorException(
-        `No se pudo asignar rol: ${updated.error.message}`,
-      );
+      throw new InternalServerErrorException(`No se pudo asignar rol: ${updated.error.message}`);
     }
 
     const [row] = await this.db
@@ -166,7 +161,12 @@ export class UsersService {
     return row;
   }
 
-  async setActive(labId: number, targetId: string, active: boolean, current: Session): Promise<User> {
+  async setActive(
+    labId: number,
+    targetId: string,
+    active: boolean,
+    current: Session,
+  ): Promise<User> {
     if (targetId === current.userId && !active) {
       throw new ConflictException('No podes desactivar tu propia cuenta');
     }

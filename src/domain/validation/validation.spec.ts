@@ -42,16 +42,17 @@ describe('pickRangeRule', () => {
   });
 
   it('matchea sexo + edad sobre solo sexo', () => {
-    const r = pickRangeRule(baseTemplate, { sex: 'F', birthDate: date(2024, 6, 1) }, date(2025, 1, 1));
+    const r = pickRangeRule(
+      baseTemplate,
+      { sex: 'F', birthDate: date(2024, 6, 1) },
+      date(2025, 1, 1),
+    );
     expect(r?.band.low).toBe('8'); // regla F 0-1
   });
 
   it('cae al default cuando no hay regla por sexo', () => {
     const t: ReferenceValueTemplate = {
-      rules: [
-        { band: { low: '5', high: '10' } },
-        { sex: 'F', band: { low: '1', high: '2' } },
-      ],
+      rules: [{ band: { low: '5', high: '10' } }, { sex: 'F', band: { low: '1', high: '2' } }],
     };
     const r = pickRangeRule(t, { sex: 'M', birthDate: date(1990) }, date(2025));
     expect(r?.band.low).toBe('5');
@@ -59,10 +60,7 @@ describe('pickRangeRule', () => {
 
   it('descarta reglas con sexo cuando patient.sex es null', () => {
     const t: ReferenceValueTemplate = {
-      rules: [
-        { sex: 'F', band: { low: '1', high: '2' } },
-        { band: { low: '5', high: '10' } },
-      ],
+      rules: [{ sex: 'F', band: { low: '1', high: '2' } }, { band: { low: '5', high: '10' } }],
     };
     const r = pickRangeRule(t, { sex: null, birthDate: date(1990) }, date(2025));
     expect(r?.band.low).toBe('5'); // cae al default
@@ -125,7 +123,9 @@ describe('classifyResult', () => {
   });
 
   it('ignora bandas no definidas', () => {
-    const onlyHigh: RangeRule = { band: { low: null, high: '50', criticalLow: null, criticalHigh: null } };
+    const onlyHigh: RangeRule = {
+      band: { low: null, high: '50', criticalLow: null, criticalHigh: null },
+    };
     expect(classifyResult('0', onlyHigh)).toBe('normal');
     expect(classifyResult('51', onlyHigh)).toBe('high');
   });

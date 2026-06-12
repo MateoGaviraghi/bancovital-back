@@ -1,7 +1,7 @@
-import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
-import { getTableName } from 'drizzle-orm';
 import type { OrderPractice, Patient, Practice } from '@/db/schema';
 import type { ReferenceValueTemplate } from '@/domain/validation/validation';
+import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
+import { getTableName } from 'drizzle-orm';
 import { ResultsService } from './results.service';
 
 /**
@@ -84,8 +84,7 @@ function makeService(state: FakeState): ResultsService {
           ? [{ id: state.line.orderId, status: state.orderStatus, patientId: 1, labId: 1 }]
           : [],
       );
-    if (name === 'practice')
-      return Promise.resolve(state.practice ? [state.practice] : []);
+    if (name === 'practice') return Promise.resolve(state.practice ? [state.practice] : []);
     if (name === 'patient') return Promise.resolve([state.patient]);
     if (name === 'result')
       return Promise.resolve(state.existingResult ? [state.existingResult] : []);
@@ -103,7 +102,9 @@ function makeService(state: FakeState): ResultsService {
     insert: jest.fn().mockImplementation(() => ({
       values: (vals: Record<string, unknown>) => ({
         returning: () =>
-          Promise.resolve([{ id: 99, ...vals, enteredAt: new Date(), reviewedBy: null, reviewedAt: null }]),
+          Promise.resolve([
+            { id: 99, ...vals, enteredAt: new Date(), reviewedBy: null, reviewedAt: null },
+          ]),
       }),
     })),
     update: jest.fn().mockImplementation(() => ({

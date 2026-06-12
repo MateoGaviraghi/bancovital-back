@@ -49,62 +49,60 @@ async function seed() {
 
   console.log('Seeding practices (catalogo minimo)...');
   const practiceRows = [
-      {
-        nbuCode: '0301',
-        name: 'Glucemia',
-        shortName: 'Glucosa',
-        category: 'Quimica clinica',
-        section: 'quimica',
-        units: '1.50',
-        isSpecialAct: false,
-        active: true,
-        referenceValueTemplate: {
-          defaultUnit: 'mg/dL',
-          methodology: 'Glucosa oxidasa',
-          rules: [
-            {
-              band: { low: '70', high: '110', criticalLow: '40', criticalHigh: '500' },
-            },
-          ],
-        },
+    {
+      nbuCode: '0301',
+      name: 'Glucemia',
+      shortName: 'Glucosa',
+      category: 'Quimica clinica',
+      section: 'quimica',
+      units: '1.50',
+      isSpecialAct: false,
+      active: true,
+      referenceValueTemplate: {
+        defaultUnit: 'mg/dL',
+        methodology: 'Glucosa oxidasa',
+        rules: [
+          {
+            band: { low: '70', high: '110', criticalLow: '40', criticalHigh: '500' },
+          },
+        ],
       },
-      {
-        nbuCode: '0501',
-        name: 'Hemograma completo',
-        shortName: 'Hemograma',
-        category: 'Hematologia',
-        section: 'hematologia',
-        units: '5.00',
-        isSpecialAct: false,
-        active: true,
+    },
+    {
+      nbuCode: '0501',
+      name: 'Hemograma completo',
+      shortName: 'Hemograma',
+      category: 'Hematologia',
+      section: 'hematologia',
+      units: '5.00',
+      isSpecialAct: false,
+      active: true,
+    },
+    {
+      nbuCode: '0902',
+      name: 'Colesterol total',
+      shortName: 'Colesterol',
+      category: 'Quimica clinica',
+      section: 'quimica',
+      units: '2.00',
+      isSpecialAct: false,
+      active: true,
+      referenceValueTemplate: {
+        defaultUnit: 'mg/dL',
+        rules: [{ band: { low: '0', high: '200', criticalHigh: '300' } }],
       },
-      {
-        nbuCode: '0902',
-        name: 'Colesterol total',
-        shortName: 'Colesterol',
-        category: 'Quimica clinica',
-        section: 'quimica',
-        units: '2.00',
-        isSpecialAct: false,
-        active: true,
-        referenceValueTemplate: {
-          defaultUnit: 'mg/dL',
-          rules: [
-            { band: { low: '0', high: '200', criticalHigh: '300' } },
-          ],
-        },
-      },
-      {
-        nbuCode: '8801',
-        name: 'Prueba de sobrecarga de glucosa (P75)',
-        shortName: 'Sobrecarga glucosa',
-        category: 'Quimica clinica',
-        section: 'quimica',
-        units: '3.00',
-        isSpecialAct: true,
-        active: true,
-      },
-    ];
+    },
+    {
+      nbuCode: '8801',
+      name: 'Prueba de sobrecarga de glucosa (P75)',
+      shortName: 'Sobrecarga glucosa',
+      category: 'Quimica clinica',
+      section: 'quimica',
+      units: '3.00',
+      isSpecialAct: true,
+      active: true,
+    },
+  ];
   await db
     .insert(practice)
     .values(practiceRows)

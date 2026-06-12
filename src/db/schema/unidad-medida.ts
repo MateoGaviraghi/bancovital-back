@@ -43,10 +43,7 @@ export const unidadMedida = pgTable(
       sql`lower(${t.nombre})`,
     ),
     labActiveIdx: index('idx_unidad_medida_lab_active').on(t.labId, t.active),
-    nombreTrgmIdx: index('idx_unidad_medida_nombre_trgm').using(
-      'gin',
-      sql`nombre gin_trgm_ops`,
-    ),
+    nombreTrgmIdx: index('idx_unidad_medida_nombre_trgm').using('gin', sql`nombre gin_trgm_ops`),
   }),
 );
 

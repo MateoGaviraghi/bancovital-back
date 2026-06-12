@@ -1,7 +1,7 @@
+import type { Order } from '@/db/schema';
+import type { OrdersService } from '@/modules/orders/orders.service';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { getTableName } from 'drizzle-orm';
-import type { Order } from '@/db/schema';
-import { OrdersService } from '@/modules/orders/orders.service';
 
 // @react-pdf/renderer es ESM. Para tests unitarios de validacion de estado no
 // renderizamos PDFs de verdad: mockeamos render.tsx que es lo que importa el service.

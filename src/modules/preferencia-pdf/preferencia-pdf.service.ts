@@ -1,11 +1,15 @@
-import { Inject, Injectable } from '@nestjs/common';
-import type { SupabaseClient } from '@supabase/supabase-js';
-import { eq } from 'drizzle-orm';
 import type { Db } from '@/db/client';
 import { DATABASE, SUPABASE_ADMIN } from '@/db/database.module';
 import { type NewPreferenciaPdf, type PreferenciaPdf, preferenciaPdf } from '@/db/schema';
 import type { PdfLayoutConfig } from '@/db/schema/preferencia-pdf';
-import { ASSETS_BUCKET, extFromMime, uploadAssetToBucket } from '@/modules/lab-config/asset-storage';
+import {
+  ASSETS_BUCKET,
+  extFromMime,
+  uploadAssetToBucket,
+} from '@/modules/lab-config/asset-storage';
+import { Inject, Injectable } from '@nestjs/common';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { eq } from 'drizzle-orm';
 import type { UpdatePreferenciaPdfDto } from './dto/update-preferencia-pdf.dto';
 
 @Injectable()
@@ -28,7 +32,7 @@ export class PreferenciaPdfService {
     const existing = await this.get(labId);
 
     const layoutConfig: PdfLayoutConfig = {
-      campos: dto.campos as PdfLayoutConfig['campos'] ?? {},
+      campos: (dto.campos as PdfLayoutConfig['campos']) ?? {},
     };
 
     if (existing) {

@@ -1,12 +1,12 @@
+import type { Session, UserRole } from '@/auth/session';
+import { ROLES_KEY } from '@/common/decorators/roles.decorator';
 import {
   type CanActivate,
   type ExecutionContext,
   ForbiddenException,
   Injectable,
 } from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
-import type { Session, UserRole } from '@/auth/session';
-import { ROLES_KEY } from '@/common/decorators/roles.decorator';
+import type { Reflector } from '@nestjs/core';
 
 @Injectable()
 export class RolesGuard implements CanActivate {

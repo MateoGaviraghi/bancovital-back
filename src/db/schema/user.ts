@@ -4,8 +4,9 @@ import { laboratorio } from './laboratorio';
 
 export const user = pgTable('user', {
   id: uuid('id').primaryKey(),
-  labId: bigint('lab_id', { mode: 'number' })
-    .references(() => laboratorio.id, { onDelete: 'restrict' }),
+  labId: bigint('lab_id', { mode: 'number' }).references(() => laboratorio.id, {
+    onDelete: 'restrict',
+  }),
   email: text('email').notNull(),
   displayName: text('display_name'),
   role: userRoleEnum('role').notNull(),

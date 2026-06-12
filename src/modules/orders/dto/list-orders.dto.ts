@@ -29,7 +29,9 @@ export class ListOrdersDto {
     description: 'Repetir param para multiple (?status=borrador&status=confirmada)',
   })
   @IsOptional()
-  @Transform(({ value }) => (Array.isArray(value) ? value : value !== undefined ? [value] : undefined))
+  @Transform(({ value }) =>
+    Array.isArray(value) ? value : value !== undefined ? [value] : undefined,
+  )
   @IsArray()
   @IsIn(STATUSES, { each: true })
   status?: OrderStatusEnum[];

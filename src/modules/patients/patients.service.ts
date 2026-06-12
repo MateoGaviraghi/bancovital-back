@@ -1,8 +1,8 @@
+import type { Db } from '@/db/client';
+import { DATABASE } from '@/db/database.module';
+import { type NewPatient, type Patient, patient } from '@/db/schema';
 import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { and, desc, eq, ilike, isNull, or, sql } from 'drizzle-orm';
-import { DATABASE } from '@/db/database.module';
-import type { Db } from '@/db/client';
-import { type NewPatient, type Patient, patient } from '@/db/schema';
 import type { CreatePatientDto } from './dto/create-patient.dto';
 import type { UpdatePatientDto } from './dto/update-patient.dto';
 
@@ -27,7 +27,11 @@ export class PatientsService {
       .where(
         and(
           baseWhere,
-          or(ilike(patient.dni, like), ilike(patient.lastName, like), ilike(patient.firstName, like)),
+          or(
+            ilike(patient.dni, like),
+            ilike(patient.lastName, like),
+            ilike(patient.firstName, like),
+          ),
         ),
       )
       .orderBy(desc(patient.createdAt))

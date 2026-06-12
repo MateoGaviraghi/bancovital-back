@@ -65,9 +65,7 @@ export class PracticesService {
 
     // El catalogo muestra solo practicas raiz (parentId IS NULL); los hijos
     // se hidratan en el campo children de cada padre.
-    const rootWhere = where
-      ? and(where, isNull(practice.parentId))
-      : isNull(practice.parentId);
+    const rootWhere = where ? and(where, isNull(practice.parentId)) : isNull(practice.parentId);
 
     const [rows, totalRows, sectionRows] = await Promise.all([
       this.db
@@ -85,9 +83,7 @@ export class PracticesService {
         .orderBy(asc(practice.section)),
     ]);
 
-    const sections = sectionRows
-      .map((r) => r.section)
-      .filter((s): s is string => Boolean(s));
+    const sections = sectionRows.map((r) => r.section).filter((s): s is string => Boolean(s));
 
     const data = await this.hydrateChildren(rows);
     return { data, total: totalRows[0]?.n ?? 0, page, pageSize, sections };
@@ -108,11 +104,7 @@ export class PracticesService {
   }
 
   async byNbuCode(code: string): Promise<Practice> {
-    const [row] = await this.db
-      .select()
-      .from(practice)
-      .where(eq(practice.nbuCode, code))
-      .limit(1);
+    const [row] = await this.db.select().from(practice).where(eq(practice.nbuCode, code)).limit(1);
     if (!row) throw new NotFoundException(`No existe la practica con codigo NBU ${code}`);
     return row;
   }
@@ -159,7 +151,8 @@ export class PracticesService {
     if ('section' in dto) set.section = dto.section?.trim() || null;
     if ('units' in dto) set.units = dto.units ?? null;
     if ('notes' in dto) set.notes = dto.notes?.trim() || null;
-    if (dto.requiresAuthorization !== undefined) set.requiresAuthorization = dto.requiresAuthorization;
+    if (dto.requiresAuthorization !== undefined)
+      set.requiresAuthorization = dto.requiresAuthorization;
     if (dto.isSpecialAct !== undefined) set.isSpecialAct = dto.isSpecialAct;
     if (dto.active !== undefined) set.active = dto.active;
     if ('parentId' in dto) set.parentId = dto.parentId ?? null;
@@ -167,11 +160,7 @@ export class PracticesService {
     if (dto.isElaborated !== undefined) set.isElaborated = dto.isElaborated;
 
     try {
-      const [row] = await this.db
-        .update(practice)
-        .set(set)
-        .where(eq(practice.id, id))
-        .returning();
+      const [row] = await this.db.update(practice).set(set).where(eq(practice.id, id)).returning();
       if (!row) throw new NotFoundException(`Práctica ${id} no encontrada.`);
       return row;
     } catch (err: unknown) {
@@ -181,7 +170,7 @@ export class PracticesService {
         'code' in err &&
         (err as { code: string }).code === '23505'
       ) {
-        throw new ConflictException(`Ya existe una práctica con ese código NBU.`);
+        throw new ConflictException('Ya existe una práctica con ese código NBU.');
       }
       throw err;
     }
@@ -191,7 +180,12 @@ export class PracticesService {
     if (parents.length === 0) return [];
     const parentIds = parents.map((p) => p.id);
     const childRows = await this.db
-      .select({ id: practice.id, nbuCode: practice.nbuCode, name: practice.name, parentId: practice.parentId })
+      .select({
+        id: practice.id,
+        nbuCode: practice.nbuCode,
+        name: practice.name,
+        parentId: practice.parentId,
+      })
       .from(practice)
       .where(and(inArray(practice.parentId, parentIds), eq(practice.active, true)))
       .orderBy(asc(practice.name));

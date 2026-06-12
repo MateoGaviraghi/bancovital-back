@@ -42,10 +42,7 @@ export const patient = pgTable(
       .on(t.labId, t.dni)
       .where(sql`deleted_at IS NULL`),
     emailIdx: index('idx_patient_email').on(t.email),
-    lastNameTrgmIdx: index('idx_patient_lastname_trgm').using(
-      'gin',
-      sql`last_name gin_trgm_ops`,
-    ),
+    lastNameTrgmIdx: index('idx_patient_lastname_trgm').using('gin', sql`last_name gin_trgm_ops`),
     labIdx: index('idx_patient_lab').on(t.labId),
   }),
 );

@@ -7,7 +7,7 @@ async function main() {
   try {
     await sql`ALTER TABLE "user" ALTER COLUMN lab_id DROP NOT NULL`;
     console.log('✓ lab_id: restricción NOT NULL eliminada');
-  } catch(e: unknown) {
+  } catch (e: unknown) {
     console.error('Error:', (e as Error).message);
   }
 

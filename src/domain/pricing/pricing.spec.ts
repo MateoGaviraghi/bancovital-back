@@ -67,21 +67,18 @@ describe('Special acts (660001 / 661200 / 662001)', () => {
   });
 
   it('inyecta los 3 special acts cuando isUrgent + isSpecialAct', () => {
-    const r = calculateOrderPricing(
-      baseInput({ isUrgent: true, practices: [PRACTICE_SPECIAL()] }),
+    const r = calculateOrderPricing(baseInput({ isUrgent: true, practices: [PRACTICE_SPECIAL()] }));
+    const codes = r.lines
+      .filter((l) => l.synthetic)
+      .map((l) => l.nbuCode)
+      .sort();
+    expect(codes).toEqual(
+      [SPECIAL_ACT_CODES.ACTO_BIOQUIMICO, SPECIAL_ACT_CODES.URGENCIA, SPECIAL_ACT_CODES.ABC].sort(),
     );
-    const codes = r.lines.filter((l) => l.synthetic).map((l) => l.nbuCode).sort();
-    expect(codes).toEqual([
-      SPECIAL_ACT_CODES.ACTO_BIOQUIMICO,
-      SPECIAL_ACT_CODES.URGENCIA,
-      SPECIAL_ACT_CODES.ABC,
-    ].sort());
   });
 
   it('special acts tienen practiceId=null y synthetic=true', () => {
-    const r = calculateOrderPricing(
-      baseInput({ isUrgent: true, practices: [PRACTICE_SPECIAL()] }),
-    );
+    const r = calculateOrderPricing(baseInput({ isUrgent: true, practices: [PRACTICE_SPECIAL()] }));
     const synths = r.lines.filter((l) => l.synthetic);
     expect(synths.every((l) => l.practiceId === null && l.synthetic === true)).toBe(true);
   });

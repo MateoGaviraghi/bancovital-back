@@ -1,3 +1,13 @@
+import type { Db } from '@/db/client';
+import { DATABASE } from '@/db/database.module';
+import { doctor, insurer, order, orderPractice, patient, practice, ubValue } from '@/db/schema';
+import type { NewOrder, NewOrderPractice, Order, OrderPractice } from '@/db/schema';
+import {
+  type PriceablePractice,
+  type PricedLine,
+  calculateOrderPricing,
+} from '@/domain/pricing/pricing';
+import { type OrderStatus, canTransition } from '@/domain/status/status';
 import {
   ConflictException,
   Inject,
@@ -6,29 +16,6 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { and, asc, desc, eq, gte, ilike, inArray, isNull, lte, or, sql } from 'drizzle-orm';
-import type { Db } from '@/db/client';
-import { DATABASE } from '@/db/database.module';
-import {
-  doctor,
-  insurer,
-  order,
-  orderPractice,
-  patient,
-  practice,
-  ubValue,
-} from '@/db/schema';
-import type {
-  NewOrder,
-  NewOrderPractice,
-  Order,
-  OrderPractice,
-} from '@/db/schema';
-import {
-  type PriceablePractice,
-  type PricedLine,
-  calculateOrderPricing,
-} from '@/domain/pricing/pricing';
-import { type OrderStatus, canTransition } from '@/domain/status/status';
 import type { CancelOrderDto } from './dto/cancel-order.dto';
 import type { CreateOrderDto, OrderPracticeInputDto } from './dto/create-order.dto';
 import type { ListOrdersDto } from './dto/list-orders.dto';
@@ -56,9 +43,7 @@ export class OrdersService {
     const practices = await this.resolvePractices(effectivePractices);
     const ubInsurer = await this.resolveCurrentUb(ins.id, ins.code);
     const ubParticular =
-      ins.code === PARTICULAR_CODE
-        ? ubInsurer
-        : await this.resolveCurrentUbByCode(PARTICULAR_CODE);
+      ins.code === PARTICULAR_CODE ? ubInsurer : await this.resolveCurrentUbByCode(PARTICULAR_CODE);
 
     const referringDoctorSnapshot = await this.resolveDoctorSnapshot(labId, dto);
 
@@ -113,7 +98,8 @@ export class OrdersService {
       const [insertedOrder] = await tx.insert(order).values(orderValues).returning();
 
       const lineRows: NewOrderPractice[] = pricing.lines.map((l: PricedLine, idx: number) => {
-        const userInput = l.practiceId !== null ? userInputByPracticeId.get(l.practiceId) : undefined;
+        const userInput =
+          l.practiceId !== null ? userInputByPracticeId.get(l.practiceId) : undefined;
         return {
           orderId: insertedOrder.id,
           practiceId: l.practiceId,
@@ -153,13 +139,14 @@ export class OrdersService {
 
     const ins = await this.resolveInsurer(effectiveInsurerId);
 
-    const doctorSnapshot = dto.referringDoctorId !== undefined || dto.referringDoctorName !== undefined
-      ? await this.resolveDoctorSnapshot(labId, {
-          referringDoctorId: dto.referringDoctorId,
-          referringDoctorName: dto.referringDoctorName,
-          referringDoctorMp: dto.referringDoctorMp,
-        } as CreateOrderDto)
-      : undefined;
+    const doctorSnapshot =
+      dto.referringDoctorId !== undefined || dto.referringDoctorName !== undefined
+        ? await this.resolveDoctorSnapshot(labId, {
+            referringDoctorId: dto.referringDoctorId,
+            referringDoctorName: dto.referringDoctorName,
+            referringDoctorMp: dto.referringDoctorMp,
+          } as CreateOrderDto)
+        : undefined;
 
     if (dto.practices) {
       const effectivePractices = await this.expandWithChildren(dto.practices);
@@ -206,7 +193,9 @@ export class OrdersService {
           .set({
             ...(dto.patientId !== undefined && { patientId: dto.patientId }),
             insurerId: ins.id,
-            ...(dto.insuranceAffiliateNumber !== undefined && { insuranceAffiliateNumber: dto.insuranceAffiliateNumber ?? null }),
+            ...(dto.insuranceAffiliateNumber !== undefined && {
+              insuranceAffiliateNumber: dto.insuranceAffiliateNumber ?? null,
+            }),
             ...(doctorSnapshot && {
               referringDoctorId: doctorSnapshot.id,
               referringDoctorName: doctorSnapshot.name,
@@ -226,7 +215,8 @@ export class OrdersService {
           .returning();
 
         const lineRows: NewOrderPractice[] = pricing.lines.map((l: PricedLine, idx: number) => {
-          const userInput = l.practiceId !== null ? userInputByPracticeId.get(l.practiceId) : undefined;
+          const userInput =
+            l.practiceId !== null ? userInputByPracticeId.get(l.practiceId) : undefined;
           return {
             orderId: id,
             practiceId: l.practiceId,
@@ -255,7 +245,9 @@ export class OrdersService {
       .set({
         ...(dto.patientId !== undefined && { patientId: dto.patientId }),
         ...(dto.insurerId !== undefined && { insurerId: ins.id }),
-        ...(dto.insuranceAffiliateNumber !== undefined && { insuranceAffiliateNumber: dto.insuranceAffiliateNumber ?? null }),
+        ...(dto.insuranceAffiliateNumber !== undefined && {
+          insuranceAffiliateNumber: dto.insuranceAffiliateNumber ?? null,
+        }),
         ...(doctorSnapshot && {
           referringDoctorId: doctorSnapshot.id,
           referringDoctorName: doctorSnapshot.name,
@@ -418,7 +410,12 @@ export class OrdersService {
     return row;
   }
 
-  async markEmitted(labId: number, id: number, pdfReportPath: string, signedBy: string): Promise<Order> {
+  async markEmitted(
+    labId: number,
+    id: number,
+    pdfReportPath: string,
+    signedBy: string,
+  ): Promise<Order> {
     const current = await this.requireOrder(labId, id);
     this.assertTransition(current.status, 'emitida');
     const [row] = await this.db
@@ -454,9 +451,16 @@ export class OrdersService {
 
   async revertToBorrador(labId: number, id: number): Promise<Order> {
     const current = await this.requireOrder(labId, id);
-    const REVERTIBLE: OrderStatus[] = ['confirmada', 'en_proceso', 'resultados_cargados', 'emitida'];
+    const REVERTIBLE: OrderStatus[] = [
+      'confirmada',
+      'en_proceso',
+      'resultados_cargados',
+      'emitida',
+    ];
     if (!REVERTIBLE.includes(current.status)) {
-      throw new ConflictException(`No se puede revertir a borrador desde el estado "${current.status}"`);
+      throw new ConflictException(
+        `No se puede revertir a borrador desde el estado "${current.status}"`,
+      );
     }
     const [row] = await this.db
       .update(order)
@@ -548,12 +552,7 @@ export class OrdersService {
     const children = await this.db
       .select()
       .from(practice)
-      .where(
-        and(
-          inArray(practice.parentId, parentIds),
-          eq(practice.active, true),
-        ),
-      );
+      .where(and(inArray(practice.parentId, parentIds), eq(practice.active, true)));
 
     const alreadyIncluded = new Set(parentIds);
     const extra: OrderPracticeInputDto[] = [];
@@ -606,7 +605,13 @@ export class OrdersService {
       const [d] = await this.db
         .select()
         .from(doctor)
-        .where(and(eq(doctor.id, dto.referringDoctorId), eq(doctor.labId, labId), isNull(doctor.deletedAt)))
+        .where(
+          and(
+            eq(doctor.id, dto.referringDoctorId),
+            eq(doctor.labId, labId),
+            isNull(doctor.deletedAt),
+          ),
+        )
         .limit(1);
       if (!d) throw new NotFoundException(`Medico ${dto.referringDoctorId} no encontrado`);
       return {
