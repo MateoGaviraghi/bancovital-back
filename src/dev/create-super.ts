@@ -7,8 +7,11 @@ import { createClient } from '@supabase/supabase-js';
 import { closeDb, getDb } from '@/db/client';
 import { user } from '@/db/schema';
 
-const SUPER_EMAIL = 'super@bancovital.app';
-const SUPER_PASSWORD = 'SuperAdmin!2026';
+const SUPER_EMAIL = process.env.SUPER_EMAIL ?? 'super@bancovital.app';
+const SUPER_PASSWORD = process.env.SUPER_PASSWORD;
+if (!SUPER_PASSWORD) {
+  throw new Error('SUPER_PASSWORD no esta seteada en el entorno (.env). No se hardcodea en el repo.');
+}
 
 async function main() {
   const adminClient = createClient(
@@ -61,9 +64,9 @@ async function main() {
 
   console.log(`✓ Fila en public.user upserted`);
   console.log('');
-  console.log('Credenciales del superusuario:');
+  console.log('Superusuario listo:');
   console.log(`  Email:    ${SUPER_EMAIL}`);
-  console.log(`  Password: ${SUPER_PASSWORD}`);
+  console.log('  Password: la de SUPER_PASSWORD en tu .env');
 }
 
 main()
