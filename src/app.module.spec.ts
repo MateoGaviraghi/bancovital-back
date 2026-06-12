@@ -19,8 +19,12 @@ process.env.SUPABASE_ANON_KEY = 'dummy-anon-key';
 process.env.SUPABASE_SERVICE_ROLE_KEY = 'dummy-service-role-key';
 
 import { DATABASE, SUPABASE_ADMIN } from '@/db/database.module';
+import { ConsumoController } from '@/modules/consumo/consumo.controller';
+import { ConsumoService } from '@/modules/consumo/consumo.service';
 import { MeController } from '@/modules/me/me.controller';
 import { MeService } from '@/modules/me/me.service';
+import { PlansController } from '@/modules/plans/plans.controller';
+import { PlansService } from '@/modules/plans/plans.service';
 import { PublicLabsController } from '@/modules/public/public-labs.controller';
 import { PublicLabsService } from '@/modules/public/public-labs.service';
 import { Test } from '@nestjs/testing';
@@ -54,6 +58,39 @@ describe('DI compile — PublicModule', () => {
         PublicLabsService,
         { provide: DATABASE, useValue: DB_STUB },
         { provide: SUPABASE_ADMIN, useValue: SUPABASE_STUB },
+      ],
+    }).compile();
+
+    expect(moduleRef).toBeDefined();
+    await moduleRef.close();
+  });
+});
+
+describe('DI compile — ConsumoModule', () => {
+  it('compiles without "can\'t resolve dependencies" errors', async () => {
+    const moduleRef = await Test.createTestingModule({
+      controllers: [ConsumoController],
+      providers: [ConsumoService, { provide: DATABASE, useValue: DB_STUB }],
+    }).compile();
+
+    expect(moduleRef).toBeDefined();
+    await moduleRef.close();
+  });
+});
+
+describe('DI compile — PlansModule', () => {
+  it('compiles without "can\'t resolve dependencies" errors', async () => {
+    const consumoStub = {
+      periodoActual: jest.fn().mockReturnValue('2026-06'),
+      getConsumoResumen: jest.fn(),
+      getConsumo: jest.fn(),
+    };
+    const moduleRef = await Test.createTestingModule({
+      controllers: [PlansController],
+      providers: [
+        PlansService,
+        { provide: DATABASE, useValue: DB_STUB },
+        { provide: ConsumoService, useValue: consumoStub },
       ],
     }).compile();
 

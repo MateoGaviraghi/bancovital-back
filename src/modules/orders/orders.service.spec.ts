@@ -38,6 +38,7 @@ function orderFixture(overrides: Partial<Order> = {}): Order {
     pdfReportRenderedAt: null,
     pdfReportSignedBy: null,
     createdBy: 'user-uuid',
+    esExcedente: false,
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,
@@ -92,8 +93,14 @@ function makeDb(state: FakeDbState) {
   };
 }
 
+const CONSUMO_STUB = {
+  registrarOrden: jest.fn().mockResolvedValue({ esExcedente: false }),
+  getOrCreateCiclo: jest.fn(),
+  periodoActual: jest.fn().mockReturnValue('2026-06'),
+} as never;
+
 function makeService(state: FakeDbState): OrdersService {
-  return new OrdersService(makeDb(state) as never);
+  return new OrdersService(makeDb(state) as never, CONSUMO_STUB);
 }
 
 describe('OrdersService FSM (confirm/start/finalize/cancel/markEmitted)', () => {

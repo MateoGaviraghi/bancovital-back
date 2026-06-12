@@ -6,7 +6,7 @@
     "useIgnoreFile": true
   },
   "files": {
-    "ignore": ["dist", "node_modules", "coverage", "**/*.md"]
+    "ignore": ["dist", "node_modules", "coverage", "**/*.md", "src/db/migrations/meta"]
   },
   "formatter": {
     "enabled": true,

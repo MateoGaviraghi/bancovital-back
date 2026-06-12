@@ -48,6 +48,7 @@ function orderFixture(overrides: Partial<Order> = {}): Order {
     pdfReportRenderedAt: null,
     pdfReportSignedBy: null,
     createdBy: 'user-uuid',
+    esExcedente: false,
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,

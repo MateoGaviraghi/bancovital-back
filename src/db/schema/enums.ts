@@ -48,3 +48,5 @@ export const attachmentKindEnum = pgEnum('attachment_kind', [
   'dni',
   'otros',
 ]);
+
+export const suscripcionEstadoEnum = pgEnum('suscripcion_estado', ['activa', 'cancelada']);

@@ -8,6 +8,7 @@ import {
   calculateOrderPricing,
 } from '@/domain/pricing/pricing';
 import { type OrderStatus, canTransition } from '@/domain/status/status';
+import { ConsumoService } from '@/modules/consumo/consumo.service';
 import {
   ConflictException,
   Inject,
@@ -30,7 +31,10 @@ export interface OrderSummary extends Order {
 
 @Injectable()
 export class OrdersService {
-  constructor(@Inject(DATABASE) private readonly db: Db) {}
+  constructor(
+    @Inject(DATABASE) private readonly db: Db,
+    private readonly consumo: ConsumoService,
+  ) {}
 
   async create(
     labId: number,
@@ -76,6 +80,9 @@ export class OrdersService {
     );
 
     return this.db.transaction(async (tx) => {
+      // Registrar consumo ANTES de insertar la orden para tener el flag correcto
+      const { esExcedente } = await this.consumo.registrarOrden(labId, tx);
+
       const orderValues: NewOrder = {
         labId,
         patientId: pat.id,
@@ -94,6 +101,7 @@ export class OrdersService {
         totalPatientCopay: pricing.totals.patientCopay,
         ubValueUsed: pricing.ubValueUsed,
         createdBy,
+        esExcedente,
       };
       const [insertedOrder] = await tx.insert(order).values(orderValues).returning();
 

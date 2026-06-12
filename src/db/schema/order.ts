@@ -62,6 +62,8 @@ export const order = pgTable(
     pdfReportRenderedAt: timestamp('pdf_report_rendered_at', { withTimezone: true }),
     pdfReportSignedBy: uuid('pdf_report_signed_by').references(() => user.id),
     createdBy: uuid('created_by').references(() => user.id),
+    /** Marcado por ConsumoService al superar cupo+rollover (soft-block: nunca bloquea la operación) */
+    esExcedente: boolean('es_excedente').notNull().default(false),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
