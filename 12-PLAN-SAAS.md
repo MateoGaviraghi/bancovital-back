@@ -9,7 +9,7 @@ Base ya existente (no rehacer): tabla `laboratorio` con `slug` UNIQUE, `labId` F
 
 | Fase | Estado |
 |---|---|
-| F1 Branding público + RLS | Implementada 2026-06-12 (commit en dev) — pendiente: aplicar migración `0006_stiff_turbo.sql` (primary_color + tagline) y deploy. RBAC operativo unificado (recepcion=bioquimico; destructivas admin-only). RLS: deny-by-default verificado conceptualmente, políticas explícitas siguen pendientes |
+| F1 Branding público + RLS | ✅ COMPLETA — en producción 2026-06-12. Migración 0006 aplicada; endpoint público de branding vivo en prod y en `bancovital-back-dev.up.railway.app` (servicio dev, branch dev, misma DB). RBAC operativo unificado. Gotcha aprendido: regla biome `useImportType` DESHABILITADA (rompe DI de Nest); spec `app.module.spec.ts` protege. RLS: políticas explícitas siguen pendientes (deny-by-default activo) |
 | F2 Planes y cuotas | Pendiente |
 | F3 Contratos + firma | Pendiente |
 | F4 Landing | No participa |
