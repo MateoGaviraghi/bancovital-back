@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); [print\\(k,':',v\\) for k,v in d.get\\('scripts',{}\\).items\\(\\)]\")",
+      "Bash(npx tsc *)",
+      "Bash(node -e \"const p = require\\('./node_modules/@react-pdf/renderer/package.json'\\); console.log\\(p.version\\)\")",
+      "Bash(node -e ' *)",
+      "Bash(git cherry-pick *)"
+    ],
+    "additionalDirectories": [
+      "/home/sfs/Projects/lab-front"
+    ]
+  }
+}

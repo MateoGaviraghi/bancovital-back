@@ -1,0 +1,52 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+dist/
+build/
+
+# Env / secrets
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+logs/
+
+# Tests / coverage
+coverage/
+.nyc_output/
+
+# IDE
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# TypeScript
+*.tsbuildinfo
+
+# Nest
+.nest-cli.tsbuildinfo
+
+# Drizzle (el meta/ del out-folder de migrations no se ignora; el legacy si)
+drizzle/meta/
+
+# Claude Code local preferences (allowlists personales, no se comparten)
+.claude/settings.local.json
+
+# MCP config (tiene el RAILWAY_API_TOKEN en texto plano)
+.mcp.json
+
+# NBU source PDFs (~10MB) — fuente de la migracion, no se versionan.
+# El dataset revisable (nbu-dataset.json) y los scripts SI se versionan.
+practicas-migration/*.pdf
+practicas-migration/__pycache__/

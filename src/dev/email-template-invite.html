@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Invitación al sistema</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f5f0e8;font-family:'Helvetica Neue',Arial,sans-serif;">
+
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:linear-gradient(160deg,#1c1200 0%,#3a2800 40%,#f5f0e8 40%);">
+    <tr>
+      <td align="center" style="padding:48px 16px 0;">
+
+        <table width="520" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.18);">
+
+          <!-- Header dorado -->
+          <tr>
+            <td style="background:linear-gradient(135deg,#c59319 0%,#e8b84b 100%);padding:36px 40px 28px;text-align:center;">
+              <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;letter-spacing:0.5px;">
+                Bancovital
+              </h1>
+              <p style="margin:6px 0 0;color:rgba(255,255,255,0.85);font-size:12px;letter-spacing:2px;text-transform:uppercase;">
+                Sistema de Gestión de Laboratorio
+              </p>
+            </td>
+          </tr>
+
+          <!-- Cuerpo -->
+          <tr>
+            <td style="padding:40px 40px 32px;">
+              <h2 style="margin:0 0 12px;color:#1c1200;font-size:20px;font-weight:700;">
+                ¡Fuiste invitado al sistema!
+              </h2>
+              <p style="margin:0 0 24px;color:#6b5e3a;font-size:15px;line-height:1.6;">
+                Tu cuenta fue creada con el email <strong style="color:#1c1200;">{{ .Email }}</strong>.
+                Hacé clic en el botón de abajo para establecer tu contraseña y acceder al sistema.
+              </p>
+
+              <table cellpadding="0" cellspacing="0" style="margin:0 auto 28px;">
+                <tr>
+                  <td style="background:linear-gradient(135deg,#c59319,#e8b84b);border-radius:8px;">
+                    <a href="{{ .ConfirmationURL }}"
+                       style="display:inline-block;padding:14px 36px;color:#1c1200;font-size:15px;font-weight:700;text-decoration:none;letter-spacing:0.3px;">
+                      Crear mi contraseña →
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <hr style="border:none;border-top:1px solid #e8e0ce;margin:0 0 24px;" />
+
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td width="32" valign="top" style="padding-top:2px;">
+                    <div style="width:24px;height:24px;background:#fdf5e0;border-radius:50%;text-align:center;line-height:24px;font-size:13px;">🔒</div>
+                  </td>
+                  <td style="padding-left:10px;color:#6b5e3a;font-size:13px;line-height:1.5;">
+                    El enlace es de uso único y expira en <strong>24 horas</strong>.
+                    Si no solicitaste esta invitación podés ignorar este correo.
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background:#faf8f3;border-top:2px solid #c59319;padding:20px 40px;text-align:center;">
+              <p style="margin:0;color:#a08a60;font-size:11px;line-height:1.5;">
+                Bancovital · Sistema de Gestión de Laboratorio<br/>
+                Este es un correo automático, no respondas este mensaje.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+
+        <p style="color:#a08a60;font-size:11px;margin:20px 0 32px;">
+          Si el botón no funciona, copiá este enlace:<br/>
+          <a href="{{ .ConfirmationURL }}" style="color:#c59319;word-break:break-all;">{{ .ConfirmationURL }}</a>
+        </p>
+
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+
+<!--
+  INSTRUCCIONES:
+  Pegar en Supabase Dashboard → Authentication → Email Templates → Invite user
+
+  REDIRECT URL a agregar en:
+  Supabase Dashboard → Authentication → URL Configuration → Redirect URLs
+  Valor: http://localhost:3000/auth/set-password
+  (y también el dominio de producción cuando corresponda)
+-->

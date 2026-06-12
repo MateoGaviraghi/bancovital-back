@@ -1,0 +1,48 @@
+# Build output (lo genera el stage build adentro del contenedor)
+dist/
+build/
+
+# Dependencias (las instala el container)
+node_modules/
+.pnpm-store/
+
+# Secretos: NUNCA entran al contenedor; Railway inyecta env vars
+.env
+.env.*
+*.pem
+*.key
+
+# Git y CI
+.git/
+.github/
+.gitignore
+
+# Tests / coverage
+coverage/
+.nyc_output/
+**/*.spec.ts
+**/*.test.ts
+test/
+
+# IDE / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Docs / markdown del repo (no se necesitan en runtime)
+*.md
+docs/
+
+# TypeScript caches
+*.tsbuildinfo
+.tsbuildinfo
+
+# Drizzle studio caches
+drizzle/meta/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
