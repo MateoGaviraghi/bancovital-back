@@ -31,14 +31,14 @@ export class PatientsController {
   }
 
   @Post()
-  @Roles('admin', 'recepcion')
+  @Roles('admin', 'recepcion', 'bioquimico')
   @ApiOperation({ summary: 'Crear paciente nuevo' })
   create(@Body() dto: CreatePatientDto, @CurrentUser() user: Session) {
     return this.patients.create(dto, requireLabId(user), user.userId);
   }
 
   @Patch(':id')
-  @Roles('admin', 'recepcion')
+  @Roles('admin', 'recepcion', 'bioquimico')
   @ApiOperation({ summary: 'Actualizar paciente existente' })
   update(
     @CurrentUser() user: Session,

@@ -55,7 +55,7 @@ export class OrdersController {
   }
 
   @Post()
-  @Roles('admin', 'recepcion')
+  @Roles('admin', 'recepcion', 'bioquimico')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Crear orden (transaccion: resolveUBs -> pricing -> snapshots)' })
   create(@Body() dto: CreateOrderDto, @CurrentUser() user: Session) {
@@ -63,7 +63,7 @@ export class OrdersController {
   }
 
   @Patch(':id')
-  @Roles('admin', 'recepcion')
+  @Roles('admin', 'recepcion', 'bioquimico')
   @ApiOperation({ summary: 'Editar orden en borrador (recalcula pricing si cambian practicas)' })
   update(
     @CurrentUser() user: Session,
@@ -74,21 +74,21 @@ export class OrdersController {
   }
 
   @Patch(':id/confirm')
-  @Roles('admin', 'recepcion')
+  @Roles('admin', 'recepcion', 'bioquimico')
   @ApiOperation({ summary: 'borrador -> confirmada' })
   confirm(@CurrentUser() user: Session, @Param('id', ParseIntPipe) id: number) {
     return this.orders.confirm(requireLabId(user), id);
   }
 
   @Patch(':id/start')
-  @Roles('admin', 'bioquimico')
+  @Roles('admin', 'recepcion', 'bioquimico')
   @ApiOperation({ summary: 'confirmada -> en_proceso (bio comienza a procesar)' })
   start(@CurrentUser() user: Session, @Param('id', ParseIntPipe) id: number) {
     return this.orders.start(requireLabId(user), id);
   }
 
   @Patch(':id/finalize')
-  @Roles('admin', 'bioquimico')
+  @Roles('admin', 'recepcion', 'bioquimico')
   @ApiOperation({ summary: 'en_proceso -> resultados_cargados' })
   finalize(@CurrentUser() user: Session, @Param('id', ParseIntPipe) id: number) {
     return this.orders.finalize(requireLabId(user), id);

@@ -1,8 +1,15 @@
-import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { eq } from 'drizzle-orm';
 import type { Db } from '@/db/client';
 import { DATABASE } from '@/db/database.module';
 import { laboratorio } from '@/db/schema';
+import { RESERVED_SLUGS } from '@/domain/slug/reserved-slugs';
+import {
+  BadRequestException,
+  ConflictException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { eq } from 'drizzle-orm';
 import type { CreateLaboratorioDto, UpdateLaboratorioDto } from './dto/create-laboratorio.dto';
 
 @Injectable()
@@ -20,6 +27,7 @@ export class SuperService {
   }
 
   async create(dto: CreateLaboratorioDto) {
+    this.assertSlugNotReserved(dto.slug);
     try {
       const [row] = await this.db
         .insert(laboratorio)
@@ -46,11 +54,19 @@ export class SuperService {
   }
 
   async update(id: number, dto: UpdateLaboratorioDto) {
+    if (dto.slug !== undefined) this.assertSlugNotReserved(dto.slug);
     await this.findOne(id);
+    const patch = {
+      ...dto,
+      ...(dto.primaryColor !== undefined && dto.primaryColor !== null
+        ? { primaryColor: dto.primaryColor.toLowerCase() }
+        : {}),
+      updatedAt: new Date(),
+    };
     try {
       const [row] = await this.db
         .update(laboratorio)
-        .set({ ...dto, updatedAt: new Date() })
+        .set(patch)
         .where(eq(laboratorio.id, id))
         .returning();
       return row;
@@ -64,5 +80,13 @@ export class SuperService {
   async remove(id: number) {
     await this.findOne(id);
     await this.db.delete(laboratorio).where(eq(laboratorio.id, id));
+  }
+
+  private assertSlugNotReserved(slug: string): void {
+    if ((RESERVED_SLUGS as readonly string[]).includes(slug)) {
+      throw new BadRequestException(
+        `El slug '${slug}' está reservado por el sistema y no puede ser usado`,
+      );
+    }
   }
 }

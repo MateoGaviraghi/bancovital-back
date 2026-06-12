@@ -3,7 +3,9 @@ import { IsIn, IsOptional, IsString, Matches, MaxLength } from 'class-validator'
 export class CreateLaboratorioDto {
   @IsString()
   @MaxLength(63)
-  @Matches(/^[a-z0-9-]+$/, { message: 'slug solo puede contener minúsculas, números y guiones' })
+  @Matches(/^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$/, {
+    message: 'slug debe tener formato válido (minúsculas, números, guiones; no puede empezar ni terminar con guion)',
+  })
   slug!: string;
 
   @IsString()
@@ -52,7 +54,9 @@ export class UpdateLaboratorioDto {
   @IsOptional()
   @IsString()
   @MaxLength(63)
-  @Matches(/^[a-z0-9-]+$/, { message: 'slug solo puede contener minúsculas, números y guiones' })
+  @Matches(/^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$/, {
+    message: 'slug debe tener formato válido (minúsculas, números, guiones; no puede empezar ni terminar con guion)',
+  })
   slug?: string;
 
   @IsOptional()
@@ -100,4 +104,14 @@ export class UpdateLaboratorioDto {
   @IsOptional()
   @IsIn(['activo', 'suspendido', 'inactivo'])
   estado?: 'activo' | 'suspendido' | 'inactivo';
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^#[0-9a-fA-F]{6}$/, { message: 'primaryColor debe ser un hex de 6 dígitos (ej: #3a7bd5)' })
+  primaryColor?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120, { message: 'tagline no puede superar 120 caracteres' })
+  tagline?: string | null;
 }

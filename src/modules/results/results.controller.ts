@@ -13,7 +13,7 @@ export class ResultsController {
   constructor(private readonly results: ResultsService) {}
 
   @Post()
-  @Roles('admin', 'bioquimico')
+  @Roles('admin', 'recepcion', 'bioquimico')
   @ApiOperation({
     summary: 'Upsert de resultado (calcula flag automaticamente si valueNumeric)',
   })

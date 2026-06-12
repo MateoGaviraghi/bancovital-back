@@ -12,7 +12,7 @@ export class ReportsController {
   constructor(private readonly reports: ReportsService) {}
 
   @Post(':orderId/emit')
-  @Roles('admin', 'bioquimico')
+  @Roles('admin', 'recepcion', 'bioquimico')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Renderiza PDF, sube a Storage y transiciona la orden a "emitida"',

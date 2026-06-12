@@ -9,29 +9,28 @@ describe('auth-policies.can', () => {
     expect(can('admin', 'doctor.delete')).toBe(true);
   });
 
-  it('recepcion crea pacientes y ordenes pero NO cancela ni emite', () => {
-    expect(can('recepcion', 'patient.create')).toBe(true);
-    expect(can('recepcion', 'order.create')).toBe(true);
-    expect(can('recepcion', 'order.confirm')).toBe(true);
-    expect(can('recepcion', 'order.cancel')).toBe(false);
-    expect(can('recepcion', 'result.upsert')).toBe(false);
-    expect(can('recepcion', 'report.emit')).toBe(false);
-    expect(can('recepcion', 'doctor.delete')).toBe(false);
-  });
-
-  it('bioquimico carga resultados y emite pero NO toca pacientes ni ordenes', () => {
-    expect(can('bioquimico', 'result.upsert')).toBe(true);
-    expect(can('bioquimico', 'report.emit')).toBe(true);
-    expect(can('bioquimico', 'order.finalize')).toBe(true);
-    expect(can('bioquimico', 'patient.create')).toBe(false);
-    expect(can('bioquimico', 'order.create')).toBe(false);
-    expect(can('bioquimico', 'order.cancel')).toBe(false);
-    expect(can('bioquimico', 'lab.update')).toBe(false);
+  it('recepcion y bioquimico tienen permisos operativos identicos', () => {
+    for (const role of ['recepcion', 'bioquimico'] as const) {
+      expect(can(role, 'patient.create')).toBe(true);
+      expect(can(role, 'patient.update')).toBe(true);
+      expect(can(role, 'doctor.create')).toBe(true);
+      expect(can(role, 'doctor.update')).toBe(true);
+      expect(can(role, 'order.create')).toBe(true);
+      expect(can(role, 'order.confirm')).toBe(true);
+      expect(can(role, 'order.finalize')).toBe(true);
+      expect(can(role, 'result.upsert')).toBe(true);
+      expect(can(role, 'report.emit')).toBe(true);
+      // restricciones compartidas
+      expect(can(role, 'order.cancel')).toBe(false);
+      expect(can(role, 'doctor.delete')).toBe(false);
+      expect(can(role, 'lab.update')).toBe(false);
+      expect(can(role, 'user.manage')).toBe(false);
+    }
   });
 
   it('rolesFor devuelve la lista para uso con @Roles()', () => {
     expect(rolesFor('order.cancel')).toEqual(['admin']);
-    expect(rolesFor('patient.create')).toEqual(['admin', 'recepcion']);
-    expect(rolesFor('report.emit')).toEqual(['admin', 'bioquimico']);
+    expect(rolesFor('patient.create')).toEqual(['admin', 'recepcion', 'bioquimico']);
+    expect(rolesFor('report.emit')).toEqual(['admin', 'recepcion', 'bioquimico']);
   });
 });

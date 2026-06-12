@@ -43,6 +43,13 @@
       "when": 1781277925285,
       "tag": "0005_dry_grim_reaper",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1781291618641,
+      "tag": "0006_stiff_turbo",
+      "breakpoints": true
     }
   ]
 }

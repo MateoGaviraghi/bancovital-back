@@ -42,14 +42,14 @@ export class DoctorsController {
   }
 
   @Post()
-  @Roles('admin', 'recepcion')
+  @Roles('admin', 'recepcion', 'bioquimico')
   @ApiOperation({ summary: 'Crear medico derivante' })
   create(@Body() dto: CreateDoctorDto, @CurrentUser() user: Session) {
     return this.doctors.create(dto, requireLabId(user), user.userId);
   }
 
   @Patch(':id')
-  @Roles('admin', 'recepcion')
+  @Roles('admin', 'recepcion', 'bioquimico')
   @ApiOperation({ summary: 'Actualizar medico' })
   update(
     @CurrentUser() user: Session,

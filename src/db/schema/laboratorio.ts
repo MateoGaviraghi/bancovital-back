@@ -18,6 +18,8 @@ export const laboratorio = pgTable('laboratorio', {
   signingProfessionalMp: text('signing_professional_mp'),
   signingSignaturePath: text('signing_signature_path'),
   logoPath: text('logo_path'),
+  primaryColor: text('primary_color'),
+  tagline: text('tagline'),
   estado: estadoLabEnum('estado').notNull().default('activo'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),

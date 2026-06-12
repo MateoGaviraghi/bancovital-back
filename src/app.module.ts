@@ -15,6 +15,7 @@ import { OrdersModule } from './modules/orders/orders.module';
 import { PatientsModule } from './modules/patients/patients.module';
 import { PracticesModule } from './modules/practices/practices.module';
 import { PreferenciaPdfModule } from './modules/preferencia-pdf/preferencia-pdf.module';
+import { PublicModule } from './modules/public/public.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { ResultsModule } from './modules/results/results.module';
 import { SuperModule } from './modules/super/super.module';
@@ -43,6 +44,7 @@ import { UsersModule } from './modules/users/users.module';
     PreferenciaPdfModule,
     SuperModule,
     UnidadesMedidaModule,
+    PublicModule,
   ],
   providers: [
     AppConfig,
