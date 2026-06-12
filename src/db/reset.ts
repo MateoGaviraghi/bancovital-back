@@ -1,8 +1,9 @@
 /**
- * DESTRUCTIVE: drops everything in the public schema and re-applies the full
- * setup (extensions, sequence, Drizzle migrations, RLS, triggers). All data
- * in public.* is permanently lost. Auth/storage/other Supabase schemas are
- * untouched.
+ * DESTRUCTIVE: drops everything in the public schema (and the drizzle
+ * migration journal, so migrations re-apply from 0000) and re-applies the
+ * full setup (extensions, sequence, Drizzle migrations, RLS, triggers). All
+ * data in public.* is permanently lost. Auth/storage/other Supabase schemas
+ * are untouched.
  *
  * Requires --yes to run.
  */
@@ -45,6 +46,7 @@ async function main() {
     console.log('\n1) DROP + recreate schema public...');
     await raw.unsafe(`
       DROP SCHEMA IF EXISTS public CASCADE;
+      DROP SCHEMA IF EXISTS drizzle CASCADE;
       CREATE SCHEMA public;
       GRANT ALL ON SCHEMA public TO postgres;
       GRANT ALL ON SCHEMA public TO anon;
