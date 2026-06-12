@@ -27,7 +27,7 @@ import {
 // WEBP no es soportado por @react-pdf/renderer, solo PNG y JPEG para el fondo
 const ALLOWED_FONDO_MIME = ['image/png', 'image/jpeg'] as const;
 import type { UpdatePreferenciaPdfDto } from './dto/update-preferencia-pdf.dto';
-import type { PreferenciaPdfService } from './preferencia-pdf.service';
+import { PreferenciaPdfService } from './preferencia-pdf.service';
 
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 

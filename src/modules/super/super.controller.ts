@@ -17,11 +17,11 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ALLOWED_IMAGE_MIME } from '../lab-config/asset-storage';
-import type { LabConfigService } from '../lab-config/lab-config.service';
+import { LabConfigService } from '../lab-config/lab-config.service';
 import type { InviteUserDto } from '../users/dto/invite-user.dto';
-import type { UsersService } from '../users/users.service';
+import { UsersService } from '../users/users.service';
 import type { CreateLaboratorioDto, UpdateLaboratorioDto } from './dto/create-laboratorio.dto';
-import type { SuperService } from './super.service';
+import { SuperService } from './super.service';
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 

@@ -14,7 +14,7 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { AssociateUnidadDto } from './dto/associate-unidad.dto';
-import type { UnidadesMedidaService } from './unidades-medida.service';
+import { UnidadesMedidaService } from './unidades-medida.service';
 
 @ApiTags('unidades-medida')
 @ApiBearerAuth()

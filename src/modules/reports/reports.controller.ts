@@ -14,7 +14,7 @@ import {
   StreamableFile,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
-import type { ReportsService } from './reports.service';
+import { ReportsService } from './reports.service';
 
 @ApiTags('reports')
 @ApiBearerAuth()

@@ -14,7 +14,7 @@ import {
 } from '@/db/schema';
 import type { Order, OrderPracticeUnidadValue, Result } from '@/db/schema';
 import { resolveAssetDataUri } from '@/modules/lab-config/asset-storage';
-import type { OrdersService } from '@/modules/orders/orders.service';
+import { OrdersService } from '@/modules/orders/orders.service';
 import { renderFichaPdf, renderInformePdf } from '@/pdf/render';
 import {
   ConflictException,

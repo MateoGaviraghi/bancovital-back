@@ -17,7 +17,7 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { CatalogQueryDto } from './dto/catalog-query.dto';
 import type { CreatePracticeDto } from './dto/create-practice.dto';
 import type { UpdatePracticeDto } from './dto/update-practice.dto';
-import type { PracticesService } from './practices.service';
+import { PracticesService } from './practices.service';
 
 @ApiTags('practices')
 @ApiBearerAuth()

@@ -1,10 +1,10 @@
 import { JWT_VERIFIER } from '@/auth/auth.module';
 import type { Session } from '@/auth/session';
-import type { TenantService } from '@/auth/tenant.service';
+import { TenantService } from '@/auth/tenant.service';
 import type { JwtVerifier, PartialSession } from '@/auth/verify';
 import { IS_PUBLIC_KEY } from '@/common/decorators/public.decorator';
 import { type CanActivate, type ExecutionContext, Inject, Injectable } from '@nestjs/common';
-import type { Reflector } from '@nestjs/core';
+import { Reflector } from '@nestjs/core';
 
 @Injectable()
 export class AuthGuard implements CanActivate {

@@ -17,7 +17,7 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { InviteUserDto } from './dto/invite-user.dto';
 import type { SetActiveDto } from './dto/set-active.dto';
 import type { SetRoleDto } from './dto/set-role.dto';
-import type { UsersService } from './users.service';
+import { UsersService } from './users.service';
 
 @ApiTags('users')
 @ApiBearerAuth()

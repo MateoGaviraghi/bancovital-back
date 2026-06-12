@@ -1,7 +1,7 @@
 import { type Session, requireLabId } from '@/auth/session';
 import { CurrentUser } from '@/common/decorators/current-user.decorator';
 import { Roles } from '@/common/decorators/roles.decorator';
-import type { ResultsService } from '@/modules/results/results.service';
+import { ResultsService } from '@/modules/results/results.service';
 import {
   Body,
   Controller,
@@ -19,7 +19,7 @@ import type { CancelOrderDto } from './dto/cancel-order.dto';
 import type { CreateOrderDto } from './dto/create-order.dto';
 import type { ListOrdersDto } from './dto/list-orders.dto';
 import type { UpdateOrderDto } from './dto/update-order.dto';
-import type { OrdersService } from './orders.service';
+import { OrdersService } from './orders.service';
 
 @ApiTags('orders')
 @ApiBearerAuth()

@@ -16,7 +16,7 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { CreateInsurerDto } from './dto/create-insurer.dto';
 import type { SetUbValueDto } from './dto/set-ub-value.dto';
 import type { SetActiveDto, UpdateInsurerDto } from './dto/update-insurer.dto';
-import type { InsurersService } from './insurers.service';
+import { InsurersService } from './insurers.service';
 
 @ApiTags('insurers')
 @ApiBearerAuth()

@@ -24,7 +24,7 @@ import {
 } from '@nestjs/swagger';
 import { ALLOWED_IMAGE_MIME } from './asset-storage';
 import type { UpdateLabConfigDto } from './dto/update-lab-config.dto';
-import type { LabConfigService } from './lab-config.service';
+import { LabConfigService } from './lab-config.service';
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 

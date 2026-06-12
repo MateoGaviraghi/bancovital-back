@@ -5,7 +5,7 @@ import { Body, Controller, Get, Param, ParseIntPipe, Patch, Post, Query } from '
 import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { CreatePatientDto } from './dto/create-patient.dto';
 import type { UpdatePatientDto } from './dto/update-patient.dto';
-import type { PatientsService } from './patients.service';
+import { PatientsService } from './patients.service';
 
 @ApiTags('patients')
 @ApiBearerAuth()

@@ -2,7 +2,7 @@ import { Public } from '@/common/decorators/public.decorator';
 import { Controller, Get, Header, Param, UseGuards } from '@nestjs/common';
 import { ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ThrottlerGuard } from '@nestjs/throttler';
-import type { PublicLabsService } from './public-labs.service';
+import { PublicLabsService } from './public-labs.service';
 
 @ApiTags('public')
 @Controller('public/labs')

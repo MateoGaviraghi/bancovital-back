@@ -4,7 +4,7 @@ import { Roles } from '@/common/decorators/roles.decorator';
 import { Body, Controller, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { UpsertResultDto } from './dto/upsert-result.dto';
-import type { ResultsService } from './results.service';
+import { ResultsService } from './results.service';
 
 @ApiTags('results')
 @ApiBearerAuth()

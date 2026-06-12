@@ -1,6 +1,6 @@
 import { type Session, USER_ROLES, type UserRole } from '@/auth/session';
-import type { TenantService } from '@/auth/tenant.service';
-import type { AppConfig } from '@/config';
+import { TenantService } from '@/auth/tenant.service';
+import { AppConfig } from '@/config';
 import type { Db } from '@/db/client';
 import { DATABASE, SUPABASE_ADMIN } from '@/db/database.module';
 import { type User, user } from '@/db/schema';

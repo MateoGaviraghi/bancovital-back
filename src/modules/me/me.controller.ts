@@ -2,7 +2,7 @@ import type { Session } from '@/auth/session';
 import { CurrentUser } from '@/common/decorators/current-user.decorator';
 import { Controller, Get } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
-import type { MeService } from './me.service';
+import { MeService } from './me.service';
 
 @ApiTags('me')
 @ApiBearerAuth()

@@ -15,7 +15,7 @@ import {
   Query,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiNoContentResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
-import type { DoctorsService } from './doctors.service';
+import { DoctorsService } from './doctors.service';
 import type { CreateDoctorDto } from './dto/create-doctor.dto';
 import type { UpdateDoctorDto } from './dto/update-doctor.dto';
 
