@@ -6,11 +6,12 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Param,
   Post,
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { CreateReunionDto } from './dto/reuniones.dto';
 import { ReunionesService } from './reuniones.service';
@@ -48,5 +49,31 @@ export class ReunionesPublicController {
   @ApiOperation({ summary: 'Reservar una reunión con Nodo' })
   crear(@Body() dto: CreateReunionDto) {
     return this.reunionesService.crear(dto);
+  }
+
+  @Get('by-token/:token')
+  @Throttle({ bookingsToken: { limit: 30, ttl: 60_000 } })
+  @ApiOperation({ summary: 'Obtener datos de una reunión por token (para confirmar/cancelar)' })
+  @ApiParam({ name: 'token', description: 'Token único de la reunión (hex 64 chars)' })
+  getByToken(@Param('token') token: string) {
+    return this.reunionesService.getByToken(token);
+  }
+
+  @Post('by-token/:token/confirm')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ bookingsToken: { limit: 30, ttl: 60_000 } })
+  @ApiOperation({ summary: 'Confirmar asistencia desde el link del email' })
+  @ApiParam({ name: 'token', description: 'Token único de la reunión' })
+  confirmarAsistencia(@Param('token') token: string) {
+    return this.reunionesService.confirmarAsistencia(token);
+  }
+
+  @Post('by-token/:token/cancel')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ bookingsToken: { limit: 30, ttl: 60_000 } })
+  @ApiOperation({ summary: 'Cancelar una reunión desde el link del email' })
+  @ApiParam({ name: 'token', description: 'Token único de la reunión' })
+  cancelarByToken(@Param('token') token: string) {
+    return this.reunionesService.cancelarByToken(token);
   }
 }

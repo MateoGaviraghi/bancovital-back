@@ -87,7 +87,13 @@ export class MailService {
 
   async sendReunionConfirmacion(
     to: string,
-    data: { nombre: string; slotInicio: Date; slotFin: Date; meetLink: string | null },
+    data: {
+      nombre: string;
+      slotInicio: Date;
+      slotFin: Date;
+      meetLink: string | null;
+      token: string;
+    },
   ): Promise<void> {
     const fechaStr = data.slotInicio.toLocaleString('es-AR', {
       timeZone: 'America/Argentina/Buenos_Aires',
@@ -106,6 +112,10 @@ export class MailService {
       hour: '2-digit',
       minute: '2-digit',
     });
+
+    const appUrl = this.appConfig.env.APP_URL;
+    const confirmarUrl = `${appUrl}/reunion/${data.token}?accion=confirmar`;
+    const cancelarUrl = `${appUrl}/reunion/${data.token}?accion=cancelar`;
 
     const meetBlock = data.meetLink
       ? `<p style="margin:0 0 24px; font-size:14px; color:#444; line-height:1.6;">
@@ -139,8 +149,25 @@ export class MailService {
               <p style="margin:0; font-size:14px; color:#444;">${horaInicio} – ${horaFin} (hora Argentina)</p>
             </div>
             ${meetBlock}
+            <p style="margin:0 0 16px; font-size:14px; color:#444; line-height:1.6; font-weight:600;">Avisanos si vas a asistir:</p>
+            <table cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
+              <tr>
+                <td style="padding-right:12px;">
+                  <a href="${confirmarUrl}"
+                     style="display:inline-block; padding:12px 24px; background:#8b2fef; color:#ffffff; font-size:14px; font-weight:600; text-decoration:none; border-radius:4px;">
+                    Confirmar asistencia
+                  </a>
+                </td>
+                <td>
+                  <a href="${cancelarUrl}"
+                     style="display:inline-block; padding:12px 24px; background:#ffffff; color:#444444; font-size:14px; font-weight:600; text-decoration:none; border-radius:4px; border:1px solid #cccccc;">
+                    No podré asistir
+                  </a>
+                </td>
+              </tr>
+            </table>
             <p style="margin:0; font-size:12px; color:#888; line-height:1.6;">
-              Si necesitás reprogramar o cancelar, respondé este email con anticipación.
+              Si necesitás reprogramar, respondé este email con anticipación.
             </p>
           </td>
         </tr>
@@ -172,6 +199,82 @@ export class MailService {
 
     if (process.env.OTP_DEV_LOG === '1') {
       this.logger.warn(`[REUNION DEV] Confirmación a ${to} — ${fechaStr} ${horaInicio}`);
+    }
+  }
+
+  async sendAsistenciaConfirmada(
+    to: string,
+    reunion: { id: number; nombre: string; email: string; slotInicio: Date; slotFin: Date },
+  ): Promise<void> {
+    if (!to) return;
+
+    const fechaStr = reunion.slotInicio.toLocaleString('es-AR', {
+      timeZone: 'America/Argentina/Buenos_Aires',
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+    const horaInicio = reunion.slotInicio.toLocaleTimeString('es-AR', {
+      timeZone: 'America/Argentina/Buenos_Aires',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+
+    const html = `
+<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="UTF-8"><title>Asistencia confirmada</title></head>
+<body style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background:#f7f7f7; margin:0; padding:0;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f7f7f7; padding:40px 0;">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff; border:1px solid #e0e0e0; border-radius:4px;">
+        <tr>
+          <td style="padding:32px 40px; border-bottom:3px solid #8b2fef;">
+            <p style="margin:0; font-size:13px; letter-spacing:2px; text-transform:uppercase; color:#8b2fef; font-weight:600;">NODO — Asistencia confirmada</p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:32px 40px;">
+            <h1 style="margin:0 0 16px; font-size:20px; color:#1a1a1a; font-weight:600;">REU-${String(reunion.id).padStart(5, '0')} — Asistencia confirmada</h1>
+            <div style="background:#f4f4f4; border-left:4px solid #8b2fef; padding:20px 24px; margin:0 0 24px;">
+              <p style="margin:0 0 4px; font-size:14px; color:#1a1a1a; font-weight:600;">${fechaStr}</p>
+              <p style="margin:0; font-size:14px; color:#444;">${horaInicio}</p>
+            </div>
+            <table cellpadding="0" cellspacing="0" style="width:100%; font-size:14px; color:#444; line-height:2;">
+              <tr><td style="font-weight:600; width:120px;">Nombre</td><td>${reunion.nombre}</td></tr>
+              <tr><td style="font-weight:600;">Email</td><td>${reunion.email}</td></tr>
+            </table>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:20px 40px; background:#f9f9f9; border-top:1px solid #ececec;">
+            <p style="margin:0; font-size:11px; color:#aaa;">
+              NODO · nodotech.dev · Mateo Gaviraghi +54 9 3425 16-2081 · Justo González Viescas +54 9 3425 26-7005
+            </p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+
+    if (this.resend) {
+      const { error } = await this.resend.emails.send({
+        from: this.mailFrom,
+        to,
+        subject: `REU-${String(reunion.id).padStart(5, '0')} — ${reunion.nombre} confirmó asistencia`,
+        html,
+      });
+      if (error) {
+        this.logger.warn(`No se pudo enviar notificación de asistencia: ${error.message}`);
+      }
+      return;
+    }
+
+    if (process.env.OTP_DEV_LOG === '1') {
+      this.logger.warn(`[REUNION DEV] Asistencia confirmada: REU-${reunion.id} ${reunion.nombre}`);
     }
   }
 

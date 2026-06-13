@@ -1,9 +1,18 @@
+import { randomBytes } from 'node:crypto';
 import { isUniqueViolation } from '@/common/db-errors';
+import { AppConfig } from '@/config';
 import type { Db } from '@/db/client';
 import { DATABASE } from '@/db/database.module';
 import { reunion } from '@/db/schema/reunion';
 import { MailService } from '@/mail/mail.service';
-import { BadRequestException, ConflictException, Inject, Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Inject,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { and, desc, eq, gte, lte } from 'drizzle-orm';
 import {
   DIAS_HABILES,
@@ -25,6 +34,7 @@ export class ReunionesService {
     @Inject(DATABASE) private readonly db: Db,
     private readonly googleCalendar: GoogleCalendarService,
     private readonly mail: MailService,
+    private readonly appConfig: AppConfig,
   ) {}
 
   /**
@@ -151,6 +161,7 @@ export class ReunionesService {
     }
 
     // Insertar (índice único DB previene doble-reserva ante carreras)
+    const token = randomBytes(32).toString('hex');
     let reunionId: number;
     try {
       const [creada] = await this.db
@@ -164,6 +175,7 @@ export class ReunionesService {
           slotInicio,
           slotFin,
           estado: 'confirmada',
+          token,
         })
         .returning({ id: reunion.id });
 
@@ -211,6 +223,7 @@ export class ReunionesService {
         slotInicio,
         slotFin,
         meetLink,
+        token,
       });
     } catch (err) {
       this.logger.warn(
@@ -247,7 +260,30 @@ export class ReunionesService {
 
   /** Lista de reuniones para el panel super, ordenadas por slot_inicio desc. */
   async listar() {
-    return this.db.select().from(reunion).orderBy(desc(reunion.slotInicio));
+    const rows = await this.db
+      .select({
+        id: reunion.id,
+        nombre: reunion.nombre,
+        email: reunion.email,
+        empresa: reunion.empresa,
+        telefono: reunion.telefono,
+        mensaje: reunion.mensaje,
+        slotInicio: reunion.slotInicio,
+        slotFin: reunion.slotFin,
+        estado: reunion.estado,
+        meetLink: reunion.meetLink,
+        googleEventId: reunion.googleEventId,
+        asistenciaConfirmadaAt: reunion.asistenciaConfirmadaAt,
+        createdAt: reunion.createdAt,
+        updatedAt: reunion.updatedAt,
+      })
+      .from(reunion)
+      .orderBy(desc(reunion.slotInicio));
+
+    return rows.map((r) => ({
+      ...r,
+      asistenciaConfirmada: r.asistenciaConfirmadaAt !== null,
+    }));
   }
 
   /** Cancela una reunión y borra el evento de Google Calendar (best-effort). */
@@ -269,5 +305,125 @@ export class ReunionesService {
     }
 
     return { ok: true };
+  }
+
+  /** Busca una reunión por token (endpoint público). 404 si no existe. */
+  async getByToken(token: string) {
+    const [row] = await this.db
+      .select({
+        id: reunion.id,
+        nombre: reunion.nombre,
+        slotInicio: reunion.slotInicio,
+        slotFin: reunion.slotFin,
+        estado: reunion.estado,
+        meetLink: reunion.meetLink,
+        asistenciaConfirmadaAt: reunion.asistenciaConfirmadaAt,
+      })
+      .from(reunion)
+      .where(eq(reunion.token, token))
+      .limit(1);
+
+    if (!row) {
+      throw new NotFoundException({ statusCode: 404, message: 'Not found' });
+    }
+
+    return {
+      nombre: row.nombre,
+      slotInicio: row.slotInicio,
+      slotFin: row.slotFin,
+      estado: row.estado,
+      meetLink: row.meetLink,
+      asistenciaConfirmada: row.asistenciaConfirmadaAt !== null,
+    };
+  }
+
+  /** Confirma asistencia desde el link del email (idempotente). */
+  async confirmarAsistencia(token: string) {
+    const [row] = await this.db.select().from(reunion).where(eq(reunion.token, token)).limit(1);
+
+    if (!row) {
+      throw new NotFoundException({ statusCode: 404, message: 'Not found' });
+    }
+
+    if (row.estado === 'cancelada') {
+      throw new ConflictException('La reunión está cancelada');
+    }
+
+    // Idempotente: si ya confirmó, igual OK
+    if (!row.asistenciaConfirmadaAt) {
+      await this.db
+        .update(reunion)
+        .set({ asistenciaConfirmadaAt: new Date(), updatedAt: new Date() })
+        .where(eq(reunion.id, row.id));
+    }
+
+    // Notificar a Nodo best-effort
+    const notifyTo = this.appConfig.env.MAIL_NOTIFY_TO;
+    if (notifyTo) {
+      try {
+        await this.mail.sendAsistenciaConfirmada(notifyTo, {
+          id: row.id,
+          nombre: row.nombre,
+          email: row.email,
+          slotInicio: row.slotInicio,
+          slotFin: row.slotFin,
+        });
+      } catch (err) {
+        this.logger.warn(
+          `[Reuniones] Notificación asistencia falló para reunión ${row.id}: ${String(err)}`,
+        );
+      }
+    }
+
+    return { ok: true, estado: row.estado, asistenciaConfirmada: true };
+  }
+
+  /** Cancela una reunión por token (idempotente si ya cancelada). */
+  async cancelarByToken(token: string) {
+    const [row] = await this.db.select().from(reunion).where(eq(reunion.token, token)).limit(1);
+
+    if (!row) {
+      throw new NotFoundException({ statusCode: 404, message: 'Not found' });
+    }
+
+    // Idempotente: si ya estaba cancelada, devolver OK igual
+    if (row.estado !== 'cancelada') {
+      await this.db
+        .update(reunion)
+        .set({ estado: 'cancelada', updatedAt: new Date() })
+        .where(eq(reunion.id, row.id));
+
+      // Borrar evento Google best-effort
+      if (row.googleEventId) {
+        try {
+          await this.googleCalendar.deleteEvent(row.googleEventId);
+        } catch (err) {
+          this.logger.warn(`[Reuniones] deleteEvent falló para reunión ${row.id}: ${String(err)}`);
+        }
+      }
+
+      // Notificar a Nodo best-effort
+      const notifyTo = this.appConfig.env.MAIL_NOTIFY_TO;
+      if (notifyTo) {
+        try {
+          await this.mail.sendReunionNotice({
+            id: row.id,
+            nombre: row.nombre,
+            email: row.email,
+            empresa: row.empresa,
+            telefono: row.telefono,
+            mensaje: `[CANCELADO POR EL INVITADO] ${row.mensaje ?? ''}`.trim(),
+            slotInicio: row.slotInicio,
+            slotFin: row.slotFin,
+          });
+        } catch (err) {
+          this.logger.warn(
+            `[Reuniones] Notificación cancelación falló para reunión ${row.id}: ${String(err)}`,
+          );
+        }
+      }
+    }
+
+    return { ok: true, estado: 'cancelada' as const };
   }
 }

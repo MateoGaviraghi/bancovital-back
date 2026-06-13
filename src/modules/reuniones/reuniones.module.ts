@@ -13,6 +13,7 @@ import { ReunionesService } from './reuniones.service';
     ThrottlerModule.forRoot([
       { name: 'bookings', ttl: 60_000, limit: 60 },
       { name: 'bookingsPost', ttl: 10 * 60_000, limit: 5 },
+      { name: 'bookingsToken', ttl: 60_000, limit: 30 },
     ]),
   ],
   controllers: [ReunionesPublicController, ReunionesSuperController],

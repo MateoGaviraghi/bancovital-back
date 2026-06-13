@@ -71,6 +71,13 @@
       "when": 1781364639734,
       "tag": "0009_breezy_vivisector",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1781378247767,
+      "tag": "0010_glorious_wildside",
+      "breakpoints": true
     }
   ]
 }
