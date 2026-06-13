@@ -18,9 +18,9 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ALLOWED_IMAGE_MIME } from '../lab-config/asset-storage';
 import { LabConfigService } from '../lab-config/lab-config.service';
-import type { InviteUserDto } from '../users/dto/invite-user.dto';
+import { InviteUserDto } from '../users/dto/invite-user.dto';
 import { UsersService } from '../users/users.service';
-import type { CreateLaboratorioDto, UpdateLaboratorioDto } from './dto/create-laboratorio.dto';
+import { CreateLaboratorioDto, UpdateLaboratorioDto } from './dto/create-laboratorio.dto';
 import { SuperService } from './super.service';
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
@@ -62,10 +62,23 @@ export class SuperController {
   }
 
   @Delete(':id')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Eliminar laboratorio (irreversible)' })
+  @ApiOperation({ summary: 'Desactivar laboratorio (soft-delete, reversible)' })
   async remove(@Param('id', ParseIntPipe) id: number) {
-    await this.superService.remove(id);
+    return this.superService.remove(id);
+  }
+
+  @Post(':id/reactivate')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Reactivar laboratorio previamente desactivado' })
+  async reactivate(@Param('id', ParseIntPipe) id: number) {
+    return this.superService.reactivate(id);
+  }
+
+  @Delete(':id/purge')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Borrado físico total de un laboratorio desactivado (irreversible)' })
+  async purge(@Param('id', ParseIntPipe) id: number) {
+    await this.superService.purge(id);
   }
 
   @Post(':id/logo')
