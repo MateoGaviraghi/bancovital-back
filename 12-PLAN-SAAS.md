@@ -11,7 +11,7 @@ Base ya existente (no rehacer): tabla `laboratorio` con `slug` UNIQUE, `labId` F
 |---|---|
 | F1 Branding público + RLS | ✅ COMPLETA — en producción 2026-06-12. Migración 0006 aplicada; endpoint público de branding vivo en prod y en `bancovital-back-dev.up.railway.app` (servicio dev, branch dev, misma DB). RBAC operativo unificado. Gotcha aprendido: regla biome `useImportType` DESHABILITADA (rompe DI de Nest); spec `app.module.spec.ts` protege. RLS: políticas explícitas siguen pendientes (deny-by-default activo) |
 | F2 Planes y cuotas | Pendiente |
-| F3 Contratos + firma | Pendiente |
+| F3 Contratos + firma | Implementada 2026-06-13 (commit `df5dd28` en dev, migración 0008 APLICADA) — contrato con token 15d, OTP crypto-secure hasheado, firma con evidencia (sha256 de bytes crudos del PDF — pericial), PDF formal Source Serif 4 + Public Sans con cláusulas Ley 25.326, alta automática lab+suscripción+invite. Mailer Resend con fallback OTP_DEV_LOG (seteado en back-dev). QA e2e 9/9. Gotcha NUEVO: `import type` en DTOs de @Body rompe ValidationPipe (mismo mal que DI) — usar imports de valor en DTOs SIEMPRE. Pendiente: RESEND_API_KEY real + merge main |
 | F4 Landing | No participa |
 | F5 Super power-ups | Pendiente |
 | F6 Personalización admin | Pendiente |
