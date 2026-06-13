@@ -14,7 +14,7 @@ import {
   Put,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import type { CreatePlanDto, SetSubscriptionDto, UpdatePlanDto } from './dto/plan.dto';
+import { CreatePlanDto, SetSubscriptionDto, UpdatePlanDto } from './dto/plan.dto';
 import { PlansService } from './plans.service';
 
 @ApiTags('super')

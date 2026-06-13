@@ -1,5 +1,6 @@
 export * from './attachment';
 export * from './audit-log';
+export * from './contrato';
 export * from './ciclo-consumo';
 export * from './doctor';
 export * from './enums';

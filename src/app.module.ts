@@ -7,6 +7,7 @@ import { RolesGuard } from './common/guards/roles.guard';
 import { AppConfig } from './config';
 import { DatabaseModule } from './db/database.module';
 import { ConsumoModule } from './modules/consumo/consumo.module';
+import { ContractsModule } from './modules/contracts/contracts.module';
 import { DoctorsModule } from './modules/doctors/doctors.module';
 import { HealthModule } from './modules/health/health.module';
 import { InsurersModule } from './modules/insurers/insurers.module';
@@ -49,6 +50,7 @@ import { UsersModule } from './modules/users/users.module';
     PublicModule,
     ConsumoModule,
     PlansModule,
+    ContractsModule,
   ],
   providers: [
     AppConfig,

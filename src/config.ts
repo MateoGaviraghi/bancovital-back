@@ -12,6 +12,10 @@ const envSchema = z.object({
   SUPABASE_JWT_SECRET: z.string().optional(),
   CORS_ALLOWED_ORIGINS: z.string().default('http://localhost:3000'),
   APP_URL: z.string().url().default('http://localhost:3000'),
+  RESEND_API_KEY: z.string().optional(),
+  MAIL_FROM: z.string().optional(),
+  MAIL_NOTIFY_TO: z.string().optional(),
+  OTP_DEV_LOG: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -42,6 +46,10 @@ export class AppConfig {
       SUPABASE_JWT_SECRET: this.config.get('SUPABASE_JWT_SECRET'),
       CORS_ALLOWED_ORIGINS: this.config.get('CORS_ALLOWED_ORIGINS'),
       APP_URL: this.config.get('APP_URL'),
+      RESEND_API_KEY: this.config.get('RESEND_API_KEY'),
+      MAIL_FROM: this.config.get('MAIL_FROM'),
+      MAIL_NOTIFY_TO: this.config.get('MAIL_NOTIFY_TO'),
+      OTP_DEV_LOG: this.config.get('OTP_DEV_LOG'),
     } as NodeJS.ProcessEnv);
   }
 

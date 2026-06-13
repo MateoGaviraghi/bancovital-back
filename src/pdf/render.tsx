@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type {
@@ -10,6 +11,8 @@ import type {
   Result,
 } from '@/db/schema';
 import { Font, renderToBuffer } from '@react-pdf/renderer';
+import { ContratoFirmadoTemplate, ContratoTemplate } from './templates/contrato';
+import type { ContratoData, ContratoFirmadoData } from './templates/contrato';
 import { type FichaData, FichaTemplate } from './templates/ficha';
 import { type InformeData, InformeTemplate, type InformeUnidadRow } from './templates/informe';
 
@@ -37,6 +40,48 @@ function ensureFontsRegistered(): void {
       { src: join(FONTS_DIR, 'Roboto-Bold.ttf'), fontWeight: 'bold' },
     ],
   });
+
+  // Public Sans — descargado. Source Serif 4 — fallback a Times-Roman (descarga falló).
+  // TODO: reemplazar Times-Roman por SourceSerif4-Regular.ttf / SourceSerif4-Bold.ttf
+  // cuando se pueda descargar desde google/fonts (el repo usa estructura de carpetas
+  // distinta a la esperada).
+  const publicSansRegularPath = join(FONTS_DIR, 'PublicSans-Regular.ttf');
+  const publicSansSemiBoldPath = join(FONTS_DIR, 'PublicSans-SemiBold.ttf');
+  const sourceSerif4RegularPath = join(FONTS_DIR, 'SourceSerif4-Regular.ttf');
+  const sourceSerif4BoldPath = join(FONTS_DIR, 'SourceSerif4-Bold.ttf');
+
+  if (existsSync(publicSansRegularPath)) {
+    Font.register({ family: 'PublicSans', src: publicSansRegularPath, fontWeight: 'normal' });
+  } else {
+    Font.register({ family: 'PublicSans', src: 'Helvetica', fontWeight: 'normal' });
+  }
+  if (existsSync(publicSansSemiBoldPath)) {
+    Font.register({
+      family: 'PublicSansSemiBold',
+      src: publicSansSemiBoldPath,
+      fontWeight: 'normal',
+    });
+  } else {
+    Font.register({ family: 'PublicSansSemiBold', src: 'Helvetica-Bold', fontWeight: 'normal' });
+  }
+  if (existsSync(sourceSerif4RegularPath)) {
+    Font.register({ family: 'SourceSerif4', src: sourceSerif4RegularPath, fontWeight: 'normal' });
+  } else {
+    Font.register({ family: 'SourceSerif4', src: 'Times-Roman', fontWeight: 'normal' });
+  }
+  if (existsSync(sourceSerif4BoldPath)) {
+    Font.register({ family: 'SourceSerif4Bold', src: sourceSerif4BoldPath, fontWeight: 'normal' });
+  } else {
+    Font.register({ family: 'SourceSerif4Bold', src: 'Times-Bold', fontWeight: 'normal' });
+  }
+
+  // Registrar 'Helvetica' como alias de PublicSans para que el fallback interno
+  // de @react-pdf/layout (que agrega 'Helvetica' a todo fontStack) resuelva
+  // correctamente cuando ningún glyph del font principal cubre el codepoint
+  // (ej: caracteres de control como \n que generan párrafos vacíos).
+  const helveticaSrc = existsSync(publicSansRegularPath) ? publicSansRegularPath : 'Helvetica';
+  Font.register({ family: 'Helvetica', src: helveticaSrc, fontWeight: 'normal' });
+
   Font.registerHyphenationCallback((word) => [word]);
   fontsRegistered = true;
 }
@@ -267,4 +312,18 @@ function formatRange(low: string | null, high: string | null, unit: string | nul
   const a = low ? cleanNumber(low) : '−∞';
   const b = high ? cleanNumber(high) : '+∞';
   return `${a} – ${b}${unit ? ` ${unit}` : ''}`;
+}
+
+// ── Contrato ───────────────────────────────────────────────────────────────────
+
+export type { ContratoData, ContratoFirmadoData };
+
+export async function renderContratoPdf(data: ContratoData): Promise<Buffer> {
+  ensureFontsRegistered();
+  return renderToBuffer(<ContratoTemplate data={data} />);
+}
+
+export async function renderContratoFirmadoPdf(data: ContratoFirmadoData): Promise<Buffer> {
+  ensureFontsRegistered();
+  return renderToBuffer(<ContratoFirmadoTemplate data={data} />);
 }

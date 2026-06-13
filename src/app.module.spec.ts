@@ -18,15 +18,29 @@ process.env.SUPABASE_URL = 'https://dummy.supabase.co';
 process.env.SUPABASE_ANON_KEY = 'dummy-anon-key';
 process.env.SUPABASE_SERVICE_ROLE_KEY = 'dummy-service-role-key';
 
+// @react-pdf/renderer es ESM — mock para tests de DI compile.
+jest.mock('@/pdf/render', () => ({
+  renderContratoPdf: jest.fn().mockResolvedValue(Buffer.from('%PDF-1.4 fake')),
+  renderContratoFirmadoPdf: jest.fn().mockResolvedValue(Buffer.from('%PDF-1.4 fake signed')),
+  renderInformePdf: jest.fn().mockResolvedValue(Buffer.from('%PDF-1.4 fake')),
+  renderFichaPdf: jest.fn().mockResolvedValue(Buffer.from('%PDF-1.4 fake')),
+}));
+
+import { AppConfig } from '@/config';
 import { DATABASE, SUPABASE_ADMIN } from '@/db/database.module';
+import { MailService } from '@/mail/mail.service';
 import { ConsumoController } from '@/modules/consumo/consumo.controller';
 import { ConsumoService } from '@/modules/consumo/consumo.service';
+import { ContractsPublicController } from '@/modules/contracts/contracts-public.controller';
+import { ContractsSuperController } from '@/modules/contracts/contracts-super.controller';
+import { ContractsService } from '@/modules/contracts/contracts.service';
 import { MeController } from '@/modules/me/me.controller';
 import { MeService } from '@/modules/me/me.service';
 import { PlansController } from '@/modules/plans/plans.controller';
 import { PlansService } from '@/modules/plans/plans.service';
 import { PublicLabsController } from '@/modules/public/public-labs.controller';
 import { PublicLabsService } from '@/modules/public/public-labs.service';
+import { ConfigModule } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import { ThrottlerModule } from '@nestjs/throttler';
 
@@ -91,6 +105,53 @@ describe('DI compile — PlansModule', () => {
         PlansService,
         { provide: DATABASE, useValue: DB_STUB },
         { provide: ConsumoService, useValue: consumoStub },
+      ],
+    }).compile();
+
+    expect(moduleRef).toBeDefined();
+    await moduleRef.close();
+  });
+});
+
+describe('DI compile — MailModule', () => {
+  it('compiles without "can\'t resolve dependencies" errors', async () => {
+    const moduleRef = await Test.createTestingModule({
+      imports: [ConfigModule.forRoot({ isGlobal: true })],
+      providers: [AppConfig, MailService],
+    }).compile();
+
+    expect(moduleRef).toBeDefined();
+    await moduleRef.close();
+  });
+});
+
+describe('DI compile — ContractsModule', () => {
+  it('compiles without "can\'t resolve dependencies" errors', async () => {
+    const mailStub = { sendOtp: jest.fn(), sendContractSignedNotice: jest.fn() };
+    const appConfigStub = {
+      env: {
+        APP_URL: 'http://localhost:3000',
+        RESEND_API_KEY: undefined,
+        MAIL_FROM: undefined,
+        MAIL_NOTIFY_TO: undefined,
+        OTP_DEV_LOG: undefined,
+      },
+    };
+
+    const moduleRef = await Test.createTestingModule({
+      imports: [
+        ThrottlerModule.forRoot([
+          { name: 'default', ttl: 60_000, limit: 60 },
+          { name: 'otp', ttl: 15 * 60_000, limit: 5 },
+        ]),
+      ],
+      controllers: [ContractsSuperController, ContractsPublicController],
+      providers: [
+        ContractsService,
+        { provide: DATABASE, useValue: DB_STUB },
+        { provide: SUPABASE_ADMIN, useValue: SUPABASE_STUB },
+        { provide: MailService, useValue: mailStub },
+        { provide: AppConfig, useValue: appConfigStub },
       ],
     }).compile();
 
