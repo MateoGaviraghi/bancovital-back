@@ -1,3 +1,4 @@
+import { isUniqueViolation } from '@/common/db-errors';
 import type { Db } from '@/db/client';
 import { DATABASE } from '@/db/database.module';
 import { reunion } from '@/db/schema/reunion';
@@ -138,7 +139,18 @@ export class ReunionesService {
 
     const slotFin = new Date(slotInicio.getTime() + DURACION_MIN * 60 * 1000);
 
-    // Insertar (índice único DB previene doble-reserva)
+    // Pre-check: 409 limpio para el caso común (sin carrera). El índice único
+    // es el backstop para reservas concurrentes (se maneja en el catch).
+    const [yaReservado] = await this.db
+      .select({ id: reunion.id })
+      .from(reunion)
+      .where(and(eq(reunion.slotInicio, slotInicio), eq(reunion.estado, 'confirmada')))
+      .limit(1);
+    if (yaReservado) {
+      throw new ConflictException('Ese horario ya fue reservado, elegí otro');
+    }
+
+    // Insertar (índice único DB previene doble-reserva ante carreras)
     let reunionId: number;
     try {
       const [creada] = await this.db
@@ -158,11 +170,8 @@ export class ReunionesService {
       if (!creada) throw new Error('No se obtuvo id de la reunión creada');
       reunionId = creada.id;
     } catch (err: unknown) {
-      // 23505 = unique_violation (the slot's partial unique index). Same pattern
-      // as plans/super services. The only unique constraint on this insert is the
-      // slot index, so a 23505 here always means the slot was just taken.
-      const pg = err as { code?: string };
-      if (pg.code === '23505') {
+      // Violación del índice único del slot = se reservó concurrentemente.
+      if (isUniqueViolation(err)) {
         throw new ConflictException('Ese horario ya fue reservado, elegí otro');
       }
       throw err;

@@ -1,3 +1,4 @@
+import { isUniqueViolation } from '@/common/db-errors';
 import type { Db } from '@/db/client';
 import { DATABASE } from '@/db/database.module';
 import { cicloConsumo, plan, suscripcion } from '@/db/schema';
@@ -40,8 +41,8 @@ export class PlansService {
         .returning();
       return row;
     } catch (err: unknown) {
-      const pg = err as { code?: string };
-      if (pg.code === '23505') throw new ConflictException(`El nombre '${dto.nombre}' ya existe`);
+      if (isUniqueViolation(err))
+        throw new ConflictException(`El nombre '${dto.nombre}' ya existe`);
       throw err;
     }
   }
@@ -64,8 +65,8 @@ export class PlansService {
         .returning();
       return row;
     } catch (err: unknown) {
-      const pg = err as { code?: string };
-      if (pg.code === '23505') throw new ConflictException(`El nombre '${dto.nombre}' ya existe`);
+      if (isUniqueViolation(err))
+        throw new ConflictException(`El nombre '${dto.nombre}' ya existe`);
       throw err;
     }
   }

@@ -1,3 +1,4 @@
+import { isUniqueViolation } from '@/common/db-errors';
 import type { Db } from '@/db/client';
 import { DATABASE } from '@/db/database.module';
 import { type Practice, practice } from '@/db/schema';
@@ -130,12 +131,7 @@ export class PracticesService {
         .returning();
       return row;
     } catch (err: unknown) {
-      if (
-        typeof err === 'object' &&
-        err !== null &&
-        'code' in err &&
-        (err as { code: string }).code === '23505'
-      ) {
+      if (isUniqueViolation(err)) {
         throw new ConflictException(`Ya existe una práctica con código NBU "${dto.nbuCode}".`);
       }
       throw err;
@@ -164,12 +160,7 @@ export class PracticesService {
       if (!row) throw new NotFoundException(`Práctica ${id} no encontrada.`);
       return row;
     } catch (err: unknown) {
-      if (
-        typeof err === 'object' &&
-        err !== null &&
-        'code' in err &&
-        (err as { code: string }).code === '23505'
-      ) {
+      if (isUniqueViolation(err)) {
         throw new ConflictException('Ya existe una práctica con ese código NBU.');
       }
       throw err;

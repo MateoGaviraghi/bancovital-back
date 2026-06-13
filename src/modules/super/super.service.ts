@@ -1,3 +1,4 @@
+import { isUniqueViolation } from '@/common/db-errors';
 import type { Db } from '@/db/client';
 import { DATABASE, SUPABASE_ADMIN } from '@/db/database.module';
 import {
@@ -65,8 +66,7 @@ export class SuperService {
         .returning();
       return row;
     } catch (err: unknown) {
-      const pg = err as { code?: string };
-      if (pg.code === '23505') throw new ConflictException(`El slug '${dto.slug}' ya existe`);
+      if (isUniqueViolation(err)) throw new ConflictException(`El slug '${dto.slug}' ya existe`);
       throw err;
     }
   }
@@ -89,8 +89,7 @@ export class SuperService {
         .returning();
       return row;
     } catch (err: unknown) {
-      const pg = err as { code?: string };
-      if (pg.code === '23505') throw new ConflictException(`El slug '${dto.slug}' ya existe`);
+      if (isUniqueViolation(err)) throw new ConflictException(`El slug '${dto.slug}' ya existe`);
       throw err;
     }
   }

@@ -127,7 +127,9 @@ describe('ReunionesService.crear — validación de slot', () => {
     return {
       select: jest.fn().mockReturnValue({
         from: jest.fn().mockReturnThis(),
-        where: jest.fn().mockResolvedValue([]),
+        where: jest.fn().mockReturnValue({
+          limit: jest.fn().mockResolvedValue([]),
+        }),
       }),
       insert: jest.fn().mockReturnValue(insertChain),
       update: jest.fn().mockReturnValue(updateChain),
@@ -176,14 +178,22 @@ describe('ReunionesService.crear — validación de slot', () => {
   });
 
   it('lanza 409 si el slot ya está reservado (constraint unique)', async () => {
-    const returning = jest
-      .fn()
-      .mockRejectedValue(new Error('unique constraint reunion_slot_inicio_confirmada_idx'));
+    // Simula el error que drizzle/postgres lanza en violación de unicidad:
+    // .code === '23505' a nivel directo (isUniqueViolation lo detecta con o sin cause chain).
+    const pgError = Object.assign(
+      new Error(
+        'duplicate key value violates unique constraint "reunion_slot_inicio_confirmada_idx"',
+      ),
+      { code: '23505' },
+    );
+    const returning = jest.fn().mockRejectedValue(pgError);
     const values = jest.fn().mockReturnValue({ returning });
     dbMock = {
       select: jest.fn().mockReturnValue({
         from: jest.fn().mockReturnThis(),
-        where: jest.fn().mockResolvedValue([]),
+        where: jest.fn().mockReturnValue({
+          limit: jest.fn().mockResolvedValue([]),
+        }),
       }),
       insert: jest.fn().mockReturnValue({ values }),
       update: jest.fn(),
