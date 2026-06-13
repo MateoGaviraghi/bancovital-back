@@ -158,11 +158,11 @@ export class ReunionesService {
       if (!creada) throw new Error('No se obtuvo id de la reunión creada');
       reunionId = creada.id;
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      if (
-        msg.includes('reunion_slot_inicio_confirmada_idx') ||
-        (msg.includes('unique') && msg.includes('reunion'))
-      ) {
+      // 23505 = unique_violation (the slot's partial unique index). Same pattern
+      // as plans/super services. The only unique constraint on this insert is the
+      // slot index, so a 23505 here always means the slot was just taken.
+      const pg = err as { code?: string };
+      if (pg.code === '23505') {
         throw new ConflictException('Ese horario ya fue reservado, elegí otro');
       }
       throw err;
