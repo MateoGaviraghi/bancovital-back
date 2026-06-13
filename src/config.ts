@@ -16,6 +16,11 @@ const envSchema = z.object({
   MAIL_FROM: z.string().optional(),
   MAIL_NOTIFY_TO: z.string().optional(),
   OTP_DEV_LOG: z.string().optional(),
+  // Google Calendar (F4 — reserva de reuniones)
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
+  GOOGLE_REFRESH_TOKEN: z.string().optional(),
+  GOOGLE_CALENDAR_ID: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -50,6 +55,10 @@ export class AppConfig {
       MAIL_FROM: this.config.get('MAIL_FROM'),
       MAIL_NOTIFY_TO: this.config.get('MAIL_NOTIFY_TO'),
       OTP_DEV_LOG: this.config.get('OTP_DEV_LOG'),
+      GOOGLE_CLIENT_ID: this.config.get('GOOGLE_CLIENT_ID'),
+      GOOGLE_CLIENT_SECRET: this.config.get('GOOGLE_CLIENT_SECRET'),
+      GOOGLE_REFRESH_TOKEN: this.config.get('GOOGLE_REFRESH_TOKEN'),
+      GOOGLE_CALENDAR_ID: this.config.get('GOOGLE_CALENDAR_ID'),
     } as NodeJS.ProcessEnv);
   }
 

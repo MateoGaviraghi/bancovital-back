@@ -64,6 +64,13 @@
       "when": 1781310234433,
       "tag": "0008_slim_phalanx",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1781364639734,
+      "tag": "0009_breezy_vivisector",
+      "breakpoints": true
     }
   ]
 }

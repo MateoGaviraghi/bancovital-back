@@ -16,6 +16,7 @@ export * from './practice';
 export * from './practice-unidad';
 export * from './preferencia-pdf';
 export * from './result';
+export * from './reunion';
 export * from './suscripcion';
 export * from './ub-value';
 export * from './unidad-medida';

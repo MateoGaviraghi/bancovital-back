@@ -1,0 +1,42 @@
+import { sql } from 'drizzle-orm';
+import { bigint, pgEnum, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
+
+export const reunionEstadoEnum = pgEnum('reunion_estado', ['confirmada', 'cancelada']);
+
+export const reunion = pgTable(
+  'reunion',
+  {
+    id: bigint('id', { mode: 'number' })
+      .primaryKey()
+      .generatedByDefaultAsIdentity({ name: 'reunion_id_seq' }),
+
+    nombre: text('nombre').notNull(),
+    email: text('email').notNull(),
+    empresa: text('empresa'),
+    telefono: text('telefono'),
+    mensaje: text('mensaje'),
+
+    slotInicio: timestamp('slot_inicio', { withTimezone: true }).notNull(),
+    slotFin: timestamp('slot_fin', { withTimezone: true }).notNull(),
+
+    estado: reunionEstadoEnum('estado').notNull().default('confirmada'),
+
+    googleEventId: text('google_event_id'),
+    meetLink: text('meet_link'),
+
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    /**
+     * Índice único parcial: solo un slot_inicio confirmado puede existir a la vez.
+     * Previene doble-reserva del mismo slot a nivel DB.
+     */
+    slotInicioConfirmadaIdx: uniqueIndex('reunion_slot_inicio_confirmada_idx')
+      .on(t.slotInicio)
+      .where(sql`estado = 'confirmada'`),
+  }),
+);
+
+export type Reunion = typeof reunion.$inferSelect;
+export type NewReunion = typeof reunion.$inferInsert;

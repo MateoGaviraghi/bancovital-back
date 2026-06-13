@@ -49,6 +49,7 @@
     "decimal.js": "10.4.3",
     "dotenv": "^16.4.7",
     "drizzle-orm": "0.45.2",
+    "googleapis": "^173.0.0",
     "helmet": "^8.0.0",
     "multer": "^1.4.5-lts.1",
     "postgres": "3.4.5",
