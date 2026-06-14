@@ -9,6 +9,7 @@ import type {
   Patient,
   PreferenciaPdf,
   Result,
+  Sede,
 } from '@/db/schema';
 import { Font, renderToBuffer } from '@react-pdf/renderer';
 import { ContratoFirmadoTemplate, ContratoTemplate } from './templates/contrato';
@@ -101,6 +102,73 @@ export interface RenderInformeInput {
   signatureDataUri?: string | null;
   fondoDataUri?: string | null;
   preferenciaPdf?: PreferenciaPdf;
+  /** Sede principal del lab (se imprime al pie). */
+  sede?: Sede | null;
+}
+
+// ── Acento de marca en el PDF (derivado del primaryColor del lab) ──────────────
+// El header de la tabla usa texto BLANCO sobre el acento, así que oscurecemos el
+// color hasta garantizar contraste legible (WCAG) antes de usarlo. react-pdf no
+// soporta color-mix, por eso la matemática va en JS.
+const DEFAULT_PDF_ACCENT = '#0db5b0';
+type Rgb = [number, number, number];
+
+function parseHex(hex: string): Rgb | null {
+  const m = /^#([0-9a-fA-F]{6})$/.exec(hex.trim());
+  if (!m) return null;
+  const n = Number.parseInt(m[1], 16);
+  return [(n >> 16) & 0xff, (n >> 8) & 0xff, n & 0xff];
+}
+
+function rgbToHex([r, g, b]: Rgb): string {
+  const h = (c: number) =>
+    Math.max(0, Math.min(255, Math.round(c)))
+      .toString(16)
+      .padStart(2, '0');
+  return `#${h(r)}${h(g)}${h(b)}`;
+}
+
+function mix(a: Rgb, b: Rgb, t: number): Rgb {
+  return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+}
+
+function relLuminance([r, g, b]: Rgb): number {
+  const lin = (c: number) => {
+    const s = c / 255;
+    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+}
+
+function contrastWithWhite(rgb: Rgb): number {
+  return 1.05 / (relLuminance(rgb) + 0.05);
+}
+
+/** Acento + tinte suave legibles a partir del primaryColor del lab. */
+export function pdfAccentPalette(primaryColor: string | null | undefined): {
+  accent: string;
+  accentSoft: string;
+} {
+  let rgb = (primaryColor && parseHex(primaryColor)) || (parseHex(DEFAULT_PDF_ACCENT) as Rgb);
+  // Oscurece hasta que texto blanco sobre el acento tenga contraste >= 4.0.
+  let guard = 0;
+  while (contrastWithWhite(rgb) < 4.0 && guard < 10) {
+    rgb = mix(rgb, [0, 0, 0], 0.1);
+    guard++;
+  }
+  const accentSoft = mix(rgb, [255, 255, 255], 0.88); // ~12% acento sobre blanco
+  return { accent: rgbToHex(rgb), accentSoft: rgbToHex(accentSoft) };
+}
+
+function sedeForTemplate(s: Sede | null | undefined): InformeData['sede'] {
+  if (!s) return null;
+  return {
+    nombre: s.nombre,
+    direccion: s.direccion,
+    localidad: s.localidad,
+    telefono: s.telefono,
+    horarios: s.horarios,
+  };
 }
 
 export async function renderInformePdf(input: RenderInformeInput): Promise<Buffer> {
@@ -197,10 +265,16 @@ export function buildInformeData(input: RenderInformeInput): InformeData {
 
   const pref = input.preferenciaPdf;
   const rawLayout = pref?.layoutConfig as
-    | { campos?: Record<string, { x: number; y: number; fontSize?: number; color?: string }> }
+    | {
+        usarFondo?: boolean;
+        campos?: Record<string, { x: number; y: number; fontSize?: number; color?: string }>;
+      }
     | null
     | undefined;
   const layoutConfig = rawLayout?.campos ?? null;
+  // Solo se dibuja el fondo si el admin no lo desactivó (undefined/true => dibujar).
+  const fondoSrc = rawLayout?.usarFondo === false ? null : (input.fondoDataUri ?? null);
+  const { accent, accentSoft } = pdfAccentPalette(lab.primaryColor);
 
   return {
     lab: {
@@ -267,7 +341,7 @@ export function buildInformeData(input: RenderInformeInput): InformeData {
         : null,
       signatureSrc: input.signatureDataUri ?? null,
     },
-    fondoSrc: input.fondoDataUri ?? null,
+    fondoSrc,
     layoutConfig,
     margins: pref
       ? {
@@ -277,6 +351,113 @@ export function buildInformeData(input: RenderInformeInput): InformeData {
           right: pref.marginRight,
         }
       : undefined,
+    accent,
+    accentSoft,
+    sede: sedeForTemplate(input.sede),
+  };
+}
+
+/** Renderiza el informe directamente desde un InformeData ya armado (usado por el preview). */
+export async function renderInformeFromData(data: InformeData): Promise<Buffer> {
+  ensureFontsRegistered();
+  return renderToBuffer(<InformeTemplate data={data} />);
+}
+
+export interface SampleInformeAssets {
+  lab: Laboratorio;
+  preferenciaPdf?: PreferenciaPdf | null;
+  logoSrc?: string | null;
+  signatureSrc?: string | null;
+  fondoSrc?: string | null;
+  sede?: Sede | null;
+}
+
+/**
+ * Arma un InformeData de MUESTRA con la marca REAL del lab (logo, firma, fondo,
+ * márgenes, acento) y datos de paciente/resultados ficticios. Para el preview del
+ * editor de PDF — el admin ve el informe real sin necesitar una orden cargada.
+ */
+export function buildSampleInformeData(opts: SampleInformeAssets): InformeData {
+  const { lab, preferenciaPdf: pref } = opts;
+  const { accent, accentSoft } = pdfAccentPalette(lab.primaryColor);
+  const usarFondo = (pref?.layoutConfig as { usarFondo?: boolean } | null | undefined)?.usarFondo;
+  return {
+    lab: {
+      legalName: lab.legalName,
+      cuit: lab.cuit ?? '',
+      address: lab.streetAddress ?? '',
+      cityProvince: `${lab.city ?? ''}, ${lab.province ?? ''}`,
+      phone: lab.phone,
+      email: lab.email,
+      logoSrc: opts.logoSrc ?? getLogoFallback(),
+    },
+    protocol: { number: '00012345', orderDate: '01/06/2026', issuedAt: '01/06/2026, 10:30:00' },
+    patient: {
+      fullName: 'Pérez, María',
+      dni: '30.123.456',
+      sex: 'F',
+      age: '34 años',
+      birthDate: '15/03/1992',
+    },
+    insurer: { name: 'OSDE', affiliateNumber: '61234567-01' },
+    doctor: { name: 'Dr. Juan Gómez', mp: '12345', diagnosis: 'Control anual' },
+    results: [
+      {
+        nbuCode: '660045',
+        name: 'Glucemia',
+        value: '92',
+        unit: 'mg/dL',
+        range: '70 – 110 mg/dL',
+        flag: 'normal',
+        methodology: 'Enzimático',
+        referenceValue: null,
+        notes: null,
+      },
+      {
+        nbuCode: '660122',
+        name: 'Colesterol total',
+        value: '215',
+        unit: 'mg/dL',
+        range: '< 200 mg/dL',
+        flag: 'high',
+        methodology: 'Colorimétrico',
+        referenceValue: null,
+        notes: null,
+      },
+      {
+        nbuCode: '660500',
+        name: 'Hemoglobina glicosilada',
+        value: '5,4',
+        unit: '%',
+        range: '4,0 – 6,0 %',
+        flag: 'normal',
+        methodology: 'HPLC',
+        referenceValue: null,
+        notes: null,
+      },
+    ],
+    signedBy: {
+      name: lab.signingProfessionalName ?? 'Bioquímico/a responsable',
+      matricula: lab.signingProfessionalMp
+        ? lab.signingProfessionalMp.startsWith('M.P.')
+          ? lab.signingProfessionalMp
+          : `M.P. ${lab.signingProfessionalMp}`
+        : 'M.P. 0000',
+      signatureSrc: opts.signatureSrc ?? null,
+    },
+    fondoSrc: usarFondo === false ? null : (opts.fondoSrc ?? null),
+    layoutConfig: null,
+    margins: pref
+      ? {
+          top: pref.marginTop,
+          bottom: pref.marginBottom,
+          left: pref.marginLeft,
+          right: pref.marginRight,
+        }
+      : undefined,
+    accent,
+    accentSoft,
+    sede: sedeForTemplate(opts.sede),
   };
 }
 

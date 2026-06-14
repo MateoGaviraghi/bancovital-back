@@ -1,6 +1,7 @@
 import { type Session, requireLabId } from '@/auth/session';
 import { CurrentUser } from '@/common/decorators/current-user.decorator';
 import { Roles } from '@/common/decorators/roles.decorator';
+import { type RequestMeta, clientIp, userAgent } from '@/modules/super/request-meta';
 import {
   BadRequestException,
   Body,
@@ -10,6 +11,7 @@ import {
   Patch,
   Post,
   Query,
+  Req,
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
@@ -23,8 +25,13 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { sniffImageMime } from './asset-storage';
-import type { UpdateLabConfigDto } from './dto/update-lab-config.dto';
-import { LabConfigService } from './lab-config.service';
+// Import de VALOR: el DTO va en @Body() y debe existir en runtime para el ValidationPipe.
+import { UpdateLabConfigDto } from './dto/update-lab-config.dto';
+import { type LabConfigAuditCtx, LabConfigService } from './lab-config.service';
+
+function auditCtx(user: Session, req: RequestMeta): LabConfigAuditCtx {
+  return { actorId: user.userId, ip: clientIp(req), userAgent: userAgent(req) };
+}
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
@@ -109,8 +116,8 @@ export class LabConfigController {
   @Patch()
   @Roles('admin')
   @ApiOperation({ summary: 'Actualizar configuracion del laboratorio' })
-  update(@CurrentUser() user: Session, @Body() dto: UpdateLabConfigDto) {
-    return this.labConfig.update(requireLabId(user), dto);
+  update(@CurrentUser() user: Session, @Req() req: RequestMeta, @Body() dto: UpdateLabConfigDto) {
+    return this.labConfig.update(requireLabId(user), dto, auditCtx(user, req));
   }
 
   @Post('logo')
@@ -119,9 +126,13 @@ export class LabConfigController {
   @ApiConsumes('multipart/form-data')
   @ApiBody(FILE_BODY_SCHEMA)
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_IMAGE_BYTES } }))
-  uploadLogo(@CurrentUser() user: Session, @UploadedFile() file: UploadedImage) {
+  uploadLogo(
+    @CurrentUser() user: Session,
+    @Req() req: RequestMeta,
+    @UploadedFile() file: UploadedImage,
+  ) {
     const validated = validateImage(file);
-    return this.labConfig.uploadAsset(requireLabId(user), 'logo', validated);
+    return this.labConfig.uploadAsset(requireLabId(user), 'logo', validated, auditCtx(user, req));
   }
 
   @Post('signature')
@@ -132,8 +143,17 @@ export class LabConfigController {
   @ApiConsumes('multipart/form-data')
   @ApiBody(FILE_BODY_SCHEMA)
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_IMAGE_BYTES } }))
-  uploadSignature(@CurrentUser() user: Session, @UploadedFile() file: UploadedImage) {
+  uploadSignature(
+    @CurrentUser() user: Session,
+    @Req() req: RequestMeta,
+    @UploadedFile() file: UploadedImage,
+  ) {
     const validated = validateImage(file);
-    return this.labConfig.uploadAsset(requireLabId(user), 'signature', validated);
+    return this.labConfig.uploadAsset(
+      requireLabId(user),
+      'signature',
+      validated,
+      auditCtx(user, req),
+    );
   }
 }

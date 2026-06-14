@@ -5,13 +5,16 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
+  Header,
   HttpCode,
   HttpStatus,
   ParseIntPipe,
   Post,
   Put,
   Query,
+  StreamableFile,
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
@@ -26,7 +29,8 @@ import {
 } from '@nestjs/swagger';
 // WEBP no es soportado por @react-pdf/renderer, solo PNG y JPEG para el fondo
 const ALLOWED_FONDO_MIME = ['image/png', 'image/jpeg'] as const;
-import type { UpdatePreferenciaPdfDto } from './dto/update-preferencia-pdf.dto';
+// Import de VALOR: el DTO va en @Body() y debe existir en runtime para el ValidationPipe.
+import { UpdatePreferenciaPdfDto } from './dto/update-preferencia-pdf.dto';
 import { PreferenciaPdfService } from './preferencia-pdf.service';
 
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
@@ -87,6 +91,13 @@ export class PreferenciaPdfController {
     return this.service.uploadFondo(requireLabId(user), file);
   }
 
+  @Delete('fondo')
+  @Roles('admin')
+  @ApiOperation({ summary: 'Quitar la imagen de fondo del PDF' })
+  removeFondo(@CurrentUser() user: Session) {
+    return this.service.removeFondo(requireLabId(user));
+  }
+
   @Get('fondo/signed-url')
   @Roles('admin', 'bioquimico', 'recepcion')
   @ApiQuery({
@@ -101,5 +112,19 @@ export class PreferenciaPdfController {
   ) {
     const clamped = Math.min(Math.max(ttlSeconds, 60), 86400);
     return this.service.fondoSignedUrl(requireLabId(user), clamped);
+  }
+
+  @Get('preview')
+  @Roles('admin')
+  @Header('Content-Type', 'application/pdf')
+  @ApiOperation({
+    summary: 'PDF de informe de muestra con la configuración actual (datos de ejemplo)',
+  })
+  async preview(@CurrentUser() user: Session): Promise<StreamableFile> {
+    const buffer = await this.service.renderSample(requireLabId(user));
+    return new StreamableFile(buffer, {
+      type: 'application/pdf',
+      disposition: 'inline; filename="preview-informe.pdf"',
+    });
   }
 }

@@ -1,15 +1,23 @@
 import type { Db } from '@/db/client';
 import { DATABASE, SUPABASE_ADMIN } from '@/db/database.module';
-import { type NewPreferenciaPdf, type PreferenciaPdf, preferenciaPdf } from '@/db/schema';
+import {
+  type NewPreferenciaPdf,
+  type PreferenciaPdf,
+  laboratorio,
+  preferenciaPdf,
+  sede,
+} from '@/db/schema';
 import type { PdfLayoutConfig } from '@/db/schema/preferencia-pdf';
 import {
   ASSETS_BUCKET,
   extFromMime,
+  resolveAssetDataUri,
   uploadAssetToBucket,
 } from '@/modules/lab-config/asset-storage';
-import { Inject, Injectable } from '@nestjs/common';
+import { buildSampleInformeData, renderInformeFromData } from '@/pdf/render';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { eq } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import type { UpdatePreferenciaPdfDto } from './dto/update-preferencia-pdf.dto';
 
 @Injectable()
@@ -31,8 +39,11 @@ export class PreferenciaPdfService {
   async upsert(labId: number, dto: UpdatePreferenciaPdfDto): Promise<PreferenciaPdf> {
     const existing = await this.get(labId);
 
+    // Merge: preserva campos/usarFondo previos cuando el dto no los trae.
+    const existingLayout = (existing?.layoutConfig as PdfLayoutConfig | null) ?? {};
     const layoutConfig: PdfLayoutConfig = {
-      campos: (dto.campos as PdfLayoutConfig['campos']) ?? {},
+      campos: (dto.campos as PdfLayoutConfig['campos']) ?? existingLayout.campos ?? {},
+      usarFondo: dto.usarFondo ?? existingLayout.usarFondo,
     };
 
     if (existing) {
@@ -102,5 +113,62 @@ export class PreferenciaPdfService {
       url: signed.data && !signed.error ? signed.data.signedUrl : null,
       expiresInSeconds: ttlSeconds,
     };
+  }
+
+  /** Quita la imagen de fondo: borra el blob (best-effort) y limpia el path. */
+  async removeFondo(labId: number): Promise<PreferenciaPdf> {
+    const existing = await this.get(labId);
+    if (!existing) {
+      throw new NotFoundException('No hay preferencias de PDF para este laboratorio.');
+    }
+    if (existing.fondoPath) {
+      const { error } = await this.storage.storage.from(ASSETS_BUCKET).remove([existing.fondoPath]);
+      if (error) {
+        // No rompe la operación: el path se limpia igual.
+      }
+    }
+    const [row] = await this.db
+      .update(preferenciaPdf)
+      .set({ fondoPath: null, updatedAt: new Date() })
+      .where(eq(preferenciaPdf.labId, labId))
+      .returning();
+    return row;
+  }
+
+  /**
+   * Renderiza un PDF de informe de MUESTRA con la marca real del lab (logo, firma,
+   * fondo, márgenes, acento, sede principal) y datos de paciente/resultados ficticios.
+   * Sirve al editor de PDF para previsualizar el resultado sin una orden cargada.
+   */
+  async renderSample(labId: number): Promise<Buffer> {
+    const [lab] = await this.db
+      .select()
+      .from(laboratorio)
+      .where(eq(laboratorio.id, labId))
+      .limit(1);
+    if (!lab) {
+      throw new NotFoundException('Laboratorio no encontrado.');
+    }
+    const pref = await this.get(labId);
+    const [logoSrc, signatureSrc, fondoSrc] = await Promise.all([
+      resolveAssetDataUri(this.storage, lab.logoPath),
+      resolveAssetDataUri(this.storage, lab.signingSignaturePath),
+      resolveAssetDataUri(this.storage, pref?.fondoPath ?? null),
+    ]);
+    const [principalSede] = await this.db
+      .select()
+      .from(sede)
+      .where(and(eq(sede.labId, labId), eq(sede.principal, true), isNull(sede.deletedAt)))
+      .limit(1);
+
+    const data = buildSampleInformeData({
+      lab,
+      preferenciaPdf: pref,
+      logoSrc,
+      signatureSrc,
+      fondoSrc,
+      sede: principalSede ?? null,
+    });
+    return renderInformeFromData(data);
   }
 }
