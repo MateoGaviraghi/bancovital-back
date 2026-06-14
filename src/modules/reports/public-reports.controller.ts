@@ -1,6 +1,17 @@
 import { Public } from '@/common/decorators/public.decorator';
 import { type RequestMeta, clientIp, userAgent } from '@/modules/super/request-meta';
-import { Body, Controller, Get, Param, Post, Req, StreamableFile, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Post,
+  Req,
+  StreamableFile,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 // Import de VALOR: el DTO va en @Body() y debe existir en runtime para el ValidationPipe.
@@ -26,6 +37,7 @@ export class PublicReportsController {
   }
 
   @Post(':token/descargar')
+  @HttpCode(HttpStatus.OK)
   @Throttle({ publicInformeDownload: { limit: 5, ttl: 10 * 60_000 } })
   @ApiOperation({ summary: 'Valida el DNI y descarga el PDF del informe' })
   async download(
