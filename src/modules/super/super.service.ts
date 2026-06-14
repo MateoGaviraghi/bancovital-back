@@ -1,14 +1,21 @@
+import { AuditService } from '@/common/audit/audit.service';
 import { isUniqueViolation } from '@/common/db-errors';
 import type { Db } from '@/db/client';
 import { DATABASE, SUPABASE_ADMIN } from '@/db/database.module';
 import {
+  attachment,
   auditLog,
   cicloConsumo,
   doctor,
   laboratorio,
   order,
+  orderPractice,
   patient,
+  payment,
+  plan,
   practiceUnidad,
+  preferenciaPdf,
+  result,
   suscripcion,
   unidadMedida,
   user,
@@ -23,8 +30,45 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { eq } from 'drizzle-orm';
+import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import type { CreateLaboratorioDto, UpdateLaboratorioDto } from './dto/create-laboratorio.dto';
+
+/** Contexto del super que ejecuta la acción, para auditar. */
+export interface SuperActionContext {
+  actorId?: string | null;
+  ip?: string | null;
+  userAgent?: string | null;
+}
+
+export interface SuperMetrics {
+  labs: { activos: number; suspendidos: number; inactivos: number };
+  mrr: number;
+  ordenesPorMes: Array<{ periodo: string; total: number; excedentes: number }>;
+  topLabsUso: Array<{
+    labId: number;
+    nombre: string;
+    usadas: number;
+    cupoEfectivo: number;
+    excedentes: number;
+    porcentaje: number;
+  }>;
+}
+
+export interface AuditListItem {
+  id: number;
+  labId: number;
+  labNombre: string | null;
+  actorId: string | null;
+  actorEmail: string | null;
+  action: string;
+  entity: string;
+  entityId: string;
+  before: unknown;
+  after: unknown;
+  ip: string | null;
+  userAgent: string | null;
+  createdAt: Date;
+}
 
 @Injectable()
 export class SuperService {
@@ -33,6 +77,7 @@ export class SuperService {
   constructor(
     @Inject(DATABASE) private readonly db: Db,
     @Inject(SUPABASE_ADMIN) private readonly admin: SupabaseClient,
+    private readonly audit: AuditService,
   ) {}
 
   list() {
@@ -95,24 +140,68 @@ export class SuperService {
   }
 
   /** Desactiva el laboratorio (soft-delete). No borra datos. */
-  async remove(id: number) {
-    await this.findOne(id);
+  async remove(id: number, ctx?: SuperActionContext) {
+    const before = await this.findOne(id);
     const [row] = await this.db
       .update(laboratorio)
       .set({ estado: 'inactivo', updatedAt: new Date() })
       .where(eq(laboratorio.id, id))
       .returning();
+    await this.audit.log({
+      labId: id,
+      actorId: ctx?.actorId,
+      action: 'lab_deactivate',
+      entity: 'laboratorio',
+      entityId: id,
+      before: { estado: before.estado },
+      after: { estado: 'inactivo' },
+      ip: ctx?.ip,
+      userAgent: ctx?.userAgent,
+    });
     return row;
   }
 
   /** Reactiva un laboratorio previamente desactivado. */
-  async reactivate(id: number) {
-    await this.findOne(id);
+  async reactivate(id: number, ctx?: SuperActionContext) {
+    const before = await this.findOne(id);
     const [row] = await this.db
       .update(laboratorio)
       .set({ estado: 'activo', updatedAt: new Date() })
       .where(eq(laboratorio.id, id))
       .returning();
+    await this.audit.log({
+      labId: id,
+      actorId: ctx?.actorId,
+      action: 'lab_reactivate',
+      entity: 'laboratorio',
+      entityId: id,
+      before: { estado: before.estado },
+      after: { estado: 'activo' },
+      ip: ctx?.ip,
+      userAgent: ctx?.userAgent,
+    });
+    return row;
+  }
+
+  /** Suspende un laboratorio (estado='suspendido'). Reversible vía reactivate. */
+  async suspend(id: number, ctx?: SuperActionContext) {
+    const before = await this.findOne(id);
+    const [row] = await this.db
+      .update(laboratorio)
+      .set({ estado: 'suspendido', updatedAt: new Date() })
+      .where(eq(laboratorio.id, id))
+      .returning();
+    await this.audit.log({
+      labId: id,
+      actorId: ctx?.actorId,
+      action: 'lab_suspend',
+      entity: 'laboratorio',
+      entityId: id,
+      before: { estado: before.estado },
+      after: { estado: 'suspendido' },
+      ip: ctx?.ip,
+      userAgent: ctx?.userAgent,
+    });
     return row;
   }
 
@@ -121,13 +210,27 @@ export class SuperService {
    * Solo se puede ejecutar sobre labs con estado='inactivo'.
    * Los usuarios de Supabase Auth se borran después del commit (fire-and-forget con warn).
    */
-  async purge(id: number) {
+  async purge(id: number, ctx?: SuperActionContext) {
     const lab = await this.findOne(id);
     if (lab.estado !== 'inactivo') {
       throw new ConflictException(
         'Solo se puede borrar definitivamente un laboratorio desactivado.',
       );
     }
+
+    // Auditar ANTES de la transacción: la propia transacción borra el audit_log
+    // del lab y la fila de laboratorio, por lo que un insert posterior con
+    // labId=id violaría la FK (restrict) contra una fila inexistente.
+    await this.audit.log({
+      labId: id,
+      actorId: ctx?.actorId,
+      action: 'lab_purge',
+      entity: 'laboratorio',
+      entityId: id,
+      before: { slug: lab.slug, legalName: lab.legalName, estado: lab.estado },
+      ip: ctx?.ip,
+      userAgent: ctx?.userAgent,
+    });
 
     // Recopilar IDs de Auth ANTES de la transacción
     const userRows = await this.db.select({ id: user.id }).from(user).where(eq(user.labId, id));
@@ -180,6 +283,227 @@ export class SuperService {
         this.logger.warn(`purge lab ${id}: excepción borrando auth user ${authId}: ${msg}`);
       }
     }
+  }
+
+  /** Devuelve el período actual como 'YYYY-MM' (TZ anclada en tz.ts). */
+  private periodoActual(): string {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  }
+
+  /** Métricas agregadas de la plataforma (solo super). */
+  async metrics(): Promise<SuperMetrics> {
+    // 1. Conteo de labs por estado
+    const estadoRows = await this.db
+      .select({ estado: laboratorio.estado, total: sql<number>`count(*)::int` })
+      .from(laboratorio)
+      .groupBy(laboratorio.estado);
+
+    const labs = { activos: 0, suspendidos: 0, inactivos: 0 };
+    for (const r of estadoRows) {
+      if (r.estado === 'activo') labs.activos = r.total;
+      else if (r.estado === 'suspendido') labs.suspendidos = r.total;
+      else if (r.estado === 'inactivo') labs.inactivos = r.total;
+    }
+
+    // 2. MRR: suma de plan.precioMensual de suscripciones activas
+    const [mrrRow] = await this.db
+      .select({ mrr: sql<string>`coalesce(sum(${plan.precioMensual}), 0)` })
+      .from(suscripcion)
+      .innerJoin(plan, eq(suscripcion.planId, plan.id))
+      .where(eq(suscripcion.estado, 'activa'));
+    const mrr = Number(mrrRow?.mrr ?? 0);
+
+    // 3. Órdenes por mes (últimos 6 meses), con excedentes
+    const ordenesRows = await this.db
+      .select({
+        periodo: sql<string>`to_char(date_trunc('month', ${order.orderDate}), 'YYYY-MM')`,
+        total: sql<number>`count(*)::int`,
+        excedentes: sql<number>`count(*) filter (where ${order.esExcedente})::int`,
+      })
+      .from(order)
+      .where(sql`${order.orderDate} >= date_trunc('month', now()) - interval '5 months'`)
+      .groupBy(sql`date_trunc('month', ${order.orderDate})`)
+      .orderBy(sql`date_trunc('month', ${order.orderDate})`);
+
+    const ordenesPorMes = ordenesRows.map((r) => ({
+      periodo: r.periodo,
+      total: r.total,
+      excedentes: r.excedentes,
+    }));
+
+    // 4. Top labs por % de uso del período actual
+    const periodo = this.periodoActual();
+    const usoRows = await this.db
+      .select({
+        labId: cicloConsumo.labId,
+        nombre: laboratorio.legalName,
+        usadas: cicloConsumo.usadas,
+        excedentes: cicloConsumo.excedentes,
+        cupoBase: cicloConsumo.cupoBase,
+        rollover: cicloConsumo.rollover,
+      })
+      .from(cicloConsumo)
+      .innerJoin(laboratorio, eq(cicloConsumo.labId, laboratorio.id))
+      .where(eq(cicloConsumo.periodo, periodo));
+
+    const topLabsUso = usoRows
+      .map((r) => {
+        const cupoEfectivo = (r.cupoBase ?? 0) + r.rollover;
+        const porcentaje = cupoEfectivo > 0 ? Math.round((r.usadas / cupoEfectivo) * 100) : 0;
+        return {
+          labId: r.labId,
+          nombre: r.nombre,
+          usadas: r.usadas,
+          cupoEfectivo,
+          excedentes: r.excedentes,
+          porcentaje,
+        };
+      })
+      .sort((a, b) => b.porcentaje - a.porcentaje)
+      .slice(0, 8);
+
+    return { labs, mrr, ordenesPorMes, topLabsUso };
+  }
+
+  /**
+   * Export completo de un laboratorio para backup / offboarding.
+   * Devuelve TODOS los datos del lab (sin secretos de usuarios).
+   * v1: en memoria. TODO: para labs muy grandes, paginar/streamear órdenes,
+   * resultados y attachments en lugar de cargarlos todos a la vez.
+   */
+  async exportLab(id: number, ctx?: SuperActionContext) {
+    const lab = await this.findOne(id);
+
+    const orders = await this.db.select().from(order).where(eq(order.labId, id));
+    const orderIds = orders.map((o) => o.id);
+
+    const [
+      users,
+      patients,
+      doctors,
+      orderPractices,
+      results,
+      payments,
+      attachments,
+      suscripciones,
+      ciclos,
+      practiceUnidades,
+      unidades,
+      preferencias,
+      auditTrail,
+    ] = await Promise.all([
+      this.db
+        .select({
+          id: user.id,
+          email: user.email,
+          role: user.role,
+          displayName: user.displayName,
+          active: user.active,
+        })
+        .from(user)
+        .where(eq(user.labId, id)),
+      this.db.select().from(patient).where(eq(patient.labId, id)),
+      this.db.select().from(doctor).where(eq(doctor.labId, id)),
+      orderIds.length
+        ? this.db.select().from(orderPractice).where(inArray(orderPractice.orderId, orderIds))
+        : Promise.resolve([]),
+      orderIds.length
+        ? this.db
+            .select()
+            .from(result)
+            .innerJoin(orderPractice, eq(result.orderPracticeId, orderPractice.id))
+            .where(inArray(orderPractice.orderId, orderIds))
+            .then((rows) => rows.map((r) => r.result))
+        : Promise.resolve([]),
+      orderIds.length
+        ? this.db.select().from(payment).where(inArray(payment.orderId, orderIds))
+        : Promise.resolve([]),
+      orderIds.length
+        ? this.db.select().from(attachment).where(inArray(attachment.orderId, orderIds))
+        : Promise.resolve([]),
+      this.db.select().from(suscripcion).where(eq(suscripcion.labId, id)),
+      this.db.select().from(cicloConsumo).where(eq(cicloConsumo.labId, id)),
+      this.db.select().from(practiceUnidad).where(eq(practiceUnidad.labId, id)),
+      this.db.select().from(unidadMedida).where(eq(unidadMedida.labId, id)),
+      this.db.select().from(preferenciaPdf).where(eq(preferenciaPdf.labId, id)),
+      this.db
+        .select()
+        .from(auditLog)
+        .where(eq(auditLog.labId, id))
+        .orderBy(desc(auditLog.createdAt)),
+    ]);
+
+    await this.audit.log({
+      labId: id,
+      actorId: ctx?.actorId,
+      action: 'lab_export',
+      entity: 'laboratorio',
+      entityId: id,
+      ip: ctx?.ip,
+      userAgent: ctx?.userAgent,
+    });
+
+    return {
+      exportedAt: new Date().toISOString(),
+      laboratorio: lab,
+      users,
+      patients,
+      doctors,
+      orders,
+      orderPractices,
+      results,
+      payments,
+      attachments,
+      suscripciones,
+      ciclosConsumo: ciclos,
+      practiceUnidad: practiceUnidades,
+      unidadMedida: unidades,
+      preferenciaPdf: preferencias,
+      auditLog: auditTrail,
+    };
+  }
+
+  /** Visor de auditoría paginado (solo super). Filtro opcional por labId. */
+  async auditList(params: {
+    labId?: number;
+    limit?: number;
+    offset?: number;
+  }): Promise<{ data: AuditListItem[]; total: number }> {
+    const limit = Math.min(Math.max(params.limit ?? 50, 1), 200);
+    const offset = Math.max(params.offset ?? 0, 0);
+    const where = params.labId !== undefined ? eq(auditLog.labId, params.labId) : undefined;
+
+    const data = await this.db
+      .select({
+        id: auditLog.id,
+        labId: auditLog.labId,
+        labNombre: laboratorio.legalName,
+        actorId: auditLog.actorId,
+        actorEmail: user.email,
+        action: auditLog.action,
+        entity: auditLog.entity,
+        entityId: auditLog.entityId,
+        before: auditLog.before,
+        after: auditLog.after,
+        ip: auditLog.ip,
+        userAgent: auditLog.userAgent,
+        createdAt: auditLog.createdAt,
+      })
+      .from(auditLog)
+      .leftJoin(laboratorio, eq(auditLog.labId, laboratorio.id))
+      .leftJoin(user, eq(auditLog.actorId, user.id))
+      .where(where)
+      .orderBy(desc(auditLog.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    const [countRow] = await this.db
+      .select({ total: sql<number>`count(*)::int` })
+      .from(auditLog)
+      .where(where);
+
+    return { data: data as AuditListItem[], total: countRow?.total ?? 0 };
   }
 
   private assertSlugNotReserved(slug: string): void {

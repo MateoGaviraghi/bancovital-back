@@ -26,6 +26,7 @@ jest.mock('@/pdf/render', () => ({
   renderFichaPdf: jest.fn().mockResolvedValue(Buffer.from('%PDF-1.4 fake')),
 }));
 
+import { AuditService } from '@/common/audit/audit.service';
 import { AppConfig } from '@/config';
 import { DATABASE, SUPABASE_ADMIN } from '@/db/database.module';
 import { MailService } from '@/mail/mail.service';
@@ -34,6 +35,9 @@ import { ConsumoService } from '@/modules/consumo/consumo.service';
 import { ContractsPublicController } from '@/modules/contracts/contracts-public.controller';
 import { ContractsSuperController } from '@/modules/contracts/contracts-super.controller';
 import { ContractsService } from '@/modules/contracts/contracts.service';
+import { ImpersonationController } from '@/modules/impersonation/impersonation.controller';
+import { ImpersonationService } from '@/modules/impersonation/impersonation.service';
+import { LabConfigService } from '@/modules/lab-config/lab-config.service';
 import { MeController } from '@/modules/me/me.controller';
 import { MeService } from '@/modules/me/me.service';
 import { PlansController } from '@/modules/plans/plans.controller';
@@ -44,6 +48,10 @@ import { GoogleCalendarService } from '@/modules/reuniones/google-calendar.servi
 import { ReunionesPublicController } from '@/modules/reuniones/reuniones-public.controller';
 import { ReunionesSuperController } from '@/modules/reuniones/reuniones-super.controller';
 import { ReunionesService } from '@/modules/reuniones/reuniones.service';
+import { SuperMetricsController } from '@/modules/super/super-metrics.controller';
+import { SuperController } from '@/modules/super/super.controller';
+import { SuperService } from '@/modules/super/super.service';
+import { UsersService } from '@/modules/users/users.service';
 import { ConfigModule } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import { ThrottlerModule } from '@nestjs/throttler';
@@ -198,6 +206,56 @@ describe('DI compile — ContractsModule', () => {
         { provide: SUPABASE_ADMIN, useValue: SUPABASE_STUB },
         { provide: MailService, useValue: mailStub },
         { provide: AppConfig, useValue: appConfigStub },
+      ],
+    }).compile();
+
+    expect(moduleRef).toBeDefined();
+    await moduleRef.close();
+  });
+});
+
+describe('DI compile — AuditModule', () => {
+  it('compiles without "can\'t resolve dependencies" errors', async () => {
+    const moduleRef = await Test.createTestingModule({
+      providers: [AuditService, { provide: DATABASE, useValue: DB_STUB }],
+    }).compile();
+
+    expect(moduleRef).toBeDefined();
+    await moduleRef.close();
+  });
+});
+
+describe('DI compile — ImpersonationModule', () => {
+  it('compiles without "can\'t resolve dependencies" errors', async () => {
+    const auditStub = { log: jest.fn() };
+    const moduleRef = await Test.createTestingModule({
+      controllers: [ImpersonationController],
+      providers: [
+        ImpersonationService,
+        { provide: DATABASE, useValue: DB_STUB },
+        { provide: AuditService, useValue: auditStub },
+      ],
+    }).compile();
+
+    expect(moduleRef).toBeDefined();
+    await moduleRef.close();
+  });
+});
+
+describe('DI compile — SuperModule', () => {
+  it('compiles without "can\'t resolve dependencies" errors', async () => {
+    const auditStub = { log: jest.fn() };
+    const usersStub = { invite: jest.fn() };
+    const labConfigStub = { uploadAsset: jest.fn() };
+    const moduleRef = await Test.createTestingModule({
+      controllers: [SuperController, SuperMetricsController],
+      providers: [
+        SuperService,
+        { provide: DATABASE, useValue: DB_STUB },
+        { provide: SUPABASE_ADMIN, useValue: SUPABASE_STUB },
+        { provide: AuditService, useValue: auditStub },
+        { provide: UsersService, useValue: usersStub },
+        { provide: LabConfigService, useValue: labConfigStub },
       ],
     }).compile();
 

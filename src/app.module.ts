@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { AuthModule } from './auth/auth.module';
+import { AuditModule } from './common/audit/audit.module';
 import { AuthGuard } from './common/guards/auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { AppConfig } from './config';
@@ -10,6 +11,7 @@ import { ConsumoModule } from './modules/consumo/consumo.module';
 import { ContractsModule } from './modules/contracts/contracts.module';
 import { DoctorsModule } from './modules/doctors/doctors.module';
 import { HealthModule } from './modules/health/health.module';
+import { ImpersonationModule } from './modules/impersonation/impersonation.module';
 import { InsurersModule } from './modules/insurers/insurers.module';
 import { LabConfigModule } from './modules/lab-config/lab-config.module';
 import { MeModule } from './modules/me/me.module';
@@ -34,6 +36,7 @@ import { UsersModule } from './modules/users/users.module';
     }),
     DatabaseModule,
     AuthModule,
+    AuditModule,
     HealthModule,
     MeModule,
     PatientsModule,
@@ -47,6 +50,7 @@ import { UsersModule } from './modules/users/users.module';
     UsersModule,
     PreferenciaPdfModule,
     SuperModule,
+    ImpersonationModule,
     UnidadesMedidaModule,
     PublicModule,
     ConsumoModule,

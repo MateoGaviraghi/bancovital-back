@@ -80,4 +80,95 @@ describe('AuthGuard', () => {
     expect(verifier.verifyAuthHeader).toHaveBeenCalledWith('Bearer cap');
     expect(req.session?.role).toBe('recepcion');
   });
+
+  // ── Impersonation ──────────────────────────────────────────────
+  describe('impersonation (x-impersonate-lab)', () => {
+    it('super con header válido → sesión EFECTIVA admin + labId + impersonating', async () => {
+      const { ctx, req } = makeCtx({
+        authorization: 'Bearer s',
+        'x-impersonate-lab': '42',
+      });
+      verifier.verifyAuthHeader.mockResolvedValue({
+        userId: 'super-1',
+        email: 's@nodo.com',
+        role: 'super',
+      });
+      tenantService.resolve.mockResolvedValue({ labId: null, role: 'super' });
+
+      await guard.canActivate(ctx);
+
+      expect(req.session).toEqual({
+        userId: 'super-1',
+        email: 's@nodo.com',
+        role: 'admin',
+        labId: 42,
+        impersonating: true,
+        realUserId: 'super-1',
+        realRole: 'super',
+      });
+    });
+
+    it('NO-super con header → se IGNORA por completo (sesión normal)', async () => {
+      const { ctx, req } = makeCtx({
+        authorization: 'Bearer a',
+        'x-impersonate-lab': '42',
+      });
+      verifier.verifyAuthHeader.mockResolvedValue({
+        userId: 'admin-1',
+        email: 'a@lab.com',
+        role: 'admin',
+      });
+      tenantService.resolve.mockResolvedValue({ labId: 7, role: 'admin' });
+
+      await guard.canActivate(ctx);
+
+      expect(req.session).toEqual({
+        userId: 'admin-1',
+        email: 'a@lab.com',
+        role: 'admin',
+        labId: 7,
+      });
+      expect(req.session?.impersonating).toBeUndefined();
+    });
+
+    it('super SIN header → opera como super (labId null), sin impersonation', async () => {
+      const { ctx, req } = makeCtx({ authorization: 'Bearer s' });
+      verifier.verifyAuthHeader.mockResolvedValue({
+        userId: 'super-1',
+        email: 's@nodo.com',
+        role: 'super',
+      });
+      tenantService.resolve.mockResolvedValue({ labId: null, role: 'super' });
+
+      await guard.canActivate(ctx);
+
+      expect(req.session).toEqual({
+        userId: 'super-1',
+        email: 's@nodo.com',
+        role: 'super',
+        labId: null,
+      });
+    });
+
+    it('super con header no-entero o no-positivo → se ignora', async () => {
+      for (const bad of ['abc', '0', '-3', '1.5', '']) {
+        const { ctx, req } = makeCtx({
+          authorization: 'Bearer s',
+          'x-impersonate-lab': bad,
+        });
+        verifier.verifyAuthHeader.mockResolvedValue({
+          userId: 'super-1',
+          email: 's@nodo.com',
+          role: 'super',
+        });
+        tenantService.resolve.mockResolvedValue({ labId: null, role: 'super' });
+
+        await guard.canActivate(ctx);
+
+        expect(req.session?.impersonating).toBeUndefined();
+        expect(req.session?.role).toBe('super');
+        expect(req.session?.labId).toBeNull();
+      }
+    });
+  });
 });
