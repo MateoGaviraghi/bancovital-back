@@ -1,4 +1,4 @@
-import { bigint, pgTable, text, timestamp, varchar } from 'drizzle-orm/pg-core';
+import { bigint, boolean, pgTable, text, timestamp, varchar } from 'drizzle-orm/pg-core';
 import { estadoLabEnum } from './enums';
 
 export const laboratorio = pgTable('laboratorio', {
@@ -21,6 +21,8 @@ export const laboratorio = pgTable('laboratorio', {
   primaryColor: text('primary_color'),
   tagline: text('tagline'),
   estado: estadoLabEnum('estado').notNull().default('activo'),
+  /** Marcado manual por el super: lab moroso (deuda impaga). Solo informativo. */
+  moroso: boolean('moroso').notNull().default(false),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });

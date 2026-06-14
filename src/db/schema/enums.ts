@@ -50,3 +50,7 @@ export const attachmentKindEnum = pgEnum('attachment_kind', [
 ]);
 
 export const suscripcionEstadoEnum = pgEnum('suscripcion_estado', ['activa', 'cancelada']);
+
+export const movimientoTipoEnum = pgEnum('movimiento_tipo', ['cargo', 'pago']);
+
+export const anuncioTipoEnum = pgEnum('anuncio_tipo', ['info', 'advertencia', 'mantenimiento']);

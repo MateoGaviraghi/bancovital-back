@@ -7,6 +7,7 @@ import { AuthGuard } from './common/guards/auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { AppConfig } from './config';
 import { DatabaseModule } from './db/database.module';
+import { AnunciosModule } from './modules/anuncios/anuncios.module';
 import { ConsumoModule } from './modules/consumo/consumo.module';
 import { ContractsModule } from './modules/contracts/contracts.module';
 import { DoctorsModule } from './modules/doctors/doctors.module';
@@ -37,6 +38,7 @@ import { UsersModule } from './modules/users/users.module';
     DatabaseModule,
     AuthModule,
     AuditModule,
+    AnunciosModule,
     HealthModule,
     MeModule,
     PatientsModule,

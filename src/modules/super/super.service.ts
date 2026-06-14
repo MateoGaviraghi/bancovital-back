@@ -7,6 +7,7 @@ import {
   auditLog,
   cicloConsumo,
   doctor,
+  labMovimiento,
   laboratorio,
   order,
   orderPractice,
@@ -265,7 +266,10 @@ export class SuperService {
       // 9. public.user (restrict hacia laboratorio)
       await tx.delete(user).where(eq(user.labId, id));
 
-      // 10. laboratorio (preferencia_pdf cae por cascade; contrato.lab_creado_id queda null por set-null)
+      // 9b. lab_movimiento (restrict hacia laboratorio — F5b)
+      await tx.delete(labMovimiento).where(eq(labMovimiento.labId, id));
+
+      // 10. laboratorio (preferencia_pdf y anuncio caen por cascade; contrato.lab_creado_id queda null por set-null)
       await tx.delete(laboratorio).where(eq(laboratorio.id, id));
     });
 
@@ -504,6 +508,53 @@ export class SuperService {
       .where(where);
 
     return { data: data as AuditListItem[], total: countRow?.total ?? 0 };
+  }
+
+  /**
+   * Checklist de onboarding de un laboratorio.
+   * Items computados sobre el estado real del lab (logo, color, plan, usuarios, primera orden).
+   */
+  async onboarding(id: number): Promise<{
+    items: Array<{ key: string; label: string; done: boolean }>;
+    completados: number;
+    total: number;
+  }> {
+    const lab = await this.findOne(id);
+
+    const [planRow] = await this.db
+      .select({ id: suscripcion.id })
+      .from(suscripcion)
+      .where(and(eq(suscripcion.labId, id), eq(suscripcion.estado, 'activa')))
+      .limit(1);
+
+    const [usuariosRow] = await this.db
+      .select({ total: sql<number>`count(*)::int` })
+      .from(user)
+      .where(and(eq(user.labId, id), eq(user.active, true)));
+
+    const [ordenesRow] = await this.db
+      .select({ total: sql<number>`count(*)::int` })
+      .from(order)
+      .where(eq(order.labId, id));
+
+    const items = [
+      { key: 'logo', label: 'Logo cargado', done: lab.logoPath != null },
+      { key: 'color', label: 'Color de marca definido', done: lab.primaryColor != null },
+      { key: 'plan', label: 'Plan / suscripción activa', done: planRow != null },
+      {
+        key: 'usuarios',
+        label: 'Al menos un usuario activo',
+        done: (usuariosRow?.total ?? 0) >= 1,
+      },
+      {
+        key: 'primera_orden',
+        label: 'Primera orden registrada',
+        done: (ordenesRow?.total ?? 0) >= 1,
+      },
+    ];
+
+    const completados = items.filter((i) => i.done).length;
+    return { items, completados, total: items.length };
   }
 
   private assertSlugNotReserved(slug: string): void {

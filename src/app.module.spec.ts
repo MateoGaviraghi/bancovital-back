@@ -30,6 +30,9 @@ import { AuditService } from '@/common/audit/audit.service';
 import { AppConfig } from '@/config';
 import { DATABASE, SUPABASE_ADMIN } from '@/db/database.module';
 import { MailService } from '@/mail/mail.service';
+import { AnunciosSuperController } from '@/modules/anuncios/anuncios-super.controller';
+import { AnunciosController } from '@/modules/anuncios/anuncios.controller';
+import { AnunciosService } from '@/modules/anuncios/anuncios.service';
 import { ConsumoController } from '@/modules/consumo/consumo.controller';
 import { ConsumoService } from '@/modules/consumo/consumo.service';
 import { ContractsPublicController } from '@/modules/contracts/contracts-public.controller';
@@ -48,6 +51,8 @@ import { GoogleCalendarService } from '@/modules/reuniones/google-calendar.servi
 import { ReunionesPublicController } from '@/modules/reuniones/reuniones-public.controller';
 import { ReunionesSuperController } from '@/modules/reuniones/reuniones-super.controller';
 import { ReunionesService } from '@/modules/reuniones/reuniones.service';
+import { BillingController } from '@/modules/super/billing.controller';
+import { BillingService } from '@/modules/super/billing.service';
 import { SuperMetricsController } from '@/modules/super/super-metrics.controller';
 import { SuperController } from '@/modules/super/super.controller';
 import { SuperService } from '@/modules/super/super.service';
@@ -248,14 +253,32 @@ describe('DI compile — SuperModule', () => {
     const usersStub = { invite: jest.fn() };
     const labConfigStub = { uploadAsset: jest.fn() };
     const moduleRef = await Test.createTestingModule({
-      controllers: [SuperController, SuperMetricsController],
+      controllers: [SuperController, SuperMetricsController, BillingController],
       providers: [
         SuperService,
+        BillingService,
         { provide: DATABASE, useValue: DB_STUB },
         { provide: SUPABASE_ADMIN, useValue: SUPABASE_STUB },
         { provide: AuditService, useValue: auditStub },
         { provide: UsersService, useValue: usersStub },
         { provide: LabConfigService, useValue: labConfigStub },
+      ],
+    }).compile();
+
+    expect(moduleRef).toBeDefined();
+    await moduleRef.close();
+  });
+});
+
+describe('DI compile — AnunciosModule', () => {
+  it('compiles without "can\'t resolve dependencies" errors', async () => {
+    const auditStub = { log: jest.fn() };
+    const moduleRef = await Test.createTestingModule({
+      controllers: [AnunciosSuperController, AnunciosController],
+      providers: [
+        AnunciosService,
+        { provide: DATABASE, useValue: DB_STUB },
+        { provide: AuditService, useValue: auditStub },
       ],
     }).compile();
 

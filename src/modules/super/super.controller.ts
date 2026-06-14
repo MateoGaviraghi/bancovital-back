@@ -24,30 +24,10 @@ import { LabConfigService } from '../lab-config/lab-config.service';
 import { InviteUserDto } from '../users/dto/invite-user.dto';
 import { UsersService } from '../users/users.service';
 import { CreateLaboratorioDto, UpdateLaboratorioDto } from './dto/create-laboratorio.dto';
+import { type RequestMeta, clientIp, userAgent } from './request-meta';
 import { SuperService } from './super.service';
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
-
-interface RequestMeta {
-  ip?: string;
-  headers: Record<string, string | string[] | undefined>;
-  socket?: { remoteAddress?: string };
-}
-
-function clientIp(req: RequestMeta): string | null {
-  const fwd = req.headers['x-forwarded-for'];
-  if (fwd) {
-    const first = Array.isArray(fwd) ? fwd[0] : fwd.split(',')[0];
-    if (first) return first.trim();
-  }
-  return req.ip ?? req.socket?.remoteAddress ?? null;
-}
-
-function userAgent(req: RequestMeta): string | null {
-  const ua = req.headers['user-agent'];
-  if (!ua) return null;
-  return Array.isArray(ua) ? (ua[0] ?? null) : ua;
-}
 
 @ApiTags('super')
 @ApiBearerAuth()
@@ -178,6 +158,12 @@ export class SuperController {
       throw new BadRequestException('Formato no permitido. Use PNG, JPG o WEBP.');
     }
     return this.labConfig.uploadAsset(id, 'logo', { buffer: file.buffer, mimetype: detected });
+  }
+
+  @Get(':id/onboarding')
+  @ApiOperation({ summary: 'Checklist de onboarding del laboratorio' })
+  onboarding(@Param('id', ParseIntPipe) id: number) {
+    return this.superService.onboarding(id);
   }
 
   @Post(':id/users/invite')
