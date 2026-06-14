@@ -1,7 +1,7 @@
 import type { Session } from '@/auth/session';
 import type { Db } from '@/db/client';
 import { DATABASE } from '@/db/database.module';
-import { laboratorio, user } from '@/db/schema';
+import { laboratorio } from '@/db/schema';
 import { Inject, Injectable } from '@nestjs/common';
 import { eq } from 'drizzle-orm';
 
@@ -29,11 +29,12 @@ export class MeService {
       };
     }
 
+    // Resolve the slug from the EFFECTIVE session.labId (not the user's own lab),
+    // so under impersonation /me reports the impersonated lab's slug.
     const [row] = await this.db
       .select({ slug: laboratorio.slug })
-      .from(user)
-      .innerJoin(laboratorio, eq(user.labId, laboratorio.id))
-      .where(eq(user.id, session.userId))
+      .from(laboratorio)
+      .where(eq(laboratorio.id, session.labId))
       .limit(1);
 
     return {
