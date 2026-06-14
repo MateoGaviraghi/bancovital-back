@@ -12,6 +12,7 @@ jest.mock('@/pdf/render', () => ({
 import { ReportsService, buildPdfPath } from './reports.service';
 
 const LAB_ID = 1;
+const APP_CONFIG_STUB = { env: { APP_URL: 'http://localhost:3000' } } as never;
 
 describe('buildPdfPath', () => {
   it('arma {labId}/{orderId}/{protocol con padding a 8 digitos}.pdf', () => {
@@ -49,6 +50,9 @@ function orderFixture(overrides: Partial<Order> = {}): Order {
     pdfReportSignedBy: null,
     createdBy: 'user-uuid',
     esExcedente: false,
+    publicReportToken: null,
+    publicAccessAttempts: 0,
+    publicAccessLockedUntil: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,
@@ -83,7 +87,7 @@ function makeService(currentOrder: Order): ReportsService {
     },
   };
   const orders = {} as OrdersService;
-  return new ReportsService(db as never, storage as never, orders);
+  return new ReportsService(db as never, storage as never, orders, APP_CONFIG_STUB);
 }
 
 describe('ReportsService.emit validacion de estado', () => {
@@ -107,6 +111,7 @@ describe('ReportsService.emit validacion de estado', () => {
       db as never,
       { storage: { from: jest.fn() } } as never,
       {} as OrdersService,
+      APP_CONFIG_STUB,
     );
     await expect(service.emit(LAB_ID, 999, 'u')).rejects.toThrow(NotFoundException);
   });
@@ -133,6 +138,7 @@ describe('ReportsService.signedUrl validacion de estado', () => {
       db as never,
       { storage: { from: jest.fn() } } as never,
       {} as OrdersService,
+      APP_CONFIG_STUB,
     );
     await expect(service.signedUrl(LAB_ID, 999, 900)).rejects.toThrow(NotFoundException);
   });

@@ -47,6 +47,8 @@ import { PlansController } from '@/modules/plans/plans.controller';
 import { PlansService } from '@/modules/plans/plans.service';
 import { PublicLabsController } from '@/modules/public/public-labs.controller';
 import { PublicLabsService } from '@/modules/public/public-labs.service';
+import { PublicReportsController } from '@/modules/reports/public-reports.controller';
+import { PublicReportsService } from '@/modules/reports/public-reports.service';
 import { GoogleCalendarService } from '@/modules/reuniones/google-calendar.service';
 import { ReunionesPublicController } from '@/modules/reuniones/reuniones-public.controller';
 import { ReunionesSuperController } from '@/modules/reuniones/reuniones-super.controller';
@@ -89,6 +91,24 @@ describe('DI compile — PublicModule', () => {
       controllers: [PublicLabsController],
       providers: [
         PublicLabsService,
+        { provide: DATABASE, useValue: DB_STUB },
+        { provide: SUPABASE_ADMIN, useValue: SUPABASE_STUB },
+      ],
+    }).compile();
+
+    expect(moduleRef).toBeDefined();
+    await moduleRef.close();
+  });
+});
+
+describe('DI compile — PublicReports (F7 portal paciente)', () => {
+  it('compiles without "can\'t resolve dependencies" errors', async () => {
+    const moduleRef = await Test.createTestingModule({
+      imports: [ThrottlerModule.forRoot([{ name: 'public', ttl: 60_000, limit: 30 }])],
+      controllers: [PublicReportsController],
+      providers: [
+        PublicReportsService,
+        AuditService,
         { provide: DATABASE, useValue: DB_STUB },
         { provide: SUPABASE_ADMIN, useValue: SUPABASE_STUB },
       ],
