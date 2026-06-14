@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsOptional, IsString, Length, MaxLength } from 'class-validator';
+import { IsEmail, IsOptional, IsString, Length, Matches, MaxLength } from 'class-validator';
 
 export class UpdateLabConfigDto {
   @ApiProperty({ required: false, minLength: 1, maxLength: 200 })
@@ -80,4 +80,20 @@ export class UpdateLabConfigDto {
   @IsString()
   @MaxLength(60)
   shortName?: string;
+
+  @ApiProperty({
+    required: false,
+    nullable: true,
+    example: '#7c3aed',
+    description: 'Color primario de marca en hex (#rrggbb). El front deriva los tokens OKLCH.',
+  })
+  @IsOptional()
+  @Matches(/^#[0-9a-fA-F]{6}$/, { message: 'primaryColor debe ser un color hex #rrggbb.' })
+  primaryColor?: string;
+
+  @ApiProperty({ required: false, nullable: true, maxLength: 120 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  tagline?: string;
 }

@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsInt, IsObject, IsOptional, Max, Min, ValidateNested } from 'class-validator';
+import { IsBoolean, IsInt, IsObject, IsOptional, Max, Min, ValidateNested } from 'class-validator';
 
 export class PdfLayoutCampoDto {
   @ApiProperty({ example: 120 })
@@ -28,6 +28,15 @@ export class PdfLayoutCampoDto {
 }
 
 export class UpdatePreferenciaPdfDto {
+  @ApiProperty({
+    required: false,
+    default: true,
+    description: 'Dibujar la imagen de fondo (membrete) en el PDF.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  usarFondo?: boolean;
+
   @ApiProperty({
     required: false,
     description: 'Mapa de campos sobre la imagen de fondo. Clave = "entidad.campo"',

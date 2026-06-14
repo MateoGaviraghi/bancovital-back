@@ -11,6 +11,7 @@ import {
   practiceUnidad,
   preferenciaPdf,
   result,
+  sede,
 } from '@/db/schema';
 import type { Order, OrderPracticeUnidadValue, Result } from '@/db/schema';
 import { resolveAssetDataUri } from '@/modules/lab-config/asset-storage';
@@ -25,7 +26,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { and, asc, eq, inArray } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull } from 'drizzle-orm';
 
 export const REPORTS_BUCKET = 'reports';
 
@@ -404,6 +405,12 @@ export class ReportsService {
       resolveAssetDataUri(this.storage, pref?.fondoPath ?? null),
     ]);
 
+    const [principalSede] = await this.db
+      .select()
+      .from(sede)
+      .where(and(eq(sede.labId, ord.labId), eq(sede.principal, true), isNull(sede.deletedAt)))
+      .limit(1);
+
     const buffer = await renderInformePdf({
       order: ord,
       patient: pat,
@@ -417,6 +424,7 @@ export class ReportsService {
       signatureDataUri,
       fondoDataUri: fondoDataUri ?? undefined,
       preferenciaPdf: pref ?? undefined,
+      sede: principalSede ?? null,
     });
 
     const path = buildPdfPath(ord.labId, ord.id, ord.protocolNumber);

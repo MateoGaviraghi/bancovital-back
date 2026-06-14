@@ -1,3 +1,4 @@
+import { AuditService } from '@/common/audit/audit.service';
 import type { Db } from '@/db/client';
 import { DATABASE, SUPABASE_ADMIN } from '@/db/database.module';
 import { type Laboratorio, type NewLaboratorio, laboratorio } from '@/db/schema';
@@ -5,13 +6,42 @@ import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { eq } from 'drizzle-orm';
 import { ASSETS_BUCKET, extFromMime, uploadAssetToBucket } from './asset-storage';
-import type { UpdateLabConfigDto } from './dto/update-lab-config.dto';
+// Import de VALOR (no `import type`): el DTO se usa en @Body() del controller y
+// debe existir en runtime para que el ValidationPipe lo valide (whitelist/forbid).
+import { UpdateLabConfigDto } from './dto/update-lab-config.dto';
+
+/** Metadatos del request para el audit trail (best-effort). */
+export interface LabConfigAuditCtx {
+  actorId: string | null;
+  ip: string | null;
+  userAgent: string | null;
+}
+
+/** Campos editables relevantes para el diff de auditoría (sin timestamps/ids ruidosos). */
+function brandingSnapshot(lab: Laboratorio) {
+  return {
+    legalName: lab.legalName,
+    shortName: lab.shortName,
+    cuit: lab.cuit,
+    streetAddress: lab.streetAddress,
+    city: lab.city,
+    province: lab.province,
+    phone: lab.phone,
+    email: lab.email,
+    signingProfessionalName: lab.signingProfessionalName,
+    signingProfessionalMp: lab.signingProfessionalMp,
+    primaryColor: lab.primaryColor,
+    tagline: lab.tagline,
+    logoPath: lab.logoPath,
+  };
+}
 
 @Injectable()
 export class LabConfigService {
   constructor(
     @Inject(DATABASE) private readonly db: Db,
     @Inject(SUPABASE_ADMIN) private readonly storage: SupabaseClient,
+    private readonly audit: AuditService,
   ) {}
 
   async get(labId: number): Promise<Laboratorio> {
@@ -28,7 +58,11 @@ export class LabConfigService {
     return row;
   }
 
-  async update(labId: number, dto: UpdateLabConfigDto): Promise<Laboratorio> {
+  async update(
+    labId: number,
+    dto: UpdateLabConfigDto,
+    ctx?: LabConfigAuditCtx,
+  ): Promise<Laboratorio> {
     const current = await this.get(labId);
 
     const patch: Partial<NewLaboratorio> = {
@@ -46,6 +80,8 @@ export class LabConfigService {
         signingProfessionalMp: dto.signingProfessionalMp,
       }),
       ...(dto.shortName !== undefined && { shortName: dto.shortName }),
+      ...(dto.primaryColor !== undefined && { primaryColor: dto.primaryColor }),
+      ...(dto.tagline !== undefined && { tagline: dto.tagline }),
       updatedAt: new Date(),
     };
 
@@ -54,6 +90,19 @@ export class LabConfigService {
       .set(patch)
       .where(eq(laboratorio.id, current.id))
       .returning();
+
+    await this.audit.log({
+      labId: current.id,
+      actorId: ctx?.actorId ?? null,
+      action: 'update_lab_config',
+      entity: 'laboratorio',
+      entityId: current.id,
+      before: brandingSnapshot(current),
+      after: brandingSnapshot(row),
+      ip: ctx?.ip ?? null,
+      userAgent: ctx?.userAgent ?? null,
+    });
+
     return row;
   }
 
@@ -61,6 +110,7 @@ export class LabConfigService {
     labId: number,
     kind: 'logo' | 'signature',
     file: { buffer: Buffer; mimetype: string },
+    ctx?: LabConfigAuditCtx,
   ): Promise<Laboratorio> {
     const current = await this.get(labId);
     const path = `lab/${labId}/${kind}.${extFromMime(file.mimetype)}`;
@@ -71,6 +121,19 @@ export class LabConfigService {
       .set({ ...column, updatedAt: new Date() })
       .where(eq(laboratorio.id, current.id))
       .returning();
+
+    await this.audit.log({
+      labId: current.id,
+      actorId: ctx?.actorId ?? null,
+      action: kind === 'logo' ? 'update_lab_logo' : 'update_lab_signature',
+      entity: 'laboratorio',
+      entityId: current.id,
+      before: { path: kind === 'logo' ? current.logoPath : current.signingSignaturePath },
+      after: { path },
+      ip: ctx?.ip ?? null,
+      userAgent: ctx?.userAgent ?? null,
+    });
+
     return row;
   }
 

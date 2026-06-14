@@ -25,6 +25,7 @@ import { PublicModule } from './modules/public/public.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { ResultsModule } from './modules/results/results.module';
 import { ReunionesModule } from './modules/reuniones/reuniones.module';
+import { SedesModule } from './modules/sedes/sedes.module';
 import { SuperModule } from './modules/super/super.module';
 import { UnidadesMedidaModule } from './modules/unidades-medida/unidades-medida.module';
 import { UsersModule } from './modules/users/users.module';
@@ -43,6 +44,7 @@ import { UsersModule } from './modules/users/users.module';
     MeModule,
     PatientsModule,
     DoctorsModule,
+    SedesModule,
     InsurersModule,
     PracticesModule,
     LabConfigModule,

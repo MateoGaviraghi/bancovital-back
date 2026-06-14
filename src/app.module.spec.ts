@@ -51,6 +51,8 @@ import { GoogleCalendarService } from '@/modules/reuniones/google-calendar.servi
 import { ReunionesPublicController } from '@/modules/reuniones/reuniones-public.controller';
 import { ReunionesSuperController } from '@/modules/reuniones/reuniones-super.controller';
 import { ReunionesService } from '@/modules/reuniones/reuniones.service';
+import { SedesController } from '@/modules/sedes/sedes.controller';
+import { SedesService } from '@/modules/sedes/sedes.service';
 import { BillingController } from '@/modules/super/billing.controller';
 import { BillingService } from '@/modules/super/billing.service';
 import { SuperMetricsController } from '@/modules/super/super-metrics.controller';
@@ -277,6 +279,23 @@ describe('DI compile — AnunciosModule', () => {
       controllers: [AnunciosSuperController, AnunciosController],
       providers: [
         AnunciosService,
+        { provide: DATABASE, useValue: DB_STUB },
+        { provide: AuditService, useValue: auditStub },
+      ],
+    }).compile();
+
+    expect(moduleRef).toBeDefined();
+    await moduleRef.close();
+  });
+});
+
+describe('DI compile — SedesModule', () => {
+  it('compiles without "can\'t resolve dependencies" errors', async () => {
+    const auditStub = { log: jest.fn() };
+    const moduleRef = await Test.createTestingModule({
+      controllers: [SedesController],
+      providers: [
+        SedesService,
         { provide: DATABASE, useValue: DB_STUB },
         { provide: AuditService, useValue: auditStub },
       ],

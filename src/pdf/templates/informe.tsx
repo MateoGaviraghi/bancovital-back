@@ -61,6 +61,18 @@ export interface InformeData {
   fondoSrc?: string | null;
   layoutConfig?: Record<string, { x: number; y: number; fontSize?: number; color?: string }> | null;
   margins?: { top: number; bottom: number; left: number; right: number };
+  /** Acento de marca derivado del primaryColor del lab (legible para texto blanco). */
+  accent?: string | null;
+  /** Tinte suave del acento (fondos de chips/badges). */
+  accentSoft?: string | null;
+  /** Sede principal del lab, impresa al pie del informe. */
+  sede?: {
+    nombre: string;
+    direccion: string;
+    localidad: string | null;
+    telefono: string | null;
+    horarios: string | null;
+  } | null;
 }
 
 const C = {
@@ -251,6 +263,10 @@ const styles = StyleSheet.create({
   signed: { fontSize: 11, fontWeight: 'bold', color: C.ink },
   signedMat: { fontSize: 8.5, color: C.muted, marginTop: 1 },
   issuedAt: { fontSize: 7.5, color: C.subtle },
+
+  // ── Línea de sede principal al pie
+  sedeLine: { marginTop: 6, alignItems: 'center' },
+  sedeText: { fontSize: 7.5, color: C.muted, textAlign: 'center', lineHeight: 1.3 },
 });
 
 const SEX_LABEL: Record<'F' | 'M' | 'X', string> = {
@@ -302,6 +318,9 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 
 export function InformeTemplate({ data }: { data: InformeData }) {
   const sexLabel = data.patient.sex ? SEX_LABEL[data.patient.sex] : '—';
+  // Acento de marca derivado del lab (con fallback al teal por defecto).
+  const accent = data.accent || C.primary;
+  const accentSoft = data.accentSoft || C.primarySoft;
   const pageStyle = data.margins
     ? {
         ...styles.page,
@@ -346,21 +365,21 @@ export function InformeTemplate({ data }: { data: InformeData }) {
               {data.lab.email ? `  ·  ${data.lab.email}` : ''}
             </Text>
           </View>
-          <View style={styles.protocolBadge}>
-            <Text style={styles.protocolLabel}>PROTOCOLO</Text>
-            <Text style={styles.protocolNumber}>{data.protocol.number}</Text>
+          <View style={[styles.protocolBadge, { backgroundColor: accentSoft }]}>
+            <Text style={[styles.protocolLabel, { color: accent }]}>PROTOCOLO</Text>
+            <Text style={[styles.protocolNumber, { color: accent }]}>{data.protocol.number}</Text>
             <Text style={styles.protocolDate}>{data.protocol.orderDate}</Text>
           </View>
         </View>
 
-        {/* Gold rule */}
-        <View style={styles.rule} />
+        {/* Accent rule */}
+        <View style={[styles.rule, { backgroundColor: accent }]} />
         <View style={{ marginBottom: 14 }} />
 
         {/* Patient + coverage cards */}
         <View style={styles.infoGrid}>
           <View style={styles.infoCard}>
-            <Text style={styles.cardTitle}>PACIENTE</Text>
+            <Text style={[styles.cardTitle, { color: accent }]}>PACIENTE</Text>
             <InfoRow label="Apellido, Nombre" value={data.patient.fullName} />
             <InfoRow label="DNI" value={data.patient.dni} />
             <InfoRow label="Sexo · Edad" value={`${sexLabel} · ${data.patient.age}`} />
@@ -368,7 +387,7 @@ export function InformeTemplate({ data }: { data: InformeData }) {
           </View>
 
           <View style={styles.infoCard}>
-            <Text style={styles.cardTitle}>COBERTURA Y MÉDICO</Text>
+            <Text style={[styles.cardTitle, { color: accent }]}>COBERTURA Y MÉDICO</Text>
             <InfoRow
               label="Obra social"
               value={`${data.insurer.name}${
@@ -388,9 +407,9 @@ export function InformeTemplate({ data }: { data: InformeData }) {
         </View>
 
         {/* Results table */}
-        <Text style={styles.resultsTitle}>RESULTADOS</Text>
+        <Text style={[styles.resultsTitle, { color: accent }]}>RESULTADOS</Text>
         <View style={styles.table}>
-          <View style={styles.tableHeader} fixed>
+          <View style={[styles.tableHeader, { backgroundColor: accent }]} fixed>
             <Text style={[styles.th, styles.colName]}>PRÁCTICA</Text>
             <Text style={[styles.th, styles.colValue]}>RESULTADO</Text>
             <Text style={[styles.th, styles.colUnit]}>UNIDAD</Text>
@@ -449,7 +468,7 @@ export function InformeTemplate({ data }: { data: InformeData }) {
         </View>
 
         {/* Footer — solo en la última página, después de todos los resultados */}
-        <View style={styles.footer}>
+        <View style={[styles.footer, { borderTopColor: accent }]}>
           <View style={styles.signBlock}>
             {data.signedBy.signatureSrc ? (
               <Image src={data.signedBy.signatureSrc} style={styles.signatureImg} />
@@ -461,6 +480,18 @@ export function InformeTemplate({ data }: { data: InformeData }) {
           </View>
           <Text style={styles.issuedAt}>Emitido: {data.protocol.issuedAt}</Text>
         </View>
+
+        {/* Sede principal del lab (si está configurada) */}
+        {data.sede ? (
+          <View style={styles.sedeLine}>
+            <Text style={styles.sedeText}>
+              {data.sede.nombre} · {data.sede.direccion}
+              {data.sede.localidad ? `, ${data.sede.localidad}` : ''}
+              {data.sede.telefono ? `  ·  Tel. ${data.sede.telefono}` : ''}
+              {data.sede.horarios ? `  ·  ${data.sede.horarios}` : ''}
+            </Text>
+          </View>
+        ) : null}
       </Page>
     </Document>
   );
