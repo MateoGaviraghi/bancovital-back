@@ -56,6 +56,7 @@ export const contrato = pgTable('contrato', {
   otpExpiraAt: timestamp('otp_expira_at', { withTimezone: true }),
   otpIntentos: integer('otp_intentos').notNull().default(0),
   otpVerificadoAt: timestamp('otp_verificado_at', { withTimezone: true }),
+  otpUltimoEnvioAt: timestamp('otp_ultimo_envio_at', { withTimezone: true }),
 
   evidencia: jsonb('evidencia'),
   firmadoAt: timestamp('firmado_at', { withTimezone: true }),

@@ -16,7 +16,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { ALLOWED_IMAGE_MIME } from '../lab-config/asset-storage';
+import { sniffImageMime } from '../lab-config/asset-storage';
 import { LabConfigService } from '../lab-config/lab-config.service';
 import { InviteUserDto } from '../users/dto/invite-user.dto';
 import { UsersService } from '../users/users.service';
@@ -83,7 +83,7 @@ export class SuperController {
 
   @Post(':id/logo')
   @HttpCode(HttpStatus.OK)
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_IMAGE_BYTES } }))
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' } } },
@@ -94,12 +94,13 @@ export class SuperController {
     @UploadedFile() file: { buffer: Buffer; mimetype: string; size: number } | undefined,
   ) {
     if (!file) throw new BadRequestException('Falta el archivo (campo "file").');
-    if (!ALLOWED_IMAGE_MIME.includes(file.mimetype as (typeof ALLOWED_IMAGE_MIME)[number])) {
-      throw new BadRequestException(`Formato no permitido: ${file.mimetype}. Use PNG, JPG o WEBP.`);
-    }
     if (file.size > MAX_IMAGE_BYTES)
       throw new BadRequestException('La imagen supera el máximo de 5 MB.');
-    return this.labConfig.uploadAsset(id, 'logo', { buffer: file.buffer, mimetype: file.mimetype });
+    const detected = sniffImageMime(file.buffer);
+    if (!detected) {
+      throw new BadRequestException('Formato no permitido. Use PNG, JPG o WEBP.');
+    }
+    return this.labConfig.uploadAsset(id, 'logo', { buffer: file.buffer, mimetype: detected });
   }
 
   @Post(':id/users/invite')

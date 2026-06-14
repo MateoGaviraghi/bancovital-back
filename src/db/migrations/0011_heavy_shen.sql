@@ -1,0 +1,1 @@
+ALTER TABLE "contrato" ADD COLUMN "otp_ultimo_envio_at" timestamp with time zone;

@@ -27,6 +27,7 @@ const CONTRACT_TTL_DAYS = 15;
 const OTP_TTL_MINUTES = 10;
 const OTP_MAX_ATTEMPTS = 5;
 const OTP_VERIFIED_WINDOW_MINUTES = 20;
+const OTP_RESEND_COOLDOWN_SECONDS = 60;
 const PDF_TTL_SIGNED_URL = 900;
 
 const ACCENT_MAP: Record<string, string> = {
@@ -391,7 +392,14 @@ export class ContractsService {
 
     const updated = await this.lazyExpireIfNeeded(row);
     const planes = await this.getActivePlans();
-    const pdfUrl = updated.pdfOriginalPath ? await this.signedUrl(updated.pdfOriginalPath) : null;
+
+    // El PDF original contiene PII completa (email, CUIT, teléfono en claro).
+    // No exponerlo hasta que el firmante haya verificado su identidad por OTP.
+    const otpVerificado = updated.otpVerificadoAt != null;
+    const pdfUrl =
+      otpVerificado && updated.pdfOriginalPath
+        ? await this.signedUrl(updated.pdfOriginalPath)
+        : null;
 
     return {
       estado: updated.estado,
@@ -419,13 +427,35 @@ export class ContractsService {
       throw new BadRequestException('El contrato no está activo o ya venció');
     }
 
+    const now = new Date();
+
+    // Cooldown anti email-bombing: rechazar reenvíos demasiado seguidos SIN
+    // reenviar el email ni tocar el OTP vigente.
+    if (
+      row.otpUltimoEnvioAt &&
+      now.getTime() - row.otpUltimoEnvioAt.getTime() < OTP_RESEND_COOLDOWN_SECONDS * 1000
+    ) {
+      throw new HttpException(
+        'Esperá unos segundos antes de solicitar otro código.',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
     const codigo = generateOtp();
     const otpHash = sha256(codigo);
-    const otpExpiraAt = addMinutes(new Date(), OTP_TTL_MINUTES);
+    const otpExpiraAt = addMinutes(now, OTP_TTL_MINUTES);
 
+    // Generamos un OTP nuevo permitido → reseteamos intentos y verificación.
     await this.db
       .update(contrato)
-      .set({ otpHash, otpExpiraAt, otpIntentos: 0, otpVerificadoAt: null, updatedAt: new Date() })
+      .set({
+        otpHash,
+        otpExpiraAt,
+        otpIntentos: 0,
+        otpVerificadoAt: null,
+        otpUltimoEnvioAt: now,
+        updatedAt: now,
+      })
       .where(eq(contrato.id, row.id));
 
     await this.mailService.sendOtp(row.emailFirmante, codigo, row.id);

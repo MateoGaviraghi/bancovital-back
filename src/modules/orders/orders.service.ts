@@ -1,6 +1,15 @@
 import type { Db } from '@/db/client';
-import { DATABASE } from '@/db/database.module';
-import { doctor, insurer, order, orderPractice, patient, practice, ubValue } from '@/db/schema';
+import { DATABASE, SUPABASE_ADMIN } from '@/db/database.module';
+import {
+  doctor,
+  insurer,
+  order,
+  orderPractice,
+  patient,
+  practice,
+  result,
+  ubValue,
+} from '@/db/schema';
 import type { NewOrder, NewOrderPractice, Order, OrderPractice } from '@/db/schema';
 import {
   type PriceablePractice,
@@ -13,16 +22,32 @@ import {
   ConflictException,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import { and, asc, desc, eq, gte, ilike, inArray, isNull, lte, or, sql } from 'drizzle-orm';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  gte,
+  ilike,
+  inArray,
+  isNotNull,
+  isNull,
+  lte,
+  or,
+  sql,
+} from 'drizzle-orm';
 import type { CancelOrderDto } from './dto/cancel-order.dto';
 import type { CreateOrderDto, OrderPracticeInputDto } from './dto/create-order.dto';
 import type { ListOrdersDto } from './dto/list-orders.dto';
 import type { UpdateOrderDto } from './dto/update-order.dto';
 
 const PARTICULAR_CODE = 'PARTICULAR';
+const REPORTS_BUCKET = 'reports';
 
 export interface OrderSummary extends Order {
   patient: { id: number; firstName: string; lastName: string; dni: string } | null;
@@ -31,8 +56,11 @@ export interface OrderSummary extends Order {
 
 @Injectable()
 export class OrdersService {
+  private readonly logger = new Logger(OrdersService.name);
+
   constructor(
     @Inject(DATABASE) private readonly db: Db,
+    @Inject(SUPABASE_ADMIN) private readonly storage: SupabaseClient,
     private readonly consumo: ConsumoService,
   ) {}
 
@@ -142,6 +170,13 @@ export class OrdersService {
       );
     }
 
+    // Defensa anti-IDOR cross-lab: si se reasigna el paciente, validar que
+    // pertenezca a este lab (filtra por patient.labId + deletedAt) ANTES de
+    // persistir, igual que create(). Aplica a ambas ramas del update.
+    if (dto.patientId !== undefined) {
+      await this.resolvePatient(labId, dto.patientId);
+    }
+
     const effectiveInsurerId = dto.insurerId ?? current.insurerId;
     const effectiveIsUrgent = dto.isUrgent ?? current.isUrgent;
 
@@ -247,7 +282,122 @@ export class OrdersService {
       });
     }
 
-    // Sin cambio de prácticas: solo actualiza campos de cabecera
+    // Sin cambio de prácticas en el DTO. Pero si cambian insurerId o isUrgent,
+    // el pricing snapshoteado queda stale: hay que recalcular precios/totales y
+    // re-emitir las líneas (incluida la línea sintética de Urgencia 661200)
+    // releyendo las prácticas existentes de la orden.
+    const insurerChanged = dto.insurerId !== undefined && dto.insurerId !== current.insurerId;
+    const urgentChanged = dto.isUrgent !== undefined && dto.isUrgent !== current.isUrgent;
+    const pricingAffected = insurerChanged || urgentChanged;
+
+    if (pricingAffected) {
+      // Reconstruir el input de prácticas desde las líneas reales (no sintéticas)
+      // de la orden, preservando authorizationCode / includeInReport / sortOrder.
+      const existingLines = await this.db
+        .select()
+        .from(orderPractice)
+        .where(eq(orderPractice.orderId, id))
+        .orderBy(asc(orderPractice.sortOrder), asc(orderPractice.id));
+
+      const practiceInputs: OrderPracticeInputDto[] = existingLines
+        .filter((l) => l.practiceId !== null)
+        .map((l) => ({
+          practiceId: l.practiceId as number,
+          authorizationCode: l.authorizationCode ?? undefined,
+          includeInReport: l.includeInReport,
+          sortOrder: l.sortOrder,
+        }));
+
+      const practices = await this.resolvePractices(practiceInputs);
+      const ubInsurer = await this.resolveCurrentUb(ins.id, ins.code);
+      const ubParticular =
+        ins.code === PARTICULAR_CODE
+          ? ubInsurer
+          : await this.resolveCurrentUbByCode(PARTICULAR_CODE);
+
+      const priceableInputs: PriceablePractice[] = practiceInputs.map((line) => {
+        const p = practices.get(line.practiceId)!;
+        if (p.units === null) {
+          throw new UnprocessableEntityException(
+            `La practica ${p.nbuCode} (${p.name}) no tiene U.B. asignada`,
+          );
+        }
+        return {
+          practiceId: p.id,
+          nbuCode: p.nbuCode,
+          name: p.name,
+          units: p.units,
+          isSpecialAct: p.isSpecialAct,
+        };
+      });
+
+      const pricing = calculateOrderPricing({
+        insurerCode: ins.code,
+        ubInsurer: ubInsurer.value,
+        ubParticular: ubParticular.value,
+        isUrgent: effectiveIsUrgent,
+        practices: priceableInputs,
+      });
+
+      const userInputByPracticeId = new Map<number, OrderPracticeInputDto>(
+        practiceInputs.map((l) => [l.practiceId, l]),
+      );
+
+      return this.db.transaction(async (tx) => {
+        await tx.delete(orderPractice).where(eq(orderPractice.orderId, id));
+
+        const [updatedOrder] = await tx
+          .update(order)
+          .set({
+            ...(dto.patientId !== undefined && { patientId: dto.patientId }),
+            insurerId: ins.id,
+            ...(dto.insuranceAffiliateNumber !== undefined && {
+              insuranceAffiliateNumber: dto.insuranceAffiliateNumber ?? null,
+            }),
+            ...(doctorSnapshot && {
+              referringDoctorId: doctorSnapshot.id,
+              referringDoctorName: doctorSnapshot.name,
+              referringDoctorMp: doctorSnapshot.mp,
+            }),
+            ...(dto.diagnosis !== undefined && { diagnosis: dto.diagnosis ?? null }),
+            ...(dto.origin !== undefined && { origin: dto.origin }),
+            isUrgent: effectiveIsUrgent,
+            ...(dto.notes !== undefined && { notes: dto.notes ?? null }),
+            totalParticular: pricing.totals.particular,
+            totalInsurer: pricing.totals.insurer,
+            totalPatientCopay: pricing.totals.patientCopay,
+            ubValueUsed: pricing.ubValueUsed,
+            updatedAt: new Date(),
+          })
+          .where(and(eq(order.id, id), eq(order.labId, labId)))
+          .returning();
+
+        const lineRows: NewOrderPractice[] = pricing.lines.map((l: PricedLine, idx: number) => {
+          const userInput =
+            l.practiceId !== null ? userInputByPracticeId.get(l.practiceId) : undefined;
+          return {
+            orderId: id,
+            practiceId: l.practiceId,
+            nbuCodeSnapshot: l.nbuCode,
+            nameSnapshot: l.name,
+            unitsSnapshot: l.units,
+            ubValueSnapshot: l.ubValue,
+            priceParticular: l.priceParticular,
+            priceInsurer: l.priceInsurer,
+            patientCopay: l.patientCopay,
+            authorizationCode: userInput?.authorizationCode ?? null,
+            includeInReport: userInput?.includeInReport ?? true,
+            sortOrder: userInput?.sortOrder ?? idx,
+            authorizationStatus: 'no_aplica',
+          };
+        });
+
+        const insertedLines = await tx.insert(orderPractice).values(lineRows).returning();
+        return { order: updatedOrder, lines: insertedLines };
+      });
+    }
+
+    // Sin cambio de prácticas ni de pricing: solo actualiza campos de cabecera
     const [updatedOrder] = await this.db
       .update(order)
       .set({
@@ -321,7 +471,7 @@ export class OrdersService {
         insurerName: insurer.name,
       })
       .from(order)
-      .innerJoin(patient, eq(patient.id, order.patientId))
+      .innerJoin(patient, and(eq(patient.id, order.patientId), eq(patient.labId, labId)))
       .innerJoin(insurer, eq(insurer.id, order.insurerId))
       .where(and(...conds))
       .orderBy(desc(order.orderDate))
@@ -352,7 +502,7 @@ export class OrdersService {
         insurerName: insurer.name,
       })
       .from(order)
-      .innerJoin(patient, eq(patient.id, order.patientId))
+      .innerJoin(patient, and(eq(patient.id, order.patientId), eq(patient.labId, labId)))
       .innerJoin(insurer, eq(insurer.id, order.insurerId))
       .where(and(eq(order.id, id), eq(order.labId, labId)))
       .limit(1);
@@ -400,6 +550,7 @@ export class OrdersService {
   async finalize(labId: number, id: number): Promise<Order> {
     const current = await this.requireOrder(labId, id);
     this.assertTransition(current.status, 'resultados_cargados');
+    await this.assertHasReportableResults(id);
     return this.applyStatus(id, 'resultados_cargados');
   }
 
@@ -415,6 +566,8 @@ export class OrdersService {
       })
       .where(and(eq(order.id, id), eq(order.labId, labId)))
       .returning();
+    // El informe emitido ya no es válido para una orden anulada: borrar el blob.
+    await this.removeReportBlobBestEffort(current.pdfReportPath);
     return row;
   }
 
@@ -470,6 +623,7 @@ export class OrdersService {
         `No se puede revertir a borrador desde el estado "${current.status}"`,
       );
     }
+    const previousPdfPath = current.pdfReportPath;
     const [row] = await this.db
       .update(order)
       .set({
@@ -482,10 +636,59 @@ export class OrdersService {
       })
       .where(and(eq(order.id, id), eq(order.labId, labId)))
       .returning();
+    // El PDF emitido ya no corresponde tras volver a borrador: borrar el blob.
+    await this.removeReportBlobBestEffort(previousPdfPath);
     return row;
   }
 
   // ----- helpers -----
+
+  /**
+   * Borra el PDF del informe del bucket 'reports' de forma best-effort. No
+   * rompe la transición si el borrado falla (solo loguea). No-op si no hay path.
+   */
+  private async removeReportBlobBestEffort(pdfReportPath: string | null): Promise<void> {
+    if (!pdfReportPath) return;
+    try {
+      const { error } = await this.storage.storage.from(REPORTS_BUCKET).remove([pdfReportPath]);
+      if (error) {
+        this.logger.warn(
+          `No se pudo borrar el PDF del informe (${pdfReportPath}): ${error.message}`,
+        );
+      }
+    } catch (err) {
+      this.logger.warn(
+        `Error inesperado al borrar el PDF del informe (${pdfReportPath}): ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    }
+  }
+
+  /**
+   * Garantiza que la orden tenga al menos un resultado cargado para alguna de
+   * sus líneas reportables (practiceId no nulo e includeInReport=true) antes de
+   * permitir la transición a "resultados_cargados" / emisión. Evita informes
+   * clínicamente vacíos. Espejo del guard lineCount>0 de confirm().
+   */
+  async assertHasReportableResults(orderId: number): Promise<void> {
+    const [{ resultCount }] = await this.db
+      .select({ resultCount: sql<number>`count(*)::int` })
+      .from(result)
+      .innerJoin(orderPractice, eq(orderPractice.id, result.orderPracticeId))
+      .where(
+        and(
+          eq(orderPractice.orderId, orderId),
+          isNotNull(orderPractice.practiceId),
+          eq(orderPractice.includeInReport, true),
+        ),
+      );
+    if (resultCount === 0) {
+      throw new UnprocessableEntityException(
+        'La orden no tiene resultados cargados en sus practicas reportables; no se puede finalizar ni emitir el informe',
+      );
+    }
+  }
 
   private async applyStatus(id: number, status: OrderStatus): Promise<Order> {
     const [row] = await this.db

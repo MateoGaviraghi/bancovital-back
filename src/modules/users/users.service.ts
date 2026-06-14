@@ -86,6 +86,9 @@ export class UsersService {
 
     const userId = invite.data.user.id;
 
+    // Invariante: role 'super' opera cross-tenant => nunca queda atado a un lab.
+    const effectiveLabId = dto.role === 'super' ? null : labId;
+
     const updated = await this.admin.auth.admin.updateUserById(userId, {
       app_metadata: { role: dto.role },
     });
@@ -97,7 +100,7 @@ export class UsersService {
       .insert(user)
       .values({
         id: userId,
-        labId,
+        labId: effectiveLabId,
         email: dto.email,
         displayName: dto.displayName ?? null,
         role: dto.role,
@@ -107,7 +110,7 @@ export class UsersService {
       .onConflictDoUpdate({
         target: user.id,
         set: {
-          labId,
+          labId: effectiveLabId,
           email: dto.email,
           displayName: dto.displayName ?? null,
           role: dto.role,
@@ -148,9 +151,10 @@ export class UsersService {
       throw new InternalServerErrorException(`No se pudo cambiar rol: ${error.message}`);
     }
 
+    // Invariante: si se promueve a 'super', el row no puede quedar atado a un lab.
     const [row] = await this.db
       .update(user)
-      .set({ role })
+      .set(role === 'super' ? { role, labId: null } : { role })
       .where(and(eq(user.id, targetId), eq(user.labId, labId)))
       .returning();
     if (!row) {

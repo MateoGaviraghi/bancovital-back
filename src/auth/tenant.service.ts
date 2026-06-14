@@ -35,8 +35,11 @@ export class TenantService {
     if (!row) throw new UnauthorizedException('Usuario no registrado en el sistema');
     if (!row.active) throw new UnauthorizedException('Usuario desactivado');
 
-    this.cacheSet(userId, { labId: row.labId, role: row.role, exp: Date.now() + CACHE_TTL_MS });
-    return { labId: row.labId, role: row.role };
+    // Defensa en profundidad: un super nunca opera dentro de un lab.
+    const labId = row.role === 'super' ? null : row.labId;
+
+    this.cacheSet(userId, { labId, role: row.role, exp: Date.now() + CACHE_TTL_MS });
+    return { labId, role: row.role };
   }
 
   invalidate(userId: string): void {

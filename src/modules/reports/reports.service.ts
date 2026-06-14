@@ -21,6 +21,7 @@ import {
   Inject,
   Injectable,
   InternalServerErrorException,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -49,6 +50,8 @@ export interface RegenerateSummary {
 
 @Injectable()
 export class ReportsService {
+  private readonly logger = new Logger(ReportsService.name);
+
   constructor(
     @Inject(DATABASE) private readonly db: Db,
     @Inject(SUPABASE_ADMIN) private readonly storage: SupabaseClient,
@@ -60,9 +63,18 @@ export class ReportsService {
     orderId: number,
     signedBy: string,
   ): Promise<{ ok: true; path: string }> {
+    // Validar la precondición FSM (estado + resultados) ANTES de renderizar y
+    // subir el PDF: fallar barato sin dejar trabajo a medias.
     const ord = await this.requireOrderForEmit(labId, orderId);
     const path = await this.renderAndUpload(ord);
-    await this.orders.markEmitted(labId, orderId, path, signedBy);
+    try {
+      await this.orders.markEmitted(labId, orderId, path, signedBy);
+    } catch (err) {
+      // markEmitted re-valida la transición FSM y puede fallar (carrera de
+      // estado, etc.). Limpiar el blob recién subido para no dejarlo huérfano.
+      await this.removeReportBlob(path);
+      throw err;
+    }
     return { ok: true, path };
   }
 
@@ -219,6 +231,28 @@ export class ReportsService {
 
   // ----- helpers -----
 
+  /**
+   * Borra un PDF de informe del bucket 'reports' de forma best-effort. No lanza
+   * si el borrado falla: solo loguea. Acepta un path directo o la orden (usando
+   * su pdfReportPath). No-op si no hay path.
+   */
+  async removeReportBlob(target: string | Order | null): Promise<void> {
+    const path = typeof target === 'string' ? target : (target?.pdfReportPath ?? null);
+    if (!path) return;
+    try {
+      const { error } = await this.storage.storage.from(REPORTS_BUCKET).remove([path]);
+      if (error) {
+        this.logger.warn(`No se pudo borrar el PDF del informe (${path}): ${error.message}`);
+      }
+    } catch (err) {
+      this.logger.warn(
+        `Error inesperado al borrar el PDF del informe (${path}): ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    }
+  }
+
   private async getConfigUpdatedAt(labId: number): Promise<Date> {
     const [[lab], [pref]] = await Promise.all([
       this.db
@@ -261,6 +295,9 @@ export class ReportsService {
         `No se puede emitir orden en estado "${ord.status}". Solo "resultados_cargados".`,
       );
     }
+    // No emitir informes clínicamente vacíos: exigir resultados en las líneas
+    // reportables de la orden (mismo guard que finalize()).
+    await this.orders.assertHasReportableResults(orderId);
     return ord;
   }
 

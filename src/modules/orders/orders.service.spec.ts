@@ -49,6 +49,10 @@ interface FakeDbState {
   currentOrder: Order;
   lineCount: number;
   joinResult: unknown[];
+  // Cantidad de resultados cargados en practicas reportables. Gobierna el guard
+  // assertHasReportableResults() que finalize() corre antes de la transicion.
+  // Default 1 (>0) para no romper los tests de FSM que no testean ese guard.
+  resultCount?: number;
 }
 
 function makeDb(state: FakeDbState) {
@@ -87,6 +91,18 @@ function makeDb(state: FakeDbState) {
           }),
         };
       }
+      // assertHasReportableResults(): SELECT count(*) FROM result
+      //   INNER JOIN order_practice ... WHERE ...  -> [{ resultCount }]
+      const isResultCountSelection = selection !== undefined && 'resultCount' in selection;
+      if (isResultCountSelection) {
+        return {
+          from: () => ({
+            innerJoin: () => ({
+              where: () => Promise.resolve([{ resultCount: state.resultCount ?? 1 }]),
+            }),
+          }),
+        };
+      }
       return { from: () => buildSelectFrom(selection) };
     }),
     update: jest.fn().mockReturnValue(updateChain),
@@ -99,8 +115,17 @@ const CONSUMO_STUB = {
   periodoActual: jest.fn().mockReturnValue('2026-06'),
 } as never;
 
+const STORAGE_STUB = {
+  storage: {
+    from: jest.fn().mockReturnValue({
+      remove: jest.fn().mockResolvedValue({ data: null, error: null }),
+      upload: jest.fn().mockResolvedValue({ data: null, error: null }),
+    }),
+  },
+} as never;
+
 function makeService(state: FakeDbState): OrdersService {
-  return new OrdersService(makeDb(state) as never, CONSUMO_STUB);
+  return new OrdersService(makeDb(state) as never, STORAGE_STUB, CONSUMO_STUB);
 }
 
 describe('OrdersService FSM (confirm/start/finalize/cancel/markEmitted)', () => {
@@ -156,14 +181,25 @@ describe('OrdersService FSM (confirm/start/finalize/cancel/markEmitted)', () => 
   });
 
   describe('finalize', () => {
-    it('permite en_proceso -> resultados_cargados', async () => {
+    it('permite en_proceso -> resultados_cargados cuando hay resultados reportables', async () => {
       const service = makeService({
         currentOrder: orderFixture({ status: 'en_proceso' }),
         lineCount: 2,
         joinResult: [],
+        resultCount: 1,
       });
       const r = await service.finalize(LAB_ID, 1);
       expect(r.status).toBe('resultados_cargados');
+    });
+
+    it('rechaza finalize si no hay resultados cargados en practicas reportables (422)', async () => {
+      const service = makeService({
+        currentOrder: orderFixture({ status: 'en_proceso' }),
+        lineCount: 2,
+        joinResult: [],
+        resultCount: 0,
+      });
+      await expect(service.finalize(LAB_ID, 1)).rejects.toThrow(UnprocessableEntityException);
     });
 
     it('rechaza finalize desde confirmada (salto invalido)', async () => {

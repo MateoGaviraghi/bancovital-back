@@ -22,7 +22,7 @@ import {
   ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
-import { ALLOWED_IMAGE_MIME } from './asset-storage';
+import { sniffImageMime } from './asset-storage';
 import type { UpdateLabConfigDto } from './dto/update-lab-config.dto';
 import { LabConfigService } from './lab-config.service';
 
@@ -34,16 +34,24 @@ interface UploadedImage {
   size: number;
 }
 
-function validateImage(file: UploadedImage | undefined): void {
+/**
+ * Validates an uploaded image by SNIFFING magic bytes (not the client-supplied
+ * Content-Type header, which is spoofable). Returns the file with `mimetype`
+ * normalized to the detected type so extension/contentType are derived from the
+ * real format downstream.
+ */
+function validateImage(file: UploadedImage | undefined): UploadedImage {
   if (!file) {
     throw new BadRequestException('Falta el archivo (campo "file").');
-  }
-  if (!ALLOWED_IMAGE_MIME.includes(file.mimetype as (typeof ALLOWED_IMAGE_MIME)[number])) {
-    throw new BadRequestException(`Formato no permitido: ${file.mimetype}. Use PNG, JPG o WEBP.`);
   }
   if (file.size > MAX_IMAGE_BYTES) {
     throw new BadRequestException('La imagen supera el maximo de 5 MB.');
   }
+  const detected = sniffImageMime(file.buffer);
+  if (!detected) {
+    throw new BadRequestException('Formato no permitido. Use PNG, JPG o WEBP.');
+  }
+  return { ...file, mimetype: detected };
 }
 
 const FILE_BODY_SCHEMA = {
@@ -112,8 +120,8 @@ export class LabConfigController {
   @ApiBody(FILE_BODY_SCHEMA)
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_IMAGE_BYTES } }))
   uploadLogo(@CurrentUser() user: Session, @UploadedFile() file: UploadedImage) {
-    validateImage(file);
-    return this.labConfig.uploadAsset(requireLabId(user), 'logo', file);
+    const validated = validateImage(file);
+    return this.labConfig.uploadAsset(requireLabId(user), 'logo', validated);
   }
 
   @Post('signature')
@@ -125,7 +133,7 @@ export class LabConfigController {
   @ApiBody(FILE_BODY_SCHEMA)
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_IMAGE_BYTES } }))
   uploadSignature(@CurrentUser() user: Session, @UploadedFile() file: UploadedImage) {
-    validateImage(file);
-    return this.labConfig.uploadAsset(requireLabId(user), 'signature', file);
+    const validated = validateImage(file);
+    return this.labConfig.uploadAsset(requireLabId(user), 'signature', validated);
   }
 }

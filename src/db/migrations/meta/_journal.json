@@ -78,6 +78,13 @@
       "when": 1781378247767,
       "tag": "0010_glorious_wildside",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1781398474304,
+      "tag": "0011_heavy_shen",
+      "breakpoints": true
     }
   ]
 }
