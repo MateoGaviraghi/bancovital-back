@@ -3,12 +3,14 @@ import {
   bigint,
   boolean,
   index,
+  integer,
   numeric,
   pgTable,
   text,
   timestamp,
   uniqueIndex,
   uuid,
+  varchar,
 } from 'drizzle-orm/pg-core';
 import { doctor } from './doctor';
 import { orderOriginEnum, orderStatusEnum } from './enums';
@@ -64,6 +66,12 @@ export const order = pgTable(
     createdBy: uuid('created_by').references(() => user.id),
     /** Marcado por ConsumoService al superar cupo+rollover (soft-block: nunca bloquea la operación) */
     esExcedente: boolean('es_excedente').notNull().default(false),
+    /** F7 portal paciente: token unguessable (256-bit hex) embebido en el QR del informe. */
+    publicReportToken: varchar('public_report_token', { length: 64 }),
+    /** Intentos de DNI fallidos en el portal público (anti fuerza bruta). */
+    publicAccessAttempts: integer('public_access_attempts').notNull().default(0),
+    /** Bloqueo temporal del acceso público tras demasiados intentos fallidos de DNI. */
+    publicAccessLockedUntil: timestamp('public_access_locked_until', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -72,6 +80,8 @@ export const order = pgTable(
     patientDateIdx: index('idx_order_patient_date').on(t.patientId, t.orderDate),
     statusDateIdx: index('idx_order_status_date').on(t.status, t.orderDate),
     labStatusIdx: index('idx_order_lab_status').on(t.labId, t.status),
+    // Lookup O(1) por token del portal público (múltiples NULL permitidos en PG).
+    publicTokenIdx: uniqueIndex('idx_order_public_token').on(t.publicReportToken),
   }),
 );
 

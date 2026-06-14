@@ -104,6 +104,8 @@ export interface RenderInformeInput {
   preferenciaPdf?: PreferenciaPdf;
   /** Sede principal del lab (se imprime al pie). */
   sede?: Sede | null;
+  /** QR (PNG data-URI) del portal público del informe (F7). */
+  qrCodeDataUri?: string | null;
 }
 
 // ── Acento de marca en el PDF (derivado del primaryColor del lab) ──────────────
@@ -354,6 +356,7 @@ export function buildInformeData(input: RenderInformeInput): InformeData {
     accent,
     accentSoft,
     sede: sedeForTemplate(input.sede),
+    qrCodeDataUri: input.qrCodeDataUri ?? null,
   };
 }
 

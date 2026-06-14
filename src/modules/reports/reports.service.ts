@@ -1,3 +1,5 @@
+import { randomBytes } from 'node:crypto';
+import { AppConfig } from '@/config';
 import type { Db } from '@/db/client';
 import { DATABASE, SUPABASE_ADMIN } from '@/db/database.module';
 import {
@@ -27,8 +29,18 @@ import {
 } from '@nestjs/common';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { and, asc, eq, inArray, isNull } from 'drizzle-orm';
+import QRCode from 'qrcode';
 
 export const REPORTS_BUCKET = 'reports';
+
+/** Genera el QR (PNG data-URI) que apunta al portal público del informe. */
+async function buildInformeQr(appUrl: string, token: string): Promise<string> {
+  return QRCode.toDataURL(`${appUrl}/informe/${token}`, {
+    margin: 1,
+    width: 240,
+    errorCorrectionLevel: 'M',
+  });
+}
 
 export interface SignedUrlResponse {
   url: string;
@@ -57,7 +69,24 @@ export class ReportsService {
     @Inject(DATABASE) private readonly db: Db,
     @Inject(SUPABASE_ADMIN) private readonly storage: SupabaseClient,
     private readonly orders: OrdersService,
+    private readonly appConfig: AppConfig,
   ) {}
+
+  /**
+   * Devuelve el token público del informe, generándolo (256-bit) y persistiéndolo
+   * si la orden todavía no lo tiene. Idempotente: una vez asignado, no cambia
+   * (así un QR ya impreso sigue siendo válido tras regenerar el PDF).
+   */
+  private async ensurePublicToken(ord: Order): Promise<string> {
+    if (ord.publicReportToken) return ord.publicReportToken;
+    const token = randomBytes(32).toString('hex');
+    await this.db
+      .update(order)
+      .set({ publicReportToken: token, updatedAt: new Date() })
+      .where(and(eq(order.id, ord.id), eq(order.labId, ord.labId)));
+    ord.publicReportToken = token;
+    return token;
+  }
 
   async emit(
     labId: number,
@@ -411,6 +440,10 @@ export class ReportsService {
       .where(and(eq(sede.labId, ord.labId), eq(sede.principal, true), isNull(sede.deletedAt)))
       .limit(1);
 
+    // F7: token + QR del portal público (se embebe en el informe).
+    const publicToken = await this.ensurePublicToken(ord);
+    const qrCodeDataUri = await buildInformeQr(this.appConfig.env.APP_URL, publicToken);
+
     const buffer = await renderInformePdf({
       order: ord,
       patient: pat,
@@ -425,6 +458,7 @@ export class ReportsService {
       fondoDataUri: fondoDataUri ?? undefined,
       preferenciaPdf: pref ?? undefined,
       sede: principalSede ?? null,
+      qrCodeDataUri,
     });
 
     const path = buildPdfPath(ord.labId, ord.id, ord.protocolNumber);

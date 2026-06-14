@@ -73,6 +73,8 @@ export interface InformeData {
     telefono: string | null;
     horarios: string | null;
   } | null;
+  /** QR (PNG data-URI) al portal público del informe (F7). */
+  qrCodeDataUri?: string | null;
 }
 
 const C = {
@@ -263,6 +265,12 @@ const styles = StyleSheet.create({
   signed: { fontSize: 11, fontWeight: 'bold', color: C.ink },
   signedMat: { fontSize: 8.5, color: C.muted, marginTop: 1 },
   issuedAt: { fontSize: 7.5, color: C.subtle },
+
+  // ── Bloque QR (portal del paciente) en el footer, alineado a la derecha
+  footerRight: { alignItems: 'flex-end' },
+  qrBlock: { alignItems: 'center', marginBottom: 3 },
+  qrImg: { width: 56, height: 56 },
+  qrCaption: { fontSize: 6, color: C.subtle, marginTop: 1, letterSpacing: 0.2 },
 
   // ── Línea de sede principal al pie
   sedeLine: { marginTop: 6, alignItems: 'center' },
@@ -478,7 +486,15 @@ export function InformeTemplate({ data }: { data: InformeData }) {
               <Text style={styles.signedMat}>{data.signedBy.matricula}</Text>
             ) : null}
           </View>
-          <Text style={styles.issuedAt}>Emitido: {data.protocol.issuedAt}</Text>
+          <View style={styles.footerRight}>
+            {data.qrCodeDataUri ? (
+              <View style={styles.qrBlock}>
+                <Image src={data.qrCodeDataUri} style={styles.qrImg} />
+                <Text style={styles.qrCaption}>Verificá tu informe online</Text>
+              </View>
+            ) : null}
+            <Text style={styles.issuedAt}>Emitido: {data.protocol.issuedAt}</Text>
+          </View>
         </View>
 
         {/* Sede principal del lab (si está configurada) */}
