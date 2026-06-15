@@ -1,8 +1,10 @@
 import type { Session } from '@/auth/session';
 import type { Db } from '@/db/client';
-import { DATABASE } from '@/db/database.module';
+import { DATABASE, SUPABASE_ADMIN } from '@/db/database.module';
 import { laboratorio } from '@/db/schema';
+import { ASSETS_BUCKET } from '@/modules/lab-config/asset-storage';
 import { Inject, Injectable } from '@nestjs/common';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { eq } from 'drizzle-orm';
 
 export interface MeResponse {
@@ -10,12 +12,22 @@ export interface MeResponse {
   email: string;
   role: string;
   labId: number | null;
+  /** Slug del lab — informativo; ya NO se usa para ruteo (app única bancovital). */
   labSlug: string | null;
+  /** Nombre del lab del usuario (para el header de la app). */
+  labName: string | null;
+  /** URL firmada del logo del lab (para el header). */
+  logoUrl: string | null;
 }
+
+const LOGO_TTL_SECONDS = 3600;
 
 @Injectable()
 export class MeService {
-  constructor(@Inject(DATABASE) private readonly db: Db) {}
+  constructor(
+    @Inject(DATABASE) private readonly db: Db,
+    @Inject(SUPABASE_ADMIN) private readonly storage: SupabaseClient,
+  ) {}
 
   async getMe(session: Session): Promise<MeResponse> {
     if (session.labId === null) {
@@ -26,16 +38,31 @@ export class MeService {
         role: session.role,
         labId: null,
         labSlug: null,
+        labName: null,
+        logoUrl: null,
       };
     }
 
-    // Resolve the slug from the EFFECTIVE session.labId (not the user's own lab),
-    // so under impersonation /me reports the impersonated lab's slug.
+    // Resuelve nombre+logo del lab desde el session.labId EFECTIVO (no el del user),
+    // así bajo impersonation /me reporta el lab impersonado (header muestra ese lab).
     const [row] = await this.db
-      .select({ slug: laboratorio.slug })
+      .select({
+        slug: laboratorio.slug,
+        legalName: laboratorio.legalName,
+        shortName: laboratorio.shortName,
+        logoPath: laboratorio.logoPath,
+      })
       .from(laboratorio)
       .where(eq(laboratorio.id, session.labId))
       .limit(1);
+
+    let logoUrl: string | null = null;
+    if (row?.logoPath) {
+      const signed = await this.storage.storage
+        .from(ASSETS_BUCKET)
+        .createSignedUrl(row.logoPath, LOGO_TTL_SECONDS);
+      logoUrl = signed.data && !signed.error ? signed.data.signedUrl : null;
+    }
 
     return {
       userId: session.userId,
@@ -43,6 +70,8 @@ export class MeService {
       role: session.role,
       labId: session.labId,
       labSlug: row?.slug ?? null,
+      labName: row ? (row.shortName ?? row.legalName) : null,
+      logoUrl,
     };
   }
 }
