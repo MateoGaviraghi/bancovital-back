@@ -276,7 +276,8 @@ export function buildInformeData(input: RenderInformeInput): InformeData {
   const layoutConfig = rawLayout?.campos ?? null;
   // Solo se dibuja el fondo si el admin no lo desactivó (undefined/true => dibujar).
   const fondoSrc = rawLayout?.usarFondo === false ? null : (input.fondoDataUri ?? null);
-  const { accent, accentSoft } = pdfAccentPalette(lab.primaryColor);
+  // Des-slug: acento fijo bancovital (ya no se deriva del color per-lab).
+  const { accent, accentSoft } = pdfAccentPalette(null);
 
   return {
     lab: {
@@ -382,7 +383,8 @@ export interface SampleInformeAssets {
  */
 export function buildSampleInformeData(opts: SampleInformeAssets): InformeData {
   const { lab, preferenciaPdf: pref } = opts;
-  const { accent, accentSoft } = pdfAccentPalette(lab.primaryColor);
+  // Des-slug: acento fijo bancovital (ya no se deriva del color per-lab).
+  const { accent, accentSoft } = pdfAccentPalette(null);
   const usarFondo = (pref?.layoutConfig as { usarFondo?: boolean } | null | undefined)?.usarFondo;
   return {
     lab: {

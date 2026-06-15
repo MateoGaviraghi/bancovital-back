@@ -21,6 +21,8 @@ export class MeController {
         role: { type: 'string', enum: ['admin', 'recepcion', 'bioquimico', 'super'] },
         labId: { type: 'number', nullable: true },
         labSlug: { type: 'string', nullable: true, example: 'lab-santa-fe' },
+        labName: { type: 'string', nullable: true, example: 'Laboratorio Santa Fe' },
+        logoUrl: { type: 'string', nullable: true },
       },
     },
   })
