@@ -2,6 +2,8 @@
 
 > Qué le toca al BACK (bancovital-back) en cada fase del plan maestro multi-tenant. El contrato API de cada fase lo define el líder técnico (chat del front) ANTES de implementar; el front espeja DTOs en `lib/api/types.ts`. Contraparte front: `bancovital-front/docs/PLAN-SAAS-FRONT.md`.
 > Aprobado por Mateo el 2026-06-12. Decisiones cerradas: tenancy path-based por slug, firma propia con evidencia, rollover 1 mes, soft-block de cupo, portal paciente confirmado.
+>
+> ⚠️ **CAMBIO DE MODELO (2026-06-15) — app ÚNICA bancovital, SIN slug (lado back, mínimo).** `/me` suma `labName` (shortName ?? legalName) + `logoUrl` (signed) para que el header arme la identidad del lab sin slug; funciona bajo impersonation. El acento del informe PDF pasa a FIJO bancovital (`pdfAccentPalette(null)`, ya no per-lab). El branding público por slug `GET /public/labs/:slug/branding` queda INERTE (el front dejó de usarlo para login; no se borra). **Aislamiento por `labId` del JWT SIN cambios**; el `slug` sigue en DB pero NO se usa para ruteo ni autorización. SIN migración. F1–F7 EN PRODUCCIÓN (back commit `9191e00`, en prod 2026-06-15).
 
 Base ya existente (no rehacer): tabla `laboratorio` con `slug` UNIQUE, `labId` FK en entidades core, `TenantService`, roles `super|admin|recepcion|bioquimico` con guards, invitaciones Supabase, PDFs de informes con `@react-pdf/renderer` + `preferencia_pdf`, Storage con signed URLs.
 
