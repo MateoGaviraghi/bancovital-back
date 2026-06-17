@@ -686,16 +686,32 @@ export class ContractsService {
   // ── Helpers ────────────────────────────────────────────────────────────────
 
   private async inviteAdmin(labId: number, email: string, redirectTo: string): Promise<void> {
-    const { data, error: inviteError } = await this.storage.auth.admin.inviteUserByEmail(email, {
-      redirectTo,
+    // 1) Crear el usuario si no existe (idempotente). Confirmado, sin contraseña aún.
+    const created = await this.storage.auth.admin.createUser({
+      email,
+      email_confirm: true,
+      app_metadata: { role: 'admin' },
     });
-
-    if (inviteError || !data?.user) {
-      throw new Error(`No se pudo invitar a ${email}: ${inviteError?.message ?? 'unknown'}`);
+    if (created.error && !/registered|already|exists/i.test(created.error.message)) {
+      throw new Error(`No se pudo crear el usuario ${email}: ${created.error.message}`);
     }
 
-    const userId = data.user.id;
+    // 2) Generar el link para definir contraseña. Supabase NO lo envía: lo mandamos
+    //    nosotros por Resend (que sí está configurado y entrega), no por el mail de Supabase.
+    const { data: linkData, error: linkError } = await this.storage.auth.admin.generateLink({
+      type: 'recovery',
+      email,
+      options: { redirectTo },
+    });
+    if (linkError || !linkData?.user || !linkData.properties?.action_link) {
+      throw new Error(
+        `No se pudo generar el acceso para ${email}: ${linkError?.message ?? 'unknown'}`,
+      );
+    }
 
+    const userId = linkData.user.id;
+
+    // 3) Asegurar rol admin (metadata + tabla user).
     await this.storage.auth.admin.updateUserById(userId, {
       app_metadata: { role: 'admin' },
     });
@@ -714,6 +730,9 @@ export class ContractsService {
         target: userSchema.id,
         set: { labId, email, role: 'admin', active: true },
       });
+
+    // 4) Enviar el link por Resend (branded).
+    await this.mailService.sendLabInvite(email, linkData.properties.action_link);
   }
 
   private async generateUniqueSlug(razonSocial: string): Promise<string> {

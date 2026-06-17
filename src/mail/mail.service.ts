@@ -137,6 +137,41 @@ export class MailService {
     );
   }
 
+  // ── Invitación al admin del laboratorio (definir contraseña) ─────────────────
+
+  async sendLabInvite(to: string, actionLink: string): Promise<void> {
+    const content = `
+      ${this.eyebrow('Tu laboratorio está listo')}
+      ${this.h1('Configurá tu acceso')}
+      ${this.p('Creamos tu laboratorio en Banco Vital. Definí tu contraseña para empezar a usar la plataforma.')}
+      <table role="presentation" cellpadding="0" cellspacing="0" style="margin:4px 0 20px;"><tr><td>
+        <a href="${actionLink}" style="display:inline-block;padding:13px 26px;background:${NAVY};color:#ffffff;font-size:14px;font-weight:600;text-decoration:none;">Definir mi contraseña</a>
+      </td></tr></table>
+      <p style="margin:0 0 6px;font-size:12px;color:${SUBTLE};">Si el botón no funciona, copiá y pegá este enlace en tu navegador:</p>
+      <p style="margin:0 0 18px;font-size:11px;color:${NAVY};word-break:break-all;">${actionLink}</p>
+      <p style="margin:0;font-size:12px;color:${SUBTLE};line-height:1.6;">El enlace vence en 24 horas. Si no esperabas este correo, ignoralo.</p>`;
+
+    if (this.resend) {
+      const { error } = await this.resend.emails.send({
+        from: this.mailFrom,
+        to,
+        subject: 'Configurá tu acceso — Banco Vital',
+        html: this.wrap({ title: 'Configurá tu acceso', content }),
+      });
+      if (error) {
+        throw new InternalServerErrorException(`Error al enviar invitación: ${error.message}`);
+      }
+      return;
+    }
+
+    if (process.env.OTP_DEV_LOG === '1') {
+      this.logger.warn(`[INVITE DEV] ${to} -> ${actionLink}`);
+      return;
+    }
+
+    throw new InternalServerErrorException('Servicio de email no configurado.');
+  }
+
   // ── Confirmación de reunión (al cliente) ─────────────────────────────────────
 
   async sendReunionConfirmacion(
