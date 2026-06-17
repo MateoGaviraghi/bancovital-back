@@ -1,185 +1,276 @@
 /**
- * Template PDF de contrato de prestación de servicios.
+ * Template PDF del contrato de prestación de servicios — Banco Vital.
  *
- * Estética formal: serif para títulos, sans-serif para cuerpo (9.5pt),
- * tinta #1a1a1a, violeta #8b2fef solo en numeración de cláusulas y líneas divisorias.
- * A4, márgenes de 24mm.
+ * Identidad: navy #1f2b5b dominante (header band, numeración de cláusulas,
+ * tabla, bloque de firma), rojo #cd0f0f como acento único por página (regla bajo
+ * el header, fila de plan sugerido). Serif (Source Serif 4) para títulos,
+ * sans (Public Sans) para cuerpo 9.5pt. A4, márgenes de 24mm.
  *
- * TODO: Reemplazar Helvetica/Times-Roman por Source Serif 4 + Public Sans cuando
- * se puedan descargar los TTF (falló la descarga automatizada desde google/fonts).
- * Ver src/pdf/fonts/ — PublicSans-Regular.ttf y PublicSans-SemiBold.ttf sí están disponibles.
+ * El sistema se presenta como "Banco Vital" (marca de producto); "Nodo" es la
+ * empresa proveedora y figura en el crédito del header, el footer y el cuerpo
+ * legal de las cláusulas (sin modificar).
  */
 
-import { Document, Font, Image, Page, StyleSheet, Text, View } from '@react-pdf/renderer';
+import { Document, Image, Page, StyleSheet, Text, View } from '@react-pdf/renderer';
 import React from 'react';
 
-// ── Tipografía ─────────────────────────────────────────────────────────────────
-// Public Sans está descargado; Source Serif 4 usa fallback Times-Roman.
-// Para registro solo se hace una vez en el módulo de render.
-
-const ACCENT = '#8b2fef';
+// ── Paleta ───────────────────────────────────────────────────────────────────
+const NAVY = '#1f2b5b';
+const NAVY_SOFT = '#e9ecf5';
+const RED = '#cd0f0f';
 const INK = '#1a1a1a';
-const GREY = '#555555';
-const LIGHT_GREY = '#888888';
-const BORDER_GREY = '#d0d0d0';
-const BG_LIGHT = '#f8f8f8';
+const GREY = '#4a4a4a';
+const LIGHT_GREY = '#8a8a8a';
+const BORDER = '#d6d9e3';
+const WHITE = '#ffffff';
+const WHITE_SOFT = '#b9c0d6';
+const BG_HASH = '#f1f2f6';
 
 const MM = 2.835; // 1mm ≈ 2.835pt
+const PAGE_PAD = 24 * MM;
 
 const styles = StyleSheet.create({
   page: {
     fontFamily: 'PublicSans',
     fontSize: 9.5,
     color: INK,
-    paddingTop: 24 * MM,
+    paddingTop: PAGE_PAD,
     paddingBottom: 24 * MM,
-    paddingLeft: 24 * MM,
-    paddingRight: 24 * MM,
+    paddingLeft: PAGE_PAD,
+    paddingRight: PAGE_PAD,
     lineHeight: 1.5,
   },
 
-  // ── Header portada
-  coverHeader: {
-    borderBottomWidth: 2,
-    borderBottomColor: ACCENT,
-    paddingBottom: 8,
-    marginBottom: 20,
+  // ── Header band (portada) — full-bleed navy
+  band: {
+    backgroundColor: NAVY,
+    marginTop: -PAGE_PAD,
+    marginLeft: -PAGE_PAD,
+    marginRight: -PAGE_PAD,
+    paddingTop: 24,
+    paddingBottom: 18,
+    paddingLeft: PAGE_PAD,
+    paddingRight: PAGE_PAD,
+    borderBottomWidth: 3,
+    borderBottomColor: RED,
+    marginBottom: 24,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-end',
   },
-  brandName: {
-    fontFamily: 'SourceSerif4',
+  bandBrand: {
+    fontFamily: 'SourceSerif4Bold',
     fontSize: 22,
-    color: INK,
-    letterSpacing: 1.5,
+    color: WHITE,
+    letterSpacing: 0.3,
   },
-  coverMeta: {
+  bandCredit: {
+    fontSize: 8,
+    color: WHITE_SOFT,
+    marginTop: 4,
+    letterSpacing: 0.4,
+  },
+  bandMetaLabel: {
+    fontSize: 7,
+    color: WHITE_SOFT,
+    textAlign: 'right',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  bandMetaValue: {
+    fontSize: 10,
+    color: WHITE,
+    textAlign: 'right',
+    fontFamily: 'PublicSansSemiBold',
+    marginBottom: 6,
+  },
+
+  // ── Slim header (páginas siguientes)
+  slimHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderBottomWidth: 1.5,
+    borderBottomColor: NAVY,
+    paddingBottom: 6,
+    marginBottom: 18,
+  },
+  slimBrand: {
+    fontFamily: 'SourceSerif4Bold',
+    fontSize: 12,
+    color: NAVY,
+  },
+  slimMeta: {
     fontSize: 8,
     color: LIGHT_GREY,
-    textAlign: 'right',
+    fontFamily: 'PublicSansSemiBold',
   },
 
-  // ── Bloque portada
-  coverTitle: {
-    fontFamily: 'SourceSerif4',
-    fontSize: 16,
-    color: INK,
-    marginBottom: 4,
-  },
-  coverSubtitle: {
-    fontSize: 9,
-    color: GREY,
-    marginBottom: 24,
-  },
-
-  // ── Tabla de datos portada
-  infoRow: {
-    flexDirection: 'row',
+  // ── Título del documento
+  docTitle: {
+    fontFamily: 'SourceSerif4Bold',
+    fontSize: 17,
+    color: NAVY,
     marginBottom: 3,
   },
-  infoLabel: {
-    width: 110,
+  docSubtitle: {
+    fontSize: 10.5,
     color: GREY,
-  },
-  infoValue: {
-    flex: 1,
-    color: INK,
+    marginBottom: 18,
   },
 
-  // ── Sección / Cláusula
+  // ── Caja de datos del cliente (dos columnas)
+  clientBox: {
+    backgroundColor: NAVY_SOFT,
+    paddingTop: 14,
+    paddingBottom: 6,
+    paddingLeft: 16,
+    paddingRight: 16,
+    marginBottom: 20,
+    flexDirection: 'row',
+  },
+  clientCol: {
+    flex: 1,
+    paddingRight: 12,
+  },
+  dataLabel: {
+    fontSize: 6.5,
+    color: GREY,
+    textTransform: 'uppercase',
+    letterSpacing: 0.7,
+    marginBottom: 1,
+  },
+  dataValue: {
+    fontSize: 9.5,
+    color: INK,
+    fontFamily: 'PublicSansSemiBold',
+    marginBottom: 9,
+  },
+
+  // ── Cláusulas
   sectionBlock: {
     marginBottom: 14,
   },
   clauseHeader: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 4,
+    alignItems: 'baseline',
+    marginBottom: 5,
   },
   clauseNumber: {
-    color: ACCENT,
+    color: NAVY,
     fontFamily: 'PublicSansSemiBold',
-    fontSize: 9.5,
-    width: 28,
+    fontSize: 11,
+    width: 22,
   },
   clauseTitle: {
     fontFamily: 'SourceSerif4Bold',
-    fontSize: 10,
-    color: INK,
+    fontSize: 10.5,
+    color: NAVY,
     flex: 1,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   clauseBody: {
-    paddingLeft: 28,
+    paddingLeft: 22,
     color: INK,
     fontSize: 9.5,
-    lineHeight: 1.55,
+    lineHeight: 1.6,
   },
 
   // ── Divisor
   divider: {
-    borderBottomWidth: 0.5,
-    borderBottomColor: ACCENT,
+    borderBottomWidth: 0.7,
+    borderBottomColor: NAVY,
+    opacity: 0.15,
+    marginTop: 4,
     marginBottom: 12,
-    marginTop: 2,
-    opacity: 0.4,
-  },
-  dividerGrey: {
-    borderBottomWidth: 0.5,
-    borderBottomColor: BORDER_GREY,
-    marginBottom: 10,
-    marginTop: 8,
   },
 
   // ── Tabla de planes
   table: {
+    marginTop: 4,
     marginBottom: 8,
+  },
+  tableHeaderRow: {
+    flexDirection: 'row',
+    backgroundColor: NAVY,
+    paddingVertical: 5,
+    paddingHorizontal: 7,
+  },
+  tableHeaderCell: {
+    fontSize: 8,
+    fontFamily: 'PublicSansSemiBold',
+    color: WHITE,
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
   },
   tableRow: {
     flexDirection: 'row',
     borderBottomWidth: 0.5,
-    borderBottomColor: BORDER_GREY,
-    paddingVertical: 4,
+    borderBottomColor: BORDER,
+    paddingVertical: 5,
+    paddingHorizontal: 7,
   },
-  tableHeaderRow: {
+  tableRowSugerido: {
     flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: INK,
-    paddingVertical: 4,
-    backgroundColor: BG_LIGHT,
+    backgroundColor: NAVY_SOFT,
+    borderBottomWidth: 0.5,
+    borderBottomColor: BORDER,
+    borderLeftWidth: 2,
+    borderLeftColor: RED,
+    paddingVertical: 5,
+    paddingHorizontal: 7,
+    paddingLeft: 5,
   },
   tableCell: {
-    flex: 1,
     fontSize: 8.5,
     fontFamily: 'PublicSans',
+    color: INK,
     fontVariant: ['tabular-nums'] as never,
   },
-  tableCellBold: {
-    flex: 1,
-    fontSize: 8.5,
+  tableCellName: {
     fontFamily: 'PublicSansSemiBold',
   },
-  tableCellHighlight: {
-    flex: 1,
+  tableNote: {
+    color: GREY,
     fontSize: 8.5,
+    marginBottom: 3,
+    lineHeight: 1.5,
+  },
+
+  // ── Nota de URL de firma
+  urlNote: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    backgroundColor: NAVY_SOFT,
+    borderLeftWidth: 2,
+    borderLeftColor: NAVY,
+    padding: 9,
+    marginTop: 14,
+  },
+  urlNoteText: {
+    fontSize: 8.5,
+    color: GREY,
+  },
+  urlNoteUrl: {
+    fontSize: 8.5,
+    color: NAVY,
     fontFamily: 'PublicSansSemiBold',
-    color: ACCENT,
   },
 
   // ── Bloque de firma
   signBlock: {
-    backgroundColor: BG_LIGHT,
-    borderWidth: 0.5,
-    borderColor: BORDER_GREY,
-    padding: 16,
+    backgroundColor: NAVY_SOFT,
+    borderLeftWidth: 3,
+    borderLeftColor: NAVY,
+    padding: 14,
     marginTop: 16,
   },
   signTitle: {
     fontFamily: 'SourceSerif4Bold',
     fontSize: 11,
     marginBottom: 10,
-    color: INK,
+    color: NAVY,
   },
   signRow: {
     flexDirection: 'row',
@@ -188,48 +279,84 @@ const styles = StyleSheet.create({
   signLabel: {
     width: 130,
     color: GREY,
+    fontSize: 9,
   },
   signValue: {
     flex: 1,
     color: INK,
     fontFamily: 'PublicSansSemiBold',
+    fontSize: 9,
+  },
+  signNote: {
+    fontSize: 8.5,
+    color: GREY,
+    lineHeight: 1.5,
   },
 
   // ── Footer
   footer: {
     position: 'absolute',
     bottom: 14 * MM,
-    left: 24 * MM,
-    right: 24 * MM,
+    left: PAGE_PAD,
+    right: PAGE_PAD,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    fontSize: 7.5,
-    color: LIGHT_GREY,
+    alignItems: 'center',
     borderTopWidth: 0.5,
-    borderTopColor: BORDER_GREY,
+    borderTopColor: BORDER,
     paddingTop: 6,
   },
+  footerStrong: {
+    fontSize: 7.5,
+    color: GREY,
+    fontFamily: 'PublicSansSemiBold',
+  },
+  footerText: {
+    fontSize: 7.5,
+    color: LIGHT_GREY,
+  },
 
-  // ── Página de constancia de firma
+  // ── Página de constancia
   evidenceHeader: {
     fontFamily: 'SourceSerif4Bold',
-    fontSize: 13,
-    color: INK,
+    fontSize: 14,
+    color: NAVY,
     marginBottom: 16,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   evidenceSignatureBox: {
-    borderWidth: 0.5,
-    borderColor: BORDER_GREY,
-    padding: 12,
-    marginBottom: 14,
+    position: 'relative',
+    borderWidth: 1,
+    borderColor: NAVY,
+    backgroundColor: NAVY_SOFT,
+    paddingTop: 14,
+    paddingBottom: 14,
+    marginBottom: 16,
     alignItems: 'center',
   },
   evidenceSignatureLabel: {
     fontSize: 8,
-    color: LIGHT_GREY,
-    marginBottom: 6,
+    color: GREY,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    marginBottom: 8,
+  },
+  stamp: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    borderWidth: 1,
+    borderColor: RED,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+  },
+  stampText: {
+    color: RED,
+    fontSize: 9,
+    fontFamily: 'PublicSansSemiBold',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
   },
   evidenceRow: {
     flexDirection: 'row',
@@ -247,15 +374,18 @@ const styles = StyleSheet.create({
     fontFamily: 'PublicSansSemiBold',
   },
   hashBox: {
-    backgroundColor: BG_LIGHT,
-    borderWidth: 0.5,
-    borderColor: BORDER_GREY,
-    padding: 8,
-    marginTop: 8,
+    backgroundColor: BG_HASH,
+    borderLeftWidth: 2,
+    borderLeftColor: NAVY,
+    padding: 9,
+    marginTop: 10,
   },
   hashLabel: {
     fontSize: 7.5,
-    color: GREY,
+    color: NAVY,
+    fontFamily: 'PublicSansSemiBold',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
     marginBottom: 3,
   },
   hashValue: {
@@ -263,25 +393,6 @@ const styles = StyleSheet.create({
     fontFamily: 'PublicSans',
     color: INK,
     wordBreak: 'break-all' as never,
-  },
-
-  // ── Nota sobre URL de firma
-  urlNote: {
-    backgroundColor: BG_LIGHT,
-    borderLeftWidth: 2,
-    borderLeftColor: ACCENT,
-    padding: 10,
-    marginTop: 16,
-    marginBottom: 16,
-  },
-  urlNoteText: {
-    fontSize: 9,
-    color: GREY,
-  },
-  urlNoteUrl: {
-    fontSize: 9,
-    color: ACCENT,
-    fontFamily: 'PublicSansSemiBold',
   },
 });
 
@@ -368,23 +479,32 @@ const Paragraphs = ({ items }: { items: string[] }) => (
   </View>
 );
 
-const Footer = () => (
+const Footer = ({ id }: { id: number }) => (
   <View style={styles.footer} fixed>
-    <Text>NODO · nodotech.dev</Text>
-    <Text>Mateo Gaviraghi +54 9 3425 16-2081 · Justo González Viescas +54 9 3425 26-7005</Text>
+    <Text style={styles.footerStrong}>Banco Vital · por Nodo</Text>
+    <Text style={styles.footerText}>{padId(id)}</Text>
+    <Text
+      style={styles.footerText}
+      render={({ pageNumber, totalPages }) => `Página ${pageNumber} de ${totalPages}`}
+    />
   </View>
 );
 
-const Divider = ({ accent = false }: { accent?: boolean }) => (
-  <View style={accent ? styles.divider : styles.dividerGrey} />
+const SlimHeader = ({ id }: { id: number }) => (
+  <View style={styles.slimHeader}>
+    <Text style={styles.slimBrand}>Banco Vital</Text>
+    <Text style={styles.slimMeta}>Contrato de Prestación de Servicios · {padId(id)}</Text>
+  </View>
 );
+
+const Divider = () => <View style={styles.divider} />;
 
 const Clause = ({
   num,
   title,
   children,
 }: { num: string; title: string; children: React.ReactNode }) => (
-  <View style={styles.sectionBlock}>
+  <View style={styles.sectionBlock} wrap={false}>
     <View style={styles.clauseHeader}>
       <Text style={styles.clauseNumber}>{num}.</Text>
       <Text style={styles.clauseTitle}>{title}</Text>
@@ -393,10 +513,10 @@ const Clause = ({
   </View>
 );
 
-const InfoRow = ({ label, value }: { label: string; value: string }) => (
-  <View style={styles.infoRow}>
-    <Text style={styles.infoLabel}>{label}</Text>
-    <Text style={styles.infoValue}>{value}</Text>
+const DataPair = ({ label, value }: { label: string; value: string }) => (
+  <View>
+    <Text style={styles.dataLabel}>{label}</Text>
+    <Text style={styles.dataValue}>{value}</Text>
   </View>
 );
 
@@ -408,42 +528,43 @@ export const ContratoTemplate = ({ data }: { data: ContratoData }) => {
   return (
     <Document
       title={`${padId(data.id)} — Contrato de Prestación de Servicios`}
-      author="NODO"
-      subject="Contrato de Prestación de Servicios"
+      author="Nodo"
+      subject="Contrato de Prestación de Servicios — Banco Vital"
     >
       {/* ── Página 1: Portada ────────────────────────────────────────────────── */}
       <Page size="A4" style={styles.page}>
-        <Footer />
+        <Footer id={data.id} />
 
-        {/* Encabezado */}
-        <View style={styles.coverHeader}>
-          <Text style={styles.brandName}>NODO</Text>
+        {/* Letterhead band */}
+        <View style={styles.band}>
           <View>
-            <Text style={styles.coverMeta}>{padId(data.id)}</Text>
-            <Text style={styles.coverMeta}>{fmtDate(data.createdAt)}</Text>
+            <Text style={styles.bandBrand}>Banco Vital</Text>
+            <Text style={styles.bandCredit}>por Nodo · nodotech.dev</Text>
+          </View>
+          <View>
+            <Text style={styles.bandMetaLabel}>Contrato</Text>
+            <Text style={styles.bandMetaValue}>{padId(data.id)}</Text>
+            <Text style={styles.bandMetaLabel}>{fmtDate(data.createdAt)}</Text>
           </View>
         </View>
 
         {/* Título */}
-        <Text style={styles.coverTitle}>Contrato de Prestación de Servicios</Text>
-        <Text style={styles.coverSubtitle}>Documento para firma electrónica</Text>
+        <Text style={styles.docTitle}>Contrato de Prestación de Servicios</Text>
+        <Text style={styles.docSubtitle}>Propuesta para {data.razonSocial}</Text>
 
-        <View style={styles.urlNote}>
-          <Text style={styles.urlNoteText}>URL de firma: </Text>
-          <Text style={styles.urlNoteUrl}>{contractUrl}</Text>
+        {/* Datos del cliente — dos columnas */}
+        <View style={styles.clientBox}>
+          <View style={styles.clientCol}>
+            <DataPair label="Razón social" value={data.razonSocial} />
+            <DataPair label="Contacto" value={data.nombreContacto} />
+            {data.cuit ? <DataPair label="CUIT" value={data.cuit} /> : null}
+          </View>
+          <View style={styles.clientCol}>
+            <DataPair label="Correo electrónico" value={data.emailFirmante} />
+            {data.telefono ? <DataPair label="Teléfono" value={data.telefono} /> : null}
+            <DataPair label="Válido hasta" value={fmtDate(data.expiraAt)} />
+          </View>
         </View>
-
-        <Divider />
-
-        {/* Datos del cliente */}
-        <InfoRow label="Razón social" value={data.razonSocial} />
-        <InfoRow label="Contacto" value={data.nombreContacto} />
-        {data.cuit ? <InfoRow label="CUIT" value={data.cuit} /> : null}
-        <InfoRow label="Correo electrónico" value={data.emailFirmante} />
-        {data.telefono ? <InfoRow label="Teléfono" value={data.telefono} /> : null}
-        <InfoRow label="Válido hasta" value={fmtDate(data.expiraAt)} />
-
-        <Divider />
 
         {/* Objeto */}
         <Clause num="1" title="Objeto">
@@ -453,7 +574,7 @@ export const ContratoTemplate = ({ data }: { data: ContratoData }) => {
           ) : null}
         </Clause>
 
-        <Divider accent />
+        <Divider />
 
         {/* Planes y precios */}
         <Clause num="2" title="Planes y precios">
@@ -466,32 +587,22 @@ export const ContratoTemplate = ({ data }: { data: ContratoData }) => {
           {/* Tabla */}
           <View style={styles.table}>
             <View style={styles.tableHeaderRow}>
-              <Text style={[styles.tableCellBold, { flex: 2 }]}>Plan</Text>
-              <Text style={styles.tableCellBold}>Cupo/mes</Text>
-              <Text style={styles.tableCellBold}>Precio mensual</Text>
-              <Text style={styles.tableCellBold}>Orden adicional</Text>
+              <Text style={[styles.tableHeaderCell, { flex: 2 }]}>Plan</Text>
+              <Text style={[styles.tableHeaderCell, { flex: 1 }]}>Cupo/mes</Text>
+              <Text style={[styles.tableHeaderCell, { flex: 1 }]}>Precio mensual</Text>
+              <Text style={[styles.tableHeaderCell, { flex: 1 }]}>Orden adicional</Text>
             </View>
             {data.planes.map((p) => {
               const isSugerido = data.planSugeridoId === p.id;
               return (
-                <View key={p.id} style={styles.tableRow}>
-                  <Text
-                    style={
-                      isSugerido
-                        ? [styles.tableCellHighlight, { flex: 2 }]
-                        : [styles.tableCell, { flex: 2 }]
-                    }
-                  >
+                <View key={p.id} style={isSugerido ? styles.tableRowSugerido : styles.tableRow}>
+                  <Text style={[styles.tableCell, styles.tableCellName, { flex: 2 }]}>
                     {p.nombre}
                     {isSugerido ? ' (*)' : ''}
                   </Text>
-                  <Text style={isSugerido ? styles.tableCellHighlight : styles.tableCell}>
-                    {p.cupoOrdenesMes}
-                  </Text>
-                  <Text style={isSugerido ? styles.tableCellHighlight : styles.tableCell}>
-                    {fmtMoney(p.precioMensual)}
-                  </Text>
-                  <Text style={isSugerido ? styles.tableCellHighlight : styles.tableCell}>
+                  <Text style={[styles.tableCell, { flex: 1 }]}>{p.cupoOrdenesMes}</Text>
+                  <Text style={[styles.tableCell, { flex: 1 }]}>{fmtMoney(p.precioMensual)}</Text>
+                  <Text style={[styles.tableCell, { flex: 1 }]}>
                     {fmtMoney(p.precioOrdenExcedente)}
                   </Text>
                 </View>
@@ -500,25 +611,30 @@ export const ContratoTemplate = ({ data }: { data: ContratoData }) => {
           </View>
 
           <View style={{ marginTop: 6 }}>
-            <Text style={{ color: GREY, fontSize: 8.5, marginBottom: 3 }}>
+            <Text style={styles.tableNote}>
               Regla de excedentes: las órdenes procesadas dentro del cupo mensual se facturan al
               precio del plan. Las que superen el cupo se facturan individualmente al precio de
               orden adicional indicado en la tabla, sin bloqueo del servicio.
             </Text>
-            <Text style={{ color: GREY, fontSize: 8.5 }}>
+            <Text style={styles.tableNote}>
               Rollover de cupo no utilizado: el cupo no consumido en un mes calendario se transfiere
               al mes siguiente con vigencia de un (1) mes; transcurrido ese plazo, vence sin
               compensación económica.
             </Text>
+          </View>
+
+          {/* Nota de URL de firma */}
+          <View style={styles.urlNote}>
+            <Text style={styles.urlNoteText}>URL de firma: </Text>
+            <Text style={styles.urlNoteUrl}>{contractUrl}</Text>
           </View>
         </Clause>
       </Page>
 
       {/* ── Página 2: Cláusulas ─────────────────────────────────────────────── */}
       <Page size="A4" style={styles.page}>
-        <Footer />
-
-        <Divider accent />
+        <Footer id={data.id} />
+        <SlimHeader id={data.id} />
 
         <Clause num="3" title="Protección de datos personales">
           <Paragraphs
@@ -533,7 +649,7 @@ export const ContratoTemplate = ({ data }: { data: ContratoData }) => {
           />
         </Clause>
 
-        <Divider accent />
+        <Divider />
 
         <Clause num="4" title="Disponibilidad y soporte">
           <Paragraphs
@@ -544,7 +660,7 @@ export const ContratoTemplate = ({ data }: { data: ContratoData }) => {
           />
         </Clause>
 
-        <Divider accent />
+        <Divider />
 
         <Clause num="5" title="Facturación y mora">
           <Text>
@@ -556,7 +672,7 @@ export const ContratoTemplate = ({ data }: { data: ContratoData }) => {
           </Text>
         </Clause>
 
-        <Divider accent />
+        <Divider />
 
         <Clause num="6" title="Vigencia y rescisión">
           <Text>
@@ -568,21 +684,21 @@ export const ContratoTemplate = ({ data }: { data: ContratoData }) => {
           </Text>
         </Clause>
 
-        <Divider accent />
+        <Divider />
 
         <Clause num="7" title="Limitación de responsabilidad">
           <Text>
-            El sistema Nodo es una herramienta de gestión que asiste al laboratorio en el registro y
-            seguimiento de sus órdenes y resultados. La responsabilidad profesional derivada de los
-            actos de práctica bioquímica, la interpretación de resultados y la atención a pacientes
-            recae exclusiva e íntegramente sobre el laboratorio y los profesionales matriculados a
-            cargo del mismo. Nodo no asume responsabilidad alguna por daños directos o indirectos
-            derivados del uso o imposibilidad de uso del sistema, salvo dolo o culpa grave imputable
-            a Nodo.
+            El sistema Banco Vital es una herramienta de gestión que asiste al laboratorio en el
+            registro y seguimiento de sus órdenes y resultados. La responsabilidad profesional
+            derivada de los actos de práctica bioquímica, la interpretación de resultados y la
+            atención a pacientes recae exclusiva e íntegramente sobre el laboratorio y los
+            profesionales matriculados a cargo del mismo. Nodo no asume responsabilidad alguna por
+            daños directos o indirectos derivados del uso o imposibilidad de uso del sistema, salvo
+            dolo o culpa grave imputable a Nodo.
           </Text>
         </Clause>
 
-        <Divider accent />
+        <Divider />
 
         <Clause num="8" title="Jurisdicción">
           <Text>
@@ -592,8 +708,6 @@ export const ContratoTemplate = ({ data }: { data: ContratoData }) => {
             otro fuero que pudiera corresponder.
           </Text>
         </Clause>
-
-        <Divider />
 
         {/* Bloque de aceptación */}
         <View style={styles.signBlock}>
@@ -616,12 +730,12 @@ export const ContratoTemplate = ({ data }: { data: ContratoData }) => {
             <Text style={styles.signLabel}>Correo electrónico</Text>
             <Text style={styles.signValue}>{data.emailFirmante}</Text>
           </View>
-          <View style={[styles.signRow, { marginTop: 10 }]}>
-            <Text style={{ fontSize: 8.5, color: GREY, lineHeight: 1.5 }}>
+          <View style={{ marginTop: 10 }}>
+            <Text style={styles.signNote}>
               La aceptación del presente contrato se realiza de forma electrónica mediante la
-              plataforma de firma en línea de Nodo, identificando al firmante a través de un código
-              de verificación de un solo uso (OTP) enviado al correo electrónico indicado. La firma
-              electrónica tiene plena validez conforme a la legislación argentina aplicable.
+              plataforma de firma en línea de Banco Vital, identificando al firmante a través de un
+              código de verificación de un solo uso (OTP) enviado al correo electrónico indicado. La
+              firma electrónica tiene plena validez conforme a la legislación argentina aplicable.
             </Text>
           </View>
         </View>
@@ -655,29 +769,25 @@ export const ContratoFirmadoTemplate = ({ data }: { data: ContratoFirmadoData })
   return (
     <Document
       title={`${padId(data.id)} — Contrato de Prestación de Servicios (FIRMADO)`}
-      author="NODO"
+      author="Nodo"
       subject="Contrato de Prestación de Servicios — Constancia de firma electrónica"
     >
       {basePages}
 
       {/* ── Página de constancia de firma electrónica ─────────────────────── */}
       <Page size="A4" style={styles.page}>
-        <Footer />
-
-        <View style={styles.coverHeader}>
-          <Text style={styles.brandName}>NODO</Text>
-          <Text style={styles.coverMeta}>{padId(data.id)}</Text>
-        </View>
+        <Footer id={data.id} />
+        <SlimHeader id={data.id} />
 
         <Text style={styles.evidenceHeader}>Constancia de firma electrónica</Text>
 
         {/* Imagen de la firma */}
         <View style={styles.evidenceSignatureBox}>
+          <View style={styles.stamp}>
+            <Text style={styles.stampText}>Firmado</Text>
+          </View>
           <Text style={styles.evidenceSignatureLabel}>Firma del declarante</Text>
-          <Image
-            src={data.firmaDataUrl}
-            style={{ width: 220, height: 100, objectFit: 'contain' }}
-          />
+          <Image src={data.firmaDataUrl} style={{ width: 220, height: 90, objectFit: 'contain' }} />
         </View>
 
         {/* Datos de evidencia */}
@@ -713,7 +823,7 @@ export const ContratoFirmadoTemplate = ({ data }: { data: ContratoFirmadoData })
         </View>
 
         <View style={[styles.signBlock, { marginTop: 20 }]}>
-          <Text style={{ fontSize: 8.5, color: GREY, lineHeight: 1.5 }}>
+          <Text style={styles.signNote}>
             Este documento acredita la aceptación electrónica del Contrato de Prestación de
             Servicios {padId(data.id)} por parte del firmante identificado precedentemente. La
             identidad del firmante fue verificada mediante un código de un solo uso (OTP) enviado al
