@@ -1,3 +1,4 @@
+import { AppConfig } from '@/config';
 import { Module } from '@nestjs/common';
 import { LabConfigModule } from '../lab-config/lab-config.module';
 import { UsersModule } from '../users/users.module';
@@ -10,6 +11,6 @@ import { SuperService } from './super.service';
 @Module({
   imports: [UsersModule, LabConfigModule],
   controllers: [SuperController, SuperMetricsController, BillingController],
-  providers: [SuperService, BillingService],
+  providers: [SuperService, BillingService, AppConfig],
 })
 export class SuperModule {}

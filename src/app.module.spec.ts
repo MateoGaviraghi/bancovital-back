@@ -274,11 +274,13 @@ describe('DI compile — SuperModule', () => {
     const auditStub = { log: jest.fn() };
     const usersStub = { invite: jest.fn() };
     const labConfigStub = { uploadAsset: jest.fn() };
+    const appConfigStub = { env: {} };
     const moduleRef = await Test.createTestingModule({
       controllers: [SuperController, SuperMetricsController, BillingController],
       providers: [
         SuperService,
         BillingService,
+        { provide: AppConfig, useValue: appConfigStub },
         { provide: DATABASE, useValue: DB_STUB },
         { provide: SUPABASE_ADMIN, useValue: SUPABASE_STUB },
         { provide: AuditService, useValue: auditStub },
