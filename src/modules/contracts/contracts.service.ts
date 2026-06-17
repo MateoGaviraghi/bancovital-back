@@ -393,13 +393,9 @@ export class ContractsService {
     const updated = await this.lazyExpireIfNeeded(row);
     const planes = await this.getActivePlans();
 
-    // El PDF original contiene PII completa (email, CUIT, teléfono en claro).
-    // No exponerlo hasta que el firmante haya verificado su identidad por OTP.
-    const otpVerificado = updated.otpVerificadoAt != null;
-    const pdfUrl =
-      otpVerificado && updated.pdfOriginalPath
-        ? await this.signedUrl(updated.pdfOriginalPath)
-        : null;
+    // El PDF original es la previsualización del contrato a firmar: se expone a
+    // quien tenga el enlace (el firmante) para que pueda leerlo antes de firmar.
+    const pdfUrl = updated.pdfOriginalPath ? await this.signedUrl(updated.pdfOriginalPath) : null;
 
     return {
       estado: updated.estado,

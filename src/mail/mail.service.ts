@@ -1,5 +1,3 @@
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { AppConfig } from '@/config';
 import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
 import { Resend } from 'resend';
@@ -35,28 +33,6 @@ export class MailService {
     return this.appConfig.env.MAIL_FROM ?? 'Banco Vital <onboarding@resend.dev>';
   }
 
-  // Logo embebido como adjunto inline (CID): se ve en el email sin depender de
-  // ninguna URL externa ni del deploy del front.
-  private logoBuffer: Buffer | null | undefined;
-
-  private logoAttachment(): { filename: string; content: Buffer; contentId: string } | null {
-    if (this.logoBuffer === undefined) {
-      try {
-        this.logoBuffer = readFileSync(join(__dirname, '..', 'pdf', 'logo-bv-blanco.png'));
-      } catch {
-        this.logoBuffer = null;
-      }
-    }
-    return this.logoBuffer
-      ? { filename: 'banco-vital.png', content: this.logoBuffer, contentId: 'bvlogo' }
-      : null;
-  }
-
-  private get logoAtt(): Array<{ filename: string; content: Buffer; contentId: string }> {
-    const a = this.logoAttachment();
-    return a ? [a] : [];
-  }
-
   /**
    * Shell de marca compartido por todos los emails transaccionales.
    * Header navy con logo blanco + regla roja, cuerpo blanco, footer sobrio.
@@ -72,14 +48,7 @@ export class MailService {
     <tr><td align="center">
       <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="width:560px;max-width:92%;background:#ffffff;border:1px solid ${BORDER};">
         <tr><td style="background:${NAVY};padding:22px 32px;border-bottom:3px solid ${RED};">
-          <table role="presentation" cellpadding="0" cellspacing="0"><tr>
-            <td style="vertical-align:middle;width:42px;">
-              <img src="cid:bvlogo" width="36" height="36" alt="Banco Vital" style="display:block;border:0;outline:none;text-decoration:none;">
-            </td>
-            <td style="vertical-align:middle;padding-left:12px;">
-              <span style="color:#ffffff;font-size:19px;font-weight:700;letter-spacing:-0.01em;">Banco Vital</span>
-            </td>
-          </tr></table>
+          <span style="color:#ffffff;font-size:20px;font-weight:700;letter-spacing:-0.01em;">Banco Vital</span>
         </td></tr>
         <tr><td style="padding:32px;">${opts.content}</td></tr>
         <tr><td style="padding:18px 32px;background:${BG};border-top:1px solid ${BORDER};">
@@ -143,7 +112,6 @@ export class MailService {
 
       const { error } = await this.resend.emails.send({
         from: this.mailFrom,
-        attachments: this.logoAtt,
         to,
         subject: 'Tu código de verificación — Banco Vital',
         html: this.wrap({
@@ -217,7 +185,6 @@ export class MailService {
     if (this.resend) {
       const { error } = await this.resend.emails.send({
         from: this.mailFrom,
-        attachments: this.logoAtt,
         to,
         subject: `Reunión confirmada — ${fechaStr} ${horaInicio}`,
         html: this.wrap({
@@ -266,7 +233,6 @@ export class MailService {
     if (this.resend) {
       const { error } = await this.resend.emails.send({
         from: this.mailFrom,
-        attachments: this.logoAtt,
         to,
         subject: `${id} — ${reunion.nombre} confirmó asistencia`,
         html: this.wrap({ title: 'Asistencia confirmada', content }),
@@ -327,7 +293,6 @@ export class MailService {
     if (this.resend) {
       const { error } = await this.resend.emails.send({
         from: this.mailFrom,
-        attachments: this.logoAtt,
         to: notifyTo,
         subject: `Nueva reunión — ${reunion.nombre} · ${fechaStr} ${horaInicio}`,
         html: this.wrap({ title: 'Nueva reunión', content }),
