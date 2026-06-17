@@ -27,12 +27,14 @@ import {
   ConflictException,
   Inject,
   Injectable,
+  InternalServerErrorException,
   Logger,
   NotFoundException,
 } from '@nestjs/common';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import type { CreateLaboratorioDto, UpdateLaboratorioDto } from './dto/create-laboratorio.dto';
+import type { SetAdminPasswordDto } from './dto/set-admin-password.dto';
 
 /** Contexto del super que ejecuta la acción, para auditar. */
 export interface SuperActionContext {
@@ -89,6 +91,42 @@ export class SuperService {
     const [row] = await this.db.select().from(laboratorio).where(eq(laboratorio.id, id)).limit(1);
     if (!row) throw new NotFoundException(`Laboratorio ${id} no encontrado`);
     return row;
+  }
+
+  /**
+   * Define la contraseña del admin de un laboratorio (el super la genera y se la
+   * pasa al cliente manualmente). Devuelve el email = usuario de acceso.
+   */
+  async setAdminPassword(
+    labId: number,
+    dto: SetAdminPasswordDto,
+  ): Promise<{ ok: true; email: string }> {
+    const [lab] = await this.db
+      .select({ id: laboratorio.id })
+      .from(laboratorio)
+      .where(eq(laboratorio.id, labId))
+      .limit(1);
+    if (!lab) throw new NotFoundException(`Laboratorio ${labId} no encontrado`);
+
+    const [adminUser] = await this.db
+      .select({ id: user.id, email: user.email })
+      .from(user)
+      .where(and(eq(user.labId, labId), eq(user.role, 'admin'), eq(user.active, true)))
+      .limit(1);
+    if (!adminUser) {
+      throw new NotFoundException(`El laboratorio ${labId} no tiene un usuario admin activo`);
+    }
+
+    const { error } = await this.admin.auth.admin.updateUserById(adminUser.id, {
+      password: dto.password,
+    });
+    if (error) {
+      throw new InternalServerErrorException(
+        `No se pudo actualizar la contraseña: ${error.message}`,
+      );
+    }
+
+    return { ok: true, email: adminUser.email };
   }
 
   async create(dto: CreateLaboratorioDto) {

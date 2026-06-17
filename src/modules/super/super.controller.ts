@@ -24,6 +24,7 @@ import { LabConfigService } from '../lab-config/lab-config.service';
 import { InviteUserDto } from '../users/dto/invite-user.dto';
 import { UsersService } from '../users/users.service';
 import { CreateLaboratorioDto, UpdateLaboratorioDto } from './dto/create-laboratorio.dto';
+import { SetAdminPasswordDto } from './dto/set-admin-password.dto';
 import { type RequestMeta, clientIp, userAgent } from './request-meta';
 import { SuperService } from './super.service';
 
@@ -77,6 +78,13 @@ export class SuperController {
       ip: clientIp(req),
       userAgent: userAgent(req),
     });
+  }
+
+  @Post(':id/admin-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Definir la contraseña del admin de un laboratorio' })
+  setAdminPassword(@Param('id', ParseIntPipe) id: number, @Body() dto: SetAdminPasswordDto) {
+    return this.superService.setAdminPassword(id, dto);
   }
 
   @Post(':id/suspend')

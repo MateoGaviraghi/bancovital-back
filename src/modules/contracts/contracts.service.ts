@@ -659,10 +659,9 @@ export class ContractsService {
 
     // Invitar admin al laboratorio
     try {
-      const redirectTo = `${this.appConfig.env.APP_URL}/auth/set-password`;
-      await this.inviteAdmin(labId!, row.emailFirmante, redirectTo);
+      await this.provisionAdmin(labId!, row.emailFirmante);
     } catch (err) {
-      this.logger.warn(`No se pudo invitar al admin del laboratorio ${labId!}: ${String(err)}`);
+      this.logger.warn(`No se pudo provisionar el admin del laboratorio ${labId!}: ${String(err)}`);
     }
 
     // Notificar a Nodo
@@ -685,33 +684,33 @@ export class ContractsService {
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
-  private async inviteAdmin(labId: number, email: string, redirectTo: string): Promise<void> {
-    // 1) Crear el usuario si no existe (idempotente). Confirmado, sin contraseña aún.
+  private async provisionAdmin(labId: number, email: string): Promise<void> {
+    // Crea el usuario admin del lab (confirmado, SIN contraseña). NO se envía ningún
+    // email de invitación: el super define la contraseña desde el panel y se la pasa
+    // al cliente. El alta del acceso es manual y controlada.
     const created = await this.storage.auth.admin.createUser({
       email,
       email_confirm: true,
       app_metadata: { role: 'admin' },
     });
-    if (created.error && !/registered|already|exists/i.test(created.error.message)) {
-      throw new Error(`No se pudo crear el usuario ${email}: ${created.error.message}`);
+
+    let userId = created.data?.user?.id ?? null;
+    if (!userId) {
+      if (created.error && !/registered|already|exists/i.test(created.error.message)) {
+        throw new Error(`No se pudo crear el usuario ${email}: ${created.error.message}`);
+      }
+      // El email ya existía en Auth: resolvemos su id. generateLink NO envía ningún mail.
+      const { data: link } = await this.storage.auth.admin.generateLink({
+        type: 'recovery',
+        email,
+        options: { redirectTo: this.appConfig.env.APP_URL },
+      });
+      userId = link?.user?.id ?? null;
+    }
+    if (!userId) {
+      throw new Error(`No se pudo resolver el usuario ${email}`);
     }
 
-    // 2) Generar el link para definir contraseña. Supabase NO lo envía: lo mandamos
-    //    nosotros por Resend (que sí está configurado y entrega), no por el mail de Supabase.
-    const { data: linkData, error: linkError } = await this.storage.auth.admin.generateLink({
-      type: 'recovery',
-      email,
-      options: { redirectTo },
-    });
-    if (linkError || !linkData?.user || !linkData.properties?.action_link) {
-      throw new Error(
-        `No se pudo generar el acceso para ${email}: ${linkError?.message ?? 'unknown'}`,
-      );
-    }
-
-    const userId = linkData.user.id;
-
-    // 3) Asegurar rol admin (metadata + tabla user).
     await this.storage.auth.admin.updateUserById(userId, {
       app_metadata: { role: 'admin' },
     });
@@ -730,9 +729,6 @@ export class ContractsService {
         target: userSchema.id,
         set: { labId, email, role: 'admin', active: true },
       });
-
-    // 4) Enviar el link por Resend (branded).
-    await this.mailService.sendLabInvite(email, linkData.properties.action_link);
   }
 
   private async generateUniqueSlug(razonSocial: string): Promise<string> {
