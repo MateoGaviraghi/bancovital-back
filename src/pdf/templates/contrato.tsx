@@ -61,13 +61,14 @@ const styles = StyleSheet.create({
   bandBrand: {
     fontFamily: 'SourceSerif4Bold',
     fontSize: 22,
+    lineHeight: 1.1,
     color: WHITE,
     letterSpacing: 0.3,
   },
   bandCredit: {
     fontSize: 8,
     color: WHITE_SOFT,
-    marginTop: 4,
+    marginTop: 7,
     letterSpacing: 0.4,
   },
   bandMetaLabel: {
@@ -240,8 +241,6 @@ const styles = StyleSheet.create({
 
   // ── Nota de URL de firma
   urlNote: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
     backgroundColor: NAVY_SOFT,
     borderLeftWidth: 2,
     borderLeftColor: NAVY,
@@ -251,11 +250,13 @@ const styles = StyleSheet.create({
   urlNoteText: {
     fontSize: 8.5,
     color: GREY,
+    marginBottom: 3,
   },
   urlNoteUrl: {
     fontSize: 8.5,
     color: NAVY,
     fontFamily: 'PublicSansSemiBold',
+    wordBreak: 'break-all' as never,
   },
 
   // ── Bloque de firma
@@ -568,7 +569,10 @@ export const ContratoTemplate = ({ data }: { data: ContratoData }) => {
 
         {/* Objeto */}
         <Clause num="1" title="Objeto">
-          <Text>{data.propuesta.descripcion}</Text>
+          <Text>
+            {data.propuesta.descripcion.trim() ||
+              'Prestación del servicio de gestión integral para laboratorio bioquímico mediante el sistema Banco Vital, conforme a los planes y condiciones establecidos en el presente contrato.'}
+          </Text>
           {data.propuesta.notas ? (
             <Text style={{ marginTop: 6, color: GREY }}>Notas: {data.propuesta.notas}</Text>
           ) : null}
@@ -625,8 +629,12 @@ export const ContratoTemplate = ({ data }: { data: ContratoData }) => {
 
           {/* Nota de URL de firma */}
           <View style={styles.urlNote}>
-            <Text style={styles.urlNoteText}>URL de firma: </Text>
-            <Text style={styles.urlNoteUrl}>{contractUrl}</Text>
+            <Text style={styles.urlNoteText}>URL de firma:</Text>
+            {(contractUrl.match(/.{1,64}/g) ?? [contractUrl]).map((chunk) => (
+              <Text key={chunk} style={styles.urlNoteUrl}>
+                {chunk}
+              </Text>
+            ))}
           </View>
         </Clause>
       </Page>
