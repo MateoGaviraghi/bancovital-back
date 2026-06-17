@@ -18,6 +18,10 @@ export interface MeResponse {
   labName: string | null;
   /** URL firmada del logo del lab (para el header). */
   logoUrl: string | null;
+  /** Color primario de marca en hex (#rrggbb), o null si no configurado. */
+  primaryColor: string | null;
+  /** Color de acento de marca en hex (#rrggbb), o null si no configurado. */
+  accentColor: string | null;
 }
 
 const LOGO_TTL_SECONDS = 3600;
@@ -40,6 +44,8 @@ export class MeService {
         labSlug: null,
         labName: null,
         logoUrl: null,
+        primaryColor: null,
+        accentColor: null,
       };
     }
 
@@ -51,6 +57,8 @@ export class MeService {
         legalName: laboratorio.legalName,
         shortName: laboratorio.shortName,
         logoPath: laboratorio.logoPath,
+        primaryColor: laboratorio.primaryColor,
+        accentColor: laboratorio.accentColor,
       })
       .from(laboratorio)
       .where(eq(laboratorio.id, session.labId))
@@ -72,6 +80,8 @@ export class MeService {
       labSlug: row?.slug ?? null,
       labName: row ? (row.shortName ?? row.legalName) : null,
       logoUrl,
+      primaryColor: row?.primaryColor ?? null,
+      accentColor: row?.accentColor ?? null,
     };
   }
 }

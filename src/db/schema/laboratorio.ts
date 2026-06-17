@@ -19,6 +19,7 @@ export const laboratorio = pgTable('laboratorio', {
   signingSignaturePath: text('signing_signature_path'),
   logoPath: text('logo_path'),
   primaryColor: text('primary_color'),
+  accentColor: text('accent_color'),
   tagline: text('tagline'),
   estado: estadoLabEnum('estado').notNull().default('activo'),
   /** Marcado manual por el super: lab moroso (deuda impaga). Solo informativo. */
