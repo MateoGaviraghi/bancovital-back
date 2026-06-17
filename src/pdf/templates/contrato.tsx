@@ -11,8 +11,23 @@
  * legal de las cláusulas (sin modificar).
  */
 
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { Document, Image, Page, StyleSheet, Text, View } from '@react-pdf/renderer';
 import React from 'react';
+
+// Logo Banco Vital blanco (knockout) para el header navy. Data-URI lazy.
+let bvLogoUri: string | null = null;
+function bvLogo(): string | null {
+  if (bvLogoUri !== null) return bvLogoUri || null;
+  try {
+    const buf = readFileSync(join(__dirname, '..', 'logo-bv-blanco.png'));
+    bvLogoUri = `data:image/png;base64,${buf.toString('base64')}`;
+  } catch {
+    bvLogoUri = '';
+  }
+  return bvLogoUri || null;
+}
 
 // ── Paleta ───────────────────────────────────────────────────────────────────
 const NAVY = '#1f2b5b';
@@ -57,6 +72,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-end',
+  },
+  bandLogo: {
+    width: 30,
+    height: 30,
+    marginRight: 12,
   },
   bandBrand: {
     fontFamily: 'SourceSerif4Bold',
@@ -537,9 +557,12 @@ export const ContratoTemplate = ({ data }: { data: ContratoData }) => {
 
         {/* Letterhead band */}
         <View style={styles.band}>
-          <View>
-            <Text style={styles.bandBrand}>Banco Vital</Text>
-            <Text style={styles.bandCredit}>por Nodo · nodotech.dev</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            {bvLogo() ? <Image src={bvLogo() as string} style={styles.bandLogo} /> : null}
+            <View>
+              <Text style={styles.bandBrand}>Banco Vital</Text>
+              <Text style={styles.bandCredit}>por Nodo · nodotech.dev</Text>
+            </View>
           </View>
           <View>
             <Text style={styles.bandMetaLabel}>Contrato</Text>

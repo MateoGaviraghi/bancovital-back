@@ -6,7 +6,8 @@
     "deleteOutDir": true,
     "assets": [
       { "include": "pdf/fonts/*.ttf", "outDir": "dist" },
-      { "include": "pdf/*.jpeg", "outDir": "dist" }
+      { "include": "pdf/*.jpeg", "outDir": "dist" },
+      { "include": "pdf/*.png", "outDir": "dist" }
     ],
     "watchAssets": true
   }
