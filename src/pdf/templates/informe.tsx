@@ -257,23 +257,41 @@ const styles = StyleSheet.create({
   badgeAbnormal: { backgroundColor: C.warningSoft, color: C.warning },
   badgeCritical: { backgroundColor: C.dangerSoft, color: C.danger },
 
+  // Empuja el footer (firma) al fondo de la página: en informes cortos la firma
+  // queda abajo en vez de flotar pegada a la tabla con media hoja en blanco.
+  flexSpacer: { flexGrow: 1, minHeight: 28 },
+
   // ── Footer — flujo normal (no absoluto, no fixed) para que aparezca
   // siempre DESPUÉS de todo el contenido, solo en la última página.
   footer: {
-    marginTop: 22,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-end',
     borderTopWidth: 1.5,
     borderTopColor: C.primary,
-    paddingTop: 8,
+    paddingTop: 10,
   },
-  signBlock: { alignItems: 'center' },
+  signBlock: { width: '58%', alignItems: 'center' },
   signatureImg: {
-    width: 200,
-    height: 74,
+    width: 180,
+    height: 64,
     objectFit: 'contain',
     marginBottom: 2,
+  },
+  // Espacio reservado para la firma manuscrita cuando el lab no cargó imagen.
+  signSpace: { height: 42 },
+  signLine: {
+    width: 200,
+    borderTopWidth: 0.75,
+    borderTopColor: C.borderStrong,
+    marginBottom: 5,
+  },
+  signRole: {
+    fontFamily: 'PublicSansSemiBold',
+    fontSize: 6.5,
+    color: C.subtle,
+    letterSpacing: 0.8,
+    marginBottom: 5,
   },
   signed: { fontFamily: 'PublicSansSemiBold', fontSize: 11, color: C.ink },
   signedMat: { fontSize: 8.5, color: C.muted, marginTop: 1 },
@@ -486,12 +504,19 @@ export function InformeTemplate({ data }: { data: InformeData }) {
           })}
         </View>
 
+        {/* Empuja la firma/footer al fondo de la página */}
+        <View style={styles.flexSpacer} />
+
         {/* Footer — solo en la última página, después de todos los resultados */}
         <View style={[styles.footer, { borderTopColor: accent }]}>
           <View style={styles.signBlock}>
             {data.signedBy.signatureSrc ? (
               <Image src={data.signedBy.signatureSrc} style={styles.signatureImg} />
-            ) : null}
+            ) : (
+              <View style={styles.signSpace} />
+            )}
+            <View style={styles.signLine} />
+            <Text style={styles.signRole}>FIRMA Y SELLO</Text>
             <Text style={styles.signed}>{data.signedBy.name}</Text>
             {data.signedBy.matricula ? (
               <Text style={styles.signedMat}>{data.signedBy.matricula}</Text>
