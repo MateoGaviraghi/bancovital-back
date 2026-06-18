@@ -13,7 +13,7 @@ import {
   Post,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import type { UpsertUnidadValueDto } from './dto/upsert-unidad-value.dto';
+import { UpsertUnidadValueDto } from './dto/upsert-unidad-value.dto';
 import { UnidadesMedidaService } from './unidades-medida.service';
 
 @ApiTags('unidades-medida')

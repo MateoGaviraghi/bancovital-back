@@ -15,10 +15,10 @@ import {
   Query,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import type { CancelOrderDto } from './dto/cancel-order.dto';
-import type { CreateOrderDto } from './dto/create-order.dto';
-import type { ListOrdersDto } from './dto/list-orders.dto';
-import type { UpdateOrderDto } from './dto/update-order.dto';
+import { CancelOrderDto } from './dto/cancel-order.dto';
+import { CreateOrderDto } from './dto/create-order.dto';
+import { ListOrdersDto } from './dto/list-orders.dto';
+import { UpdateOrderDto } from './dto/update-order.dto';
 import { OrdersService } from './orders.service';
 
 @ApiTags('orders')

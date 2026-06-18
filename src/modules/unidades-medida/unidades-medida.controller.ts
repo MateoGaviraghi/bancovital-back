@@ -14,9 +14,9 @@ import {
   Query,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import type { CreateUnidadMedidaDto } from './dto/create-unidad-medida.dto';
-import type { ListUnidadesMedidaDto } from './dto/list-unidades-medida.dto';
-import type { UpdateUnidadMedidaDto } from './dto/update-unidad-medida.dto';
+import { CreateUnidadMedidaDto } from './dto/create-unidad-medida.dto';
+import { ListUnidadesMedidaDto } from './dto/list-unidades-medida.dto';
+import { UpdateUnidadMedidaDto } from './dto/update-unidad-medida.dto';
 import { UnidadesMedidaService } from './unidades-medida.service';
 
 @ApiTags('unidades-medida')

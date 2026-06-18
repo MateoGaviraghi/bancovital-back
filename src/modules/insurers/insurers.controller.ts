@@ -13,9 +13,9 @@ import {
   Query,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import type { CreateInsurerDto } from './dto/create-insurer.dto';
-import type { SetUbValueDto } from './dto/set-ub-value.dto';
-import type { SetActiveDto, UpdateInsurerDto } from './dto/update-insurer.dto';
+import { CreateInsurerDto } from './dto/create-insurer.dto';
+import { SetUbValueDto } from './dto/set-ub-value.dto';
+import { SetActiveDto, UpdateInsurerDto } from './dto/update-insurer.dto';
 import { InsurersService } from './insurers.service';
 
 @ApiTags('insurers')

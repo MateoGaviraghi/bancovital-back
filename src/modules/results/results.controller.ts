@@ -3,7 +3,7 @@ import { CurrentUser } from '@/common/decorators/current-user.decorator';
 import { Roles } from '@/common/decorators/roles.decorator';
 import { Body, Controller, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import type { UpsertResultDto } from './dto/upsert-result.dto';
+import { UpsertResultDto } from './dto/upsert-result.dto';
 import { ResultsService } from './results.service';
 
 @ApiTags('results')
