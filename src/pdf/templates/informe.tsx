@@ -77,16 +77,18 @@ export interface InformeData {
   qrCodeDataUri?: string | null;
 }
 
+// Neutrales + semánticos FIJOS. El acento de marca llega por data.accent (color
+// del lab); el fallback es navy Banco Vital. Los badges clínicos (normal/anormal/
+// crítico) NO se tiñen: su color comunica significado médico.
 const C = {
-  primary: '#0db5b0',
-  primarySoft: '#e4f7f6',
-  ink: '#1a2b3c',
-  muted: '#4a6279',
-  subtle: '#8ba3b5',
-  border: '#dde4ea',
-  borderStrong: '#b8c4ce',
-  bandBg: '#f4f7f9',
-  zebra: '#f4f7f9',
+  primary: '#1f2b5b',
+  primarySoft: '#e9ecf5',
+  ink: '#1a1f33',
+  muted: '#4a5570',
+  subtle: '#8089a0',
+  border: '#dde2ec',
+  borderStrong: '#c3cad8',
+  bandBg: '#f5f7fb',
   success: '#15803d',
   successSoft: '#dcfce7',
   warning: '#b45309',
@@ -97,24 +99,30 @@ const C = {
 
 const styles = StyleSheet.create({
   page: {
-    paddingTop: 32,
-    paddingBottom: 32,
-    paddingHorizontal: 36,
-    fontFamily: 'Roboto',
-    fontSize: 10,
+    paddingTop: 36,
+    paddingBottom: 36,
+    paddingHorizontal: 44,
+    fontFamily: 'PublicSans',
+    fontSize: 9.5,
     color: C.ink,
-    lineHeight: 1.4,
+    lineHeight: 1.45,
   },
 
   // ── Header: logo + lab info + protocol chip (right, aligned to name)
   header: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 },
-  logo: { width: 52, height: 52, marginRight: 12, objectFit: 'contain' },
+  logo: { width: 54, height: 54, marginRight: 14, objectFit: 'contain' },
   labInfo: { flexGrow: 1 },
-  legalName: { fontSize: 15, fontWeight: 'bold', color: C.ink, lineHeight: 1.2, marginBottom: 4 },
+  legalName: {
+    fontFamily: 'SourceSerif4Bold',
+    fontSize: 16,
+    color: C.ink,
+    lineHeight: 1.15,
+    marginBottom: 4,
+  },
   labLine: { fontSize: 8.5, color: C.muted, lineHeight: 1.35, marginBottom: 2 },
 
-  // ── Rule
-  rule: { height: 2, backgroundColor: C.primary, borderRadius: 1, marginBottom: 6 },
+  // ── Rule (acento del lab)
+  rule: { height: 2, backgroundColor: C.primary, marginBottom: 14 },
 
   // ── Protocol chip (in header, right, aligned to lab name)
   protocolBadge: {
@@ -122,22 +130,22 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     backgroundColor: C.primarySoft,
     borderRadius: 3,
-    paddingVertical: 3,
-    paddingHorizontal: 7,
+    paddingVertical: 4,
+    paddingHorizontal: 9,
     marginLeft: 12,
   },
   protocolLabel: {
+    fontFamily: 'PublicSansSemiBold',
     fontSize: 6,
     color: C.primary,
-    fontWeight: 'bold',
     letterSpacing: 1.2,
   },
   protocolNumber: {
-    fontSize: 9,
-    fontWeight: 'bold',
+    fontFamily: 'SourceSerif4Bold',
+    fontSize: 11.5,
     color: C.primary,
   },
-  protocolDate: { fontSize: 7, color: C.muted },
+  protocolDate: { fontSize: 7, color: C.muted, marginTop: 1 },
 
   // ── Info cards
   infoGrid: { flexDirection: 'row', gap: 12, marginBottom: 16 },
@@ -145,37 +153,43 @@ const styles = StyleSheet.create({
     flex: 1,
     borderWidth: 1,
     borderColor: C.border,
-    borderRadius: 6,
+    borderRadius: 4,
     backgroundColor: C.bandBg,
     padding: 12,
   },
   cardTitle: {
+    fontFamily: 'PublicSansSemiBold',
     fontSize: 7.5,
     color: C.primary,
-    letterSpacing: 1.5,
-    fontWeight: 'bold',
+    letterSpacing: 1.3,
     marginBottom: 7,
   },
   row: { flexDirection: 'row', marginVertical: 1.5 },
   rowLabel: { width: 96, color: C.muted, fontSize: 9 },
-  rowValue: { flex: 1, fontSize: 9, color: C.ink },
+  rowValue: { flex: 1, fontSize: 9, color: C.ink, fontFamily: 'PublicSansSemiBold' },
 
   // ── Results table
   resultsTitle: {
-    fontSize: 7.5,
+    fontFamily: 'SourceSerif4Bold',
+    fontSize: 12,
     color: C.primary,
-    letterSpacing: 1.5,
-    fontWeight: 'bold',
-    marginBottom: 6,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+    marginBottom: 7,
   },
-  table: { borderWidth: 1, borderColor: C.border, borderRadius: 6, overflow: 'hidden' },
+  table: { borderWidth: 1, borderColor: C.border, borderRadius: 4, overflow: 'hidden' },
   tableHeader: {
     flexDirection: 'row',
     backgroundColor: C.primary,
     paddingVertical: 6,
     paddingHorizontal: 10,
   },
-  th: { color: '#ffffff', fontSize: 8, fontWeight: 'bold', letterSpacing: 0.5 },
+  th: {
+    color: '#ffffff',
+    fontFamily: 'PublicSansSemiBold',
+    fontSize: 8,
+    letterSpacing: 0.4,
+  },
   tableRow: {
     flexDirection: 'row',
     paddingVertical: 7,
@@ -184,7 +198,6 @@ const styles = StyleSheet.create({
     borderTopColor: C.border,
     alignItems: 'flex-start',
   },
-  zebra: { backgroundColor: C.zebra },
 
   // 5 columnas: RESULTADO ancho para que el texto se lea (no 1 palabra/linea)
   colName: { width: '27%', paddingRight: 8 },
@@ -193,11 +206,11 @@ const styles = StyleSheet.create({
   colRange: { width: '16%', paddingRight: 4 },
   colFlag: { width: '10%' },
 
-  practiceName: { fontSize: 9.5, fontWeight: 'bold', color: C.ink },
+  practiceName: { fontFamily: 'PublicSansSemiBold', fontSize: 9.5, color: C.ink },
   nbuCode: { fontSize: 7.5, color: C.subtle, marginTop: 1 },
   metaText: { fontSize: 7.5, color: C.muted, marginTop: 2 },
 
-  valueNum: { fontSize: 10.5, fontWeight: 'bold', color: C.ink, lineHeight: 1.3 },
+  valueNum: { fontFamily: 'PublicSansSemiBold', fontSize: 10.5, color: C.ink, lineHeight: 1.3 },
   valueProse: { fontSize: 9, color: C.ink, lineHeight: 1.4 },
   unitText: { fontSize: 8.5, color: C.muted, lineHeight: 1.3 },
   rangeText: { fontSize: 8.5, color: C.muted, lineHeight: 1.3 },
@@ -236,40 +249,58 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     paddingVertical: 2,
     paddingHorizontal: 6,
+    fontFamily: 'PublicSansSemiBold',
     fontSize: 7.5,
-    fontWeight: 'bold',
     letterSpacing: 0.3,
   },
   badgeNormal: { backgroundColor: C.successSoft, color: C.success },
   badgeAbnormal: { backgroundColor: C.warningSoft, color: C.warning },
   badgeCritical: { backgroundColor: C.dangerSoft, color: C.danger },
 
+  // Empuja el footer (firma) al fondo de la página: en informes cortos la firma
+  // queda abajo en vez de flotar pegada a la tabla con media hoja en blanco.
+  flexSpacer: { flexGrow: 1, minHeight: 28 },
+
   // ── Footer — flujo normal (no absoluto, no fixed) para que aparezca
   // siempre DESPUÉS de todo el contenido, solo en la última página.
   footer: {
-    marginTop: 24,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-end',
-    borderTopWidth: 2,
+    borderTopWidth: 1.5,
     borderTopColor: C.primary,
-    paddingTop: 6,
+    paddingTop: 10,
   },
-  signBlock: { alignItems: 'center' },
+  signBlock: { width: '58%', alignItems: 'center' },
   signatureImg: {
-    width: 200,
-    height: 74,
+    width: 180,
+    height: 64,
     objectFit: 'contain',
     marginBottom: 2,
   },
-  signed: { fontSize: 11, fontWeight: 'bold', color: C.ink },
+  // Espacio reservado para la firma manuscrita cuando el lab no cargó imagen.
+  signSpace: { height: 42 },
+  signLine: {
+    width: 200,
+    borderTopWidth: 0.75,
+    borderTopColor: C.borderStrong,
+    marginBottom: 5,
+  },
+  signRole: {
+    fontFamily: 'PublicSansSemiBold',
+    fontSize: 6.5,
+    color: C.subtle,
+    letterSpacing: 0.8,
+    marginBottom: 5,
+  },
+  signed: { fontFamily: 'PublicSansSemiBold', fontSize: 11, color: C.ink },
   signedMat: { fontSize: 8.5, color: C.muted, marginTop: 1 },
   issuedAt: { fontSize: 7.5, color: C.subtle },
 
   // ── Bloque QR (portal del paciente) en el footer, alineado a la derecha
   footerRight: { alignItems: 'flex-end' },
   qrBlock: { alignItems: 'center', marginBottom: 3 },
-  qrImg: { width: 56, height: 56 },
+  qrImg: { width: 60, height: 60 },
   qrCaption: { fontSize: 6, color: C.subtle, marginTop: 1, letterSpacing: 0.2 },
 
   // ── Línea de sede principal al pie
@@ -326,7 +357,7 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 
 export function InformeTemplate({ data }: { data: InformeData }) {
   const sexLabel = data.patient.sex ? SEX_LABEL[data.patient.sex] : '—';
-  // Acento de marca derivado del lab (con fallback al teal por defecto).
+  // Acento de marca derivado del lab (con fallback al navy Banco Vital).
   const accent = data.accent || C.primary;
   const accentSoft = data.accentSoft || C.primarySoft;
   const pageStyle = data.margins
@@ -382,7 +413,6 @@ export function InformeTemplate({ data }: { data: InformeData }) {
 
         {/* Accent rule */}
         <View style={[styles.rule, { backgroundColor: accent }]} />
-        <View style={{ marginBottom: 14 }} />
 
         {/* Patient + coverage cards */}
         <View style={styles.infoGrid}>
@@ -415,7 +445,7 @@ export function InformeTemplate({ data }: { data: InformeData }) {
         </View>
 
         {/* Results table */}
-        <Text style={[styles.resultsTitle, { color: accent }]}>RESULTADOS</Text>
+        <Text style={[styles.resultsTitle, { color: accent }]}>Resultados</Text>
         <View style={styles.table}>
           <View style={[styles.tableHeader, { backgroundColor: accent }]} fixed>
             <Text style={[styles.th, styles.colName]}>PRÁCTICA</Text>
@@ -424,12 +454,11 @@ export function InformeTemplate({ data }: { data: InformeData }) {
             <Text style={[styles.th, styles.colRange]}>REFERENCIA</Text>
             <Text style={[styles.th, styles.colFlag]}>ESTADO</Text>
           </View>
-          {data.results.map((r, idx) => {
+          {data.results.map((r) => {
             const bStyle = badgeStyle(r.flag);
-            const rowStyle = idx % 2 === 1 ? [styles.tableRow, styles.zebra] : styles.tableRow;
             const numeric = isNumericValue(r.value);
             return (
-              <View key={r.nbuCode} style={rowStyle} wrap={false}>
+              <View key={r.nbuCode} style={styles.tableRow} wrap={false}>
                 <View style={styles.colName}>
                   <Text style={styles.practiceName}>{r.name}</Text>
                   <Text style={styles.nbuCode}>NBU {r.nbuCode}</Text>
@@ -475,12 +504,19 @@ export function InformeTemplate({ data }: { data: InformeData }) {
           })}
         </View>
 
+        {/* Empuja la firma/footer al fondo de la página */}
+        <View style={styles.flexSpacer} />
+
         {/* Footer — solo en la última página, después de todos los resultados */}
         <View style={[styles.footer, { borderTopColor: accent }]}>
           <View style={styles.signBlock}>
             {data.signedBy.signatureSrc ? (
               <Image src={data.signedBy.signatureSrc} style={styles.signatureImg} />
-            ) : null}
+            ) : (
+              <View style={styles.signSpace} />
+            )}
+            <View style={styles.signLine} />
+            <Text style={styles.signRole}>FIRMA Y SELLO</Text>
             <Text style={styles.signed}>{data.signedBy.name}</Text>
             {data.signedBy.matricula ? (
               <Text style={styles.signedMat}>{data.signedBy.matricula}</Text>

@@ -23,6 +23,8 @@ export class MeController {
         labSlug: { type: 'string', nullable: true, example: 'lab-santa-fe' },
         labName: { type: 'string', nullable: true, example: 'Laboratorio Santa Fe' },
         logoUrl: { type: 'string', nullable: true },
+        primaryColor: { type: 'string', nullable: true, example: '#7c3aed' },
+        accentColor: { type: 'string', nullable: true, example: '#0ea5e9' },
       },
     },
   })

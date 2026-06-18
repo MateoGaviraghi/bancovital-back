@@ -1,0 +1,1 @@
+ALTER TABLE "laboratorio" ADD COLUMN IF NOT EXISTS "accent_color" text;

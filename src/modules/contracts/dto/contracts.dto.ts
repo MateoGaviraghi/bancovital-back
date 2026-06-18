@@ -14,9 +14,8 @@ import {
 } from 'class-validator';
 
 export class PropuestaDto {
-  @ApiProperty({ description: 'Descripción de la propuesta', minLength: 10 })
+  @ApiProperty({ description: 'Descripción de la propuesta' })
   @IsString()
-  @MinLength(10)
   descripcion!: string;
 
   @ApiPropertyOptional({ description: 'Notas adicionales' })

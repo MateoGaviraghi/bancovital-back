@@ -91,6 +91,16 @@ export class UpdateLabConfigDto {
   @Matches(/^#[0-9a-fA-F]{6}$/, { message: 'primaryColor debe ser un color hex #rrggbb.' })
   primaryColor?: string;
 
+  @ApiProperty({
+    required: false,
+    nullable: true,
+    example: '#0ea5e9',
+    description: 'Color de acento de marca en hex (#rrggbb). El front deriva los tokens OKLCH.',
+  })
+  @IsOptional()
+  @Matches(/^#[0-9a-fA-F]{6}$/, { message: 'accentColor debe ser un color hex #rrggbb.' })
+  accentColor?: string;
+
   @ApiProperty({ required: false, nullable: true, maxLength: 120 })
   @IsOptional()
   @IsString()

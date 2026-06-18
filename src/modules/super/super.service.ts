@@ -1,5 +1,6 @@
 import { AuditService } from '@/common/audit/audit.service';
 import { isUniqueViolation } from '@/common/db-errors';
+import { AppConfig } from '@/config';
 import type { Db } from '@/db/client';
 import { DATABASE, SUPABASE_ADMIN } from '@/db/database.module';
 import {
@@ -27,12 +28,14 @@ import {
   ConflictException,
   Inject,
   Injectable,
+  InternalServerErrorException,
   Logger,
   NotFoundException,
 } from '@nestjs/common';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import type { CreateLaboratorioDto, UpdateLaboratorioDto } from './dto/create-laboratorio.dto';
+import type { SetAdminPasswordDto } from './dto/set-admin-password.dto';
 
 /** Contexto del super que ejecuta la acción, para auditar. */
 export interface SuperActionContext {
@@ -79,6 +82,7 @@ export class SuperService {
     @Inject(DATABASE) private readonly db: Db,
     @Inject(SUPABASE_ADMIN) private readonly admin: SupabaseClient,
     private readonly audit: AuditService,
+    private readonly appConfig: AppConfig,
   ) {}
 
   list() {
@@ -89,6 +93,83 @@ export class SuperService {
     const [row] = await this.db.select().from(laboratorio).where(eq(laboratorio.id, id)).limit(1);
     if (!row) throw new NotFoundException(`Laboratorio ${id} no encontrado`);
     return row;
+  }
+
+  /**
+   * Define la contraseña del admin de un laboratorio (el super la genera y se la
+   * pasa al cliente manualmente). Devuelve el email = usuario de acceso.
+   */
+  async setAdminPassword(
+    labId: number,
+    dto: SetAdminPasswordDto,
+  ): Promise<{ ok: true; email: string }> {
+    const [lab] = await this.db
+      .select({ id: laboratorio.id, email: laboratorio.email })
+      .from(laboratorio)
+      .where(eq(laboratorio.id, labId))
+      .limit(1);
+    if (!lab) throw new NotFoundException(`Laboratorio ${labId} no encontrado`);
+
+    let [adminUser] = await this.db
+      .select({ id: user.id, email: user.email })
+      .from(user)
+      .where(and(eq(user.labId, labId), eq(user.role, 'admin'), eq(user.active, true)))
+      .limit(1);
+
+    // Auto-reparar: labs viejos (firma con el flujo previo) o creados a mano pueden no
+    // tener el usuario admin en la DB. Lo provisionamos a partir del email del lab.
+    if (!adminUser) {
+      if (!lab.email) {
+        throw new BadRequestException(
+          `El laboratorio ${labId} no tiene usuario admin ni email de contacto. Cargá un email en "Editar" y reintentá.`,
+        );
+      }
+      const userId = await this.resolveOrCreateAuthUser(lab.email);
+      await this.admin.auth.admin.updateUserById(userId, { app_metadata: { role: 'admin' } });
+      await this.db
+        .insert(user)
+        .values({ id: userId, labId, email: lab.email, role: 'admin', active: true })
+        .onConflictDoUpdate({
+          target: user.id,
+          set: { labId, email: lab.email, role: 'admin', active: true },
+        });
+      adminUser = { id: userId, email: lab.email };
+    }
+
+    const { error } = await this.admin.auth.admin.updateUserById(adminUser.id, {
+      password: dto.password,
+    });
+    if (error) {
+      throw new InternalServerErrorException(
+        `No se pudo actualizar la contraseña: ${error.message}`,
+      );
+    }
+
+    return { ok: true, email: adminUser.email };
+  }
+
+  /** Devuelve el id del usuario de Auth para un email; lo crea si no existe (sin enviar mail). */
+  private async resolveOrCreateAuthUser(email: string): Promise<string> {
+    const created = await this.admin.auth.admin.createUser({
+      email,
+      email_confirm: true,
+      app_metadata: { role: 'admin' },
+    });
+    if (created.data?.user?.id) return created.data.user.id;
+    if (created.error && !/registered|already|exists/i.test(created.error.message)) {
+      throw new InternalServerErrorException(
+        `No se pudo crear el usuario ${email}: ${created.error.message}`,
+      );
+    }
+    // Ya existía en Auth: resolvemos su id. generateLink no envía ningún mail.
+    const { data: link } = await this.admin.auth.admin.generateLink({
+      type: 'recovery',
+      email,
+      options: { redirectTo: this.appConfig.env.APP_URL },
+    });
+    const id = link?.user?.id;
+    if (!id) throw new InternalServerErrorException(`No se pudo resolver el usuario ${email}`);
+    return id;
   }
 
   async create(dto: CreateLaboratorioDto) {

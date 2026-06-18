@@ -51,9 +51,10 @@ function makeDb(state: {
 
 const adminStub = {} as never;
 const auditStub = { log: jest.fn() } as never;
+const appConfigStub = { env: { APP_URL: 'http://localhost:3000' } } as never;
 
 function makeService(db: unknown) {
-  return new SuperService(db as never, adminStub, auditStub);
+  return new SuperService(db as never, adminStub, auditStub, appConfigStub);
 }
 
 describe('SuperService.onboarding', () => {

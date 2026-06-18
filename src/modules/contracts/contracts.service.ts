@@ -393,13 +393,9 @@ export class ContractsService {
     const updated = await this.lazyExpireIfNeeded(row);
     const planes = await this.getActivePlans();
 
-    // El PDF original contiene PII completa (email, CUIT, teléfono en claro).
-    // No exponerlo hasta que el firmante haya verificado su identidad por OTP.
-    const otpVerificado = updated.otpVerificadoAt != null;
-    const pdfUrl =
-      otpVerificado && updated.pdfOriginalPath
-        ? await this.signedUrl(updated.pdfOriginalPath)
-        : null;
+    // El PDF original es la previsualización del contrato a firmar: se expone a
+    // quien tenga el enlace (el firmante) para que pueda leerlo antes de firmar.
+    const pdfUrl = updated.pdfOriginalPath ? await this.signedUrl(updated.pdfOriginalPath) : null;
 
     return {
       estado: updated.estado,
@@ -663,10 +659,9 @@ export class ContractsService {
 
     // Invitar admin al laboratorio
     try {
-      const redirectTo = `${this.appConfig.env.APP_URL}/auth/set-password`;
-      await this.inviteAdmin(labId!, row.emailFirmante, redirectTo);
+      await this.provisionAdmin(labId!, row.emailFirmante);
     } catch (err) {
-      this.logger.warn(`No se pudo invitar al admin del laboratorio ${labId!}: ${String(err)}`);
+      this.logger.warn(`No se pudo provisionar el admin del laboratorio ${labId!}: ${String(err)}`);
     }
 
     // Notificar a Nodo
@@ -689,16 +684,32 @@ export class ContractsService {
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
-  private async inviteAdmin(labId: number, email: string, redirectTo: string): Promise<void> {
-    const { data, error: inviteError } = await this.storage.auth.admin.inviteUserByEmail(email, {
-      redirectTo,
+  private async provisionAdmin(labId: number, email: string): Promise<void> {
+    // Crea el usuario admin del lab (confirmado, SIN contraseña). NO se envía ningún
+    // email de invitación: el super define la contraseña desde el panel y se la pasa
+    // al cliente. El alta del acceso es manual y controlada.
+    const created = await this.storage.auth.admin.createUser({
+      email,
+      email_confirm: true,
+      app_metadata: { role: 'admin' },
     });
 
-    if (inviteError || !data?.user) {
-      throw new Error(`No se pudo invitar a ${email}: ${inviteError?.message ?? 'unknown'}`);
+    let userId = created.data?.user?.id ?? null;
+    if (!userId) {
+      if (created.error && !/registered|already|exists/i.test(created.error.message)) {
+        throw new Error(`No se pudo crear el usuario ${email}: ${created.error.message}`);
+      }
+      // El email ya existía en Auth: resolvemos su id. generateLink NO envía ningún mail.
+      const { data: link } = await this.storage.auth.admin.generateLink({
+        type: 'recovery',
+        email,
+        options: { redirectTo: this.appConfig.env.APP_URL },
+      });
+      userId = link?.user?.id ?? null;
     }
-
-    const userId = data.user.id;
+    if (!userId) {
+      throw new Error(`No se pudo resolver el usuario ${email}`);
+    }
 
     await this.storage.auth.admin.updateUserById(userId, {
       app_metadata: { role: 'admin' },

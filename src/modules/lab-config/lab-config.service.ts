@@ -31,6 +31,7 @@ function brandingSnapshot(lab: Laboratorio) {
     signingProfessionalName: lab.signingProfessionalName,
     signingProfessionalMp: lab.signingProfessionalMp,
     primaryColor: lab.primaryColor,
+    accentColor: lab.accentColor,
     tagline: lab.tagline,
     logoPath: lab.logoPath,
   };
@@ -81,6 +82,7 @@ export class LabConfigService {
       }),
       ...(dto.shortName !== undefined && { shortName: dto.shortName }),
       ...(dto.primaryColor !== undefined && { primaryColor: dto.primaryColor }),
+      ...(dto.accentColor !== undefined && { accentColor: dto.accentColor }),
       ...(dto.tagline !== undefined && { tagline: dto.tagline }),
       updatedAt: new Date(),
     };

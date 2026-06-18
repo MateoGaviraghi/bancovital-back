@@ -18,6 +18,7 @@ export interface PublicInformeMeta {
   shortName: string | null;
   logoUrl: string | null;
   primaryColor: string | null;
+  accentColor: string | null;
   tagline: string | null;
   protocolNumber: string;
   emitidaAt: string | null;
@@ -89,6 +90,7 @@ export class PublicReportsService {
       shortName: lab.shortName,
       logoUrl,
       primaryColor: lab.primaryColor,
+      accentColor: lab.accentColor,
       tagline: lab.tagline,
       protocolNumber: String(ord.protocolNumber).padStart(8, '0'),
       emitidaAt: ord.pdfReportIssuedAt ? ord.pdfReportIssuedAt.toISOString() : null,

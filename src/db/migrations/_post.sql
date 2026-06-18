@@ -79,3 +79,12 @@ ALTER TABLE public."preferencia_pdf" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public."unidad_medida" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public."practice_unidad" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public."order_practice_unidad_value" ENABLE ROW LEVEL SECURITY;
+-- Tablas SaaS/billing/comms agregadas despues (estaban expuestas al anon key):
+ALTER TABLE public."plan" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."suscripcion" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."ciclo_consumo" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."contrato" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."reunion" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."anuncio" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."lab_movimiento" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."sede" ENABLE ROW LEVEL SECURITY;
