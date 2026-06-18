@@ -1,5 +1,4 @@
 import { existsSync } from 'node:fs';
-import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type {
   Laboratorio,
@@ -19,18 +18,6 @@ import { type InformeData, InformeTemplate, type InformeUnidadRow } from './temp
 
 const FONTS_DIR = join(__dirname, 'fonts');
 let fontsRegistered = false;
-let logoFallbackDataUri: string | null = null;
-
-function getLogoFallback(): string | null {
-  if (logoFallbackDataUri !== null) return logoFallbackDataUri || null;
-  try {
-    const buf = readFileSync(join(__dirname, 'labo.jpeg'));
-    logoFallbackDataUri = `data:image/jpeg;base64,${buf.toString('base64')}`;
-  } catch {
-    logoFallbackDataUri = '';
-  }
-  return logoFallbackDataUri || null;
-}
 
 function ensureFontsRegistered(): void {
   if (fontsRegistered) return;
@@ -198,10 +185,7 @@ export interface RenderFichaInput {
 export async function renderFichaPdf(input: RenderFichaInput): Promise<Buffer> {
   ensureFontsRegistered();
   const { order, patient, insurer, lines, lab } = input;
-  const logoSrc =
-    input.logoDataUri !== undefined
-      ? (input.logoDataUri ?? getLogoFallback())
-      : lab.logoPath || getLogoFallback();
+  const logoSrc = input.logoDataUri !== undefined ? input.logoDataUri : (lab.logoPath ?? null);
 
   const data: FichaData = {
     lab: {
@@ -260,16 +244,13 @@ export function buildInformeData(input: RenderInformeInput): InformeData {
     practiceDataById,
     lab,
   } = input;
-  const logoSrc =
-    input.logoDataUri !== undefined
-      ? (input.logoDataUri ?? getLogoFallback())
-      : lab.logoPath || getLogoFallback();
+  const logoSrc = input.logoDataUri !== undefined ? input.logoDataUri : (lab.logoPath ?? null);
 
   const pref = input.preferenciaPdf;
   const rawLayout = pref?.layoutConfig as
     | {
         usarFondo?: boolean;
-        campos?: Record<string, { x: number; y: number; fontSize?: number; color?: string }>;
+        campos?: Record<string, { x: number; y: number; fontSize?: number; color?: string; prefix?: string }>;
       }
     | null
     | undefined;
@@ -385,7 +366,11 @@ export function buildSampleInformeData(opts: SampleInformeAssets): InformeData {
   const { lab, preferenciaPdf: pref } = opts;
   // White-label: el acento del informe = el color de marca del lab (fallback navy Banco Vital).
   const { accent, accentSoft } = pdfAccentPalette(lab.primaryColor);
-  const usarFondo = (pref?.layoutConfig as { usarFondo?: boolean } | null | undefined)?.usarFondo;
+  const rawLayout = pref?.layoutConfig as
+    | { usarFondo?: boolean; campos?: Record<string, { x: number; y: number; fontSize?: number; color?: string; prefix?: string }> }
+    | null
+    | undefined;
+  const usarFondo = rawLayout?.usarFondo;
   return {
     lab: {
       legalName: lab.legalName,
@@ -394,7 +379,7 @@ export function buildSampleInformeData(opts: SampleInformeAssets): InformeData {
       cityProvince: `${lab.city ?? ''}, ${lab.province ?? ''}`,
       phone: lab.phone,
       email: lab.email,
-      logoSrc: opts.logoSrc ?? getLogoFallback(),
+      logoSrc: opts.logoSrc ?? null,
     },
     protocol: { number: '00012345', orderDate: '01/06/2026', issuedAt: '01/06/2026, 10:30:00' },
     patient: {
@@ -451,7 +436,7 @@ export function buildSampleInformeData(opts: SampleInformeAssets): InformeData {
       signatureSrc: opts.signatureSrc ?? null,
     },
     fondoSrc: usarFondo === false ? null : (opts.fondoSrc ?? null),
-    layoutConfig: null,
+    layoutConfig: rawLayout?.campos ?? null,
     margins: pref
       ? {
           top: pref.marginTop,

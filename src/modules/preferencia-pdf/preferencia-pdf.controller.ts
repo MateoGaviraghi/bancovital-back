@@ -10,6 +10,7 @@ import {
   Header,
   HttpCode,
   HttpStatus,
+  Param,
   ParseIntPipe,
   Post,
   Put,
@@ -24,16 +25,18 @@ import {
   ApiBody,
   ApiConsumes,
   ApiOperation,
+  ApiParam,
   ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
-// WEBP no es soportado por @react-pdf/renderer, solo PNG y JPEG para el fondo
+
+// WEBP no es soportado por @react-pdf/renderer; solo PNG y JPEG para el fondo.
 const ALLOWED_FONDO_MIME = ['image/png', 'image/jpeg'] as const;
-// Import de VALOR: el DTO va en @Body() y debe existir en runtime para el ValidationPipe.
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+
+import { CreatePreferenciaPdfDto } from './dto/create-preferencia-pdf.dto';
 import { UpdatePreferenciaPdfDto } from './dto/update-preferencia-pdf.dto';
 import { PreferenciaPdfService } from './preferencia-pdf.service';
-
-const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 
 interface UploadedImage {
   buffer: Buffer;
@@ -47,7 +50,7 @@ function validateImage(file: UploadedImage | undefined): void {
     throw new BadRequestException(`Formato no permitido: ${file.mimetype}. Use PNG o JPG.`);
   }
   if (file.size > MAX_IMAGE_BYTES) {
-    throw new BadRequestException('La imagen supera el maximo de 10 MB.');
+    throw new BadRequestException('La imagen supera el máximo de 10 MB.');
   }
 }
 
@@ -57,26 +60,65 @@ function validateImage(file: UploadedImage | undefined): void {
 export class PreferenciaPdfController {
   constructor(private readonly service: PreferenciaPdfService) {}
 
+  // ── Colección ──────────────────────────────────────────────────────────────
+
   @Get()
-  @ApiOperation({ summary: 'Obtener preferencias de PDF del laboratorio actual' })
-  get(@CurrentUser() user: Session) {
-    return this.service.get(requireLabId(user));
+  @ApiOperation({ summary: 'Listar todos los formatos de PDF del laboratorio' })
+  list(@CurrentUser() user: Session) {
+    return this.service.list(requireLabId(user));
   }
 
-  @Put()
+  @Post()
+  @Roles('admin')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Crear un nuevo formato de PDF' })
+  create(@CurrentUser() user: Session, @Body() dto: CreatePreferenciaPdfDto) {
+    return this.service.create(requireLabId(user), dto);
+  }
+
+  // ── Recurso individual ─────────────────────────────────────────────────────
+
+  @Get(':id')
+  @ApiParam({ name: 'id', type: Number })
+  @ApiOperation({ summary: 'Obtener un formato de PDF por ID' })
+  findById(
+    @CurrentUser() user: Session,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.service.findById(requireLabId(user), id);
+  }
+
+  @Put(':id')
   @Roles('admin')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary:
-      'Actualizar configuracion de layout del PDF (campos, margenes). Crea el registro si no existe.',
-  })
-  upsert(@CurrentUser() user: Session, @Body() dto: UpdatePreferenciaPdfDto) {
-    return this.service.upsert(requireLabId(user), dto);
+  @ApiParam({ name: 'id', type: Number })
+  @ApiOperation({ summary: 'Actualizar layout, márgenes y nombre de un formato' })
+  update(
+    @CurrentUser() user: Session,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdatePreferenciaPdfDto,
+  ) {
+    return this.service.update(requireLabId(user), id, dto);
   }
 
-  @Post('fondo')
+  @Delete(':id')
   @Roles('admin')
-  @ApiOperation({ summary: 'Subir imagen de fondo del PDF (membrete, hoja institucional)' })
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiParam({ name: 'id', type: Number })
+  @ApiOperation({ summary: 'Eliminar un formato de PDF (soft delete)' })
+  async softDelete(
+    @CurrentUser() user: Session,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    await this.service.softDelete(requireLabId(user), id);
+  }
+
+  // ── Imagen de fondo ────────────────────────────────────────────────────────
+
+  @Post(':id/fondo')
+  @Roles('admin')
+  @ApiParam({ name: 'id', type: Number })
+  @ApiOperation({ summary: 'Subir imagen de fondo (marca de agua / membrete) para un formato' })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
@@ -86,42 +128,56 @@ export class PreferenciaPdfController {
     },
   })
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_IMAGE_BYTES } }))
-  uploadFondo(@CurrentUser() user: Session, @UploadedFile() file: UploadedImage) {
+  uploadFondo(
+    @CurrentUser() user: Session,
+    @Param('id', ParseIntPipe) id: number,
+    @UploadedFile() file: UploadedImage,
+  ) {
     validateImage(file);
-    return this.service.uploadFondo(requireLabId(user), file);
+    return this.service.uploadFondo(requireLabId(user), id, file);
   }
 
-  @Delete('fondo')
+  @Delete(':id/fondo')
   @Roles('admin')
-  @ApiOperation({ summary: 'Quitar la imagen de fondo del PDF' })
-  removeFondo(@CurrentUser() user: Session) {
-    return this.service.removeFondo(requireLabId(user));
+  @ApiParam({ name: 'id', type: Number })
+  @ApiOperation({ summary: 'Quitar la imagen de fondo de un formato' })
+  removeFondo(
+    @CurrentUser() user: Session,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.service.removeFondo(requireLabId(user), id);
   }
 
-  @Get('fondo/signed-url')
+  @Get(':id/fondo/signed-url')
   @Roles('admin', 'bioquimico', 'recepcion')
+  @ApiParam({ name: 'id', type: Number })
   @ApiQuery({
     name: 'ttlSeconds',
     required: false,
     schema: { type: 'integer', default: 3600, minimum: 60, maximum: 86400 },
   })
-  @ApiOperation({ summary: 'URL firmada temporal del fondo del PDF' })
+  @ApiOperation({ summary: 'URL firmada temporal de la imagen de fondo de un formato' })
   fondoSignedUrl(
     @CurrentUser() user: Session,
+    @Param('id', ParseIntPipe) id: number,
     @Query('ttlSeconds', new ParseIntPipe({ optional: true })) ttlSeconds = 3600,
   ) {
     const clamped = Math.min(Math.max(ttlSeconds, 60), 86400);
-    return this.service.fondoSignedUrl(requireLabId(user), clamped);
+    return this.service.fondoSignedUrl(requireLabId(user), id, clamped);
   }
 
-  @Get('preview')
+  // ── Preview ────────────────────────────────────────────────────────────────
+
+  @Get(':id/preview')
   @Roles('admin')
   @Header('Content-Type', 'application/pdf')
-  @ApiOperation({
-    summary: 'PDF de informe de muestra con la configuración actual (datos de ejemplo)',
-  })
-  async preview(@CurrentUser() user: Session): Promise<StreamableFile> {
-    const buffer = await this.service.renderSample(requireLabId(user));
+  @ApiParam({ name: 'id', type: Number })
+  @ApiOperation({ summary: 'Vista previa PDF de muestra con el formato indicado' })
+  async preview(
+    @CurrentUser() user: Session,
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<StreamableFile> {
+    const buffer = await this.service.renderSample(requireLabId(user), id);
     return new StreamableFile(buffer, {
       type: 'application/pdf',
       disposition: 'inline; filename="preview-informe.pdf"',

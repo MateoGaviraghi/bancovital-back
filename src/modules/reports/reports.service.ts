@@ -28,7 +28,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { and, asc, eq, inArray, isNull } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, isNull } from 'drizzle-orm';
 import QRCode from 'qrcode';
 
 export const REPORTS_BUCKET = 'reports';
@@ -293,7 +293,14 @@ export class ReportsService {
       this.db
         .select({ updatedAt: preferenciaPdf.updatedAt })
         .from(preferenciaPdf)
-        .where(eq(preferenciaPdf.labId, labId))
+        .where(
+          and(
+            eq(preferenciaPdf.labId, labId),
+            eq(preferenciaPdf.tipo, 'informe'),
+            isNull(preferenciaPdf.deletedAt),
+          ),
+        )
+        .orderBy(desc(preferenciaPdf.updatedAt))
         .limit(1),
     ]);
     const labTs = lab?.updatedAt?.getTime() ?? 0;
@@ -346,7 +353,14 @@ export class ReportsService {
     const [pref] = await this.db
       .select()
       .from(preferenciaPdf)
-      .where(eq(preferenciaPdf.labId, ord.labId))
+      .where(
+        and(
+          eq(preferenciaPdf.labId, ord.labId),
+          eq(preferenciaPdf.tipo, 'informe'),
+          isNull(preferenciaPdf.deletedAt),
+        ),
+      )
+      .orderBy(desc(preferenciaPdf.updatedAt))
       .limit(1);
 
     const [pat] = await this.db

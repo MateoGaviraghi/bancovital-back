@@ -59,13 +59,10 @@ export interface InformeData {
     signatureSrc: string | null;
   };
   fondoSrc?: string | null;
-  layoutConfig?: Record<string, { x: number; y: number; fontSize?: number; color?: string }> | null;
+  layoutConfig?: Record<string, { x: number; y: number; fontSize?: number; color?: string; prefix?: string }> | null;
   margins?: { top: number; bottom: number; left: number; right: number };
-  /** Acento de marca derivado del primaryColor del lab (legible para texto blanco). */
   accent?: string | null;
-  /** Tinte suave del acento (fondos de chips/badges). */
   accentSoft?: string | null;
-  /** Sede principal del lab, impresa al pie del informe. */
   sede?: {
     nombre: string;
     direccion: string;
@@ -73,13 +70,9 @@ export interface InformeData {
     telefono: string | null;
     horarios: string | null;
   } | null;
-  /** QR (PNG data-URI) al portal público del informe (F7). */
   qrCodeDataUri?: string | null;
 }
 
-// Neutrales + semánticos FIJOS. El acento de marca llega por data.accent (color
-// del lab); el fallback es navy Banco Vital. Los badges clínicos (normal/anormal/
-// crítico) NO se tiñen: su color comunica significado médico.
 const C = {
   primary: '#1f2b5b',
   primarySoft: '#e9ecf5',
@@ -108,7 +101,6 @@ const styles = StyleSheet.create({
     lineHeight: 1.45,
   },
 
-  // ── Header: logo + lab info + protocol chip (right, aligned to name)
   header: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 },
   logo: { width: 54, height: 54, marginRight: 14, objectFit: 'contain' },
   labInfo: { flexGrow: 1 },
@@ -121,10 +113,8 @@ const styles = StyleSheet.create({
   },
   labLine: { fontSize: 8.5, color: C.muted, lineHeight: 1.35, marginBottom: 2 },
 
-  // ── Rule (acento del lab)
   rule: { height: 2, backgroundColor: C.primary, marginBottom: 14 },
 
-  // ── Protocol chip (in header, right, aligned to lab name)
   protocolBadge: {
     flexDirection: 'column',
     alignItems: 'flex-end',
@@ -147,7 +137,6 @@ const styles = StyleSheet.create({
   },
   protocolDate: { fontSize: 7, color: C.muted, marginTop: 1 },
 
-  // ── Info cards
   infoGrid: { flexDirection: 'row', gap: 12, marginBottom: 16 },
   infoCard: {
     flex: 1,
@@ -168,7 +157,6 @@ const styles = StyleSheet.create({
   rowLabel: { width: 96, color: C.muted, fontSize: 9 },
   rowValue: { flex: 1, fontSize: 9, color: C.ink, fontFamily: 'PublicSansSemiBold' },
 
-  // ── Results table
   resultsTitle: {
     fontFamily: 'SourceSerif4Bold',
     fontSize: 12,
@@ -199,7 +187,6 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
 
-  // 5 columnas: RESULTADO ancho para que el texto se lea (no 1 palabra/linea)
   colName: { width: '27%', paddingRight: 8 },
   colValue: { width: '37%', paddingRight: 8 },
   colUnit: { width: '10%', paddingRight: 4 },
@@ -215,7 +202,6 @@ const styles = StyleSheet.create({
   unitText: { fontSize: 8.5, color: C.muted, lineHeight: 1.3 },
   rangeText: { fontSize: 8.5, color: C.muted, lineHeight: 1.3 },
 
-  // Sub-filas de unidades (sub-componentes de práctica multi-analito)
   unidadesBlock: {
     marginTop: 6,
     paddingTop: 4,
@@ -257,12 +243,8 @@ const styles = StyleSheet.create({
   badgeAbnormal: { backgroundColor: C.warningSoft, color: C.warning },
   badgeCritical: { backgroundColor: C.dangerSoft, color: C.danger },
 
-  // Empuja el footer (firma) al fondo de la página: en informes cortos la firma
-  // queda abajo en vez de flotar pegada a la tabla con media hoja en blanco.
   flexSpacer: { flexGrow: 1, minHeight: 28 },
 
-  // ── Footer — flujo normal (no absoluto, no fixed) para que aparezca
-  // siempre DESPUÉS de todo el contenido, solo en la última página.
   footer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -278,7 +260,6 @@ const styles = StyleSheet.create({
     objectFit: 'contain',
     marginBottom: 2,
   },
-  // Espacio reservado para la firma manuscrita cuando el lab no cargó imagen.
   signSpace: { height: 42 },
   signLine: {
     width: 200,
@@ -297,13 +278,11 @@ const styles = StyleSheet.create({
   signedMat: { fontSize: 8.5, color: C.muted, marginTop: 1 },
   issuedAt: { fontSize: 7.5, color: C.subtle },
 
-  // ── Bloque QR (portal del paciente) en el footer, alineado a la derecha
   footerRight: { alignItems: 'flex-end' },
   qrBlock: { alignItems: 'center', marginBottom: 3 },
   qrImg: { width: 60, height: 60 },
   qrCaption: { fontSize: 6, color: C.subtle, marginTop: 1, letterSpacing: 0.2 },
 
-  // ── Línea de sede principal al pie
   sedeLine: { marginTop: 6, alignItems: 'center' },
   sedeText: { fontSize: 7.5, color: C.muted, textAlign: 'center', lineHeight: 1.3 },
 });
@@ -338,8 +317,6 @@ function badgeStyle(flag: InformeFlag) {
   return null;
 }
 
-/** Numerico = entero/decimal (coma o punto), opcional signo / < > ≤ ≥. Lo
- * demas (texto cualitativo) se renderiza a todo el ancho. */
 function isNumericValue(value: string): boolean {
   const v = value.trim();
   if (!v) return true;
@@ -355,9 +332,187 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   );
 }
 
+// ── Modo marca de agua: solo fondo + campos posicionados ─────────────
+
+function resolveFieldValue(key: string, data: InformeData): string | null {
+  switch (key) {
+    case 'paciente.nombre':
+      return data.patient.fullName;
+    case 'paciente.dni':
+      return data.patient.dni;
+    case 'paciente.sexo':
+      return data.patient.sex ? SEX_LABEL[data.patient.sex] : '—';
+    case 'paciente.edad':
+      return data.patient.age;
+    case 'paciente.nacimiento':
+      return data.patient.birthDate;
+    case 'orden.protocolo':
+      return data.protocol.number;
+    case 'orden.fecha':
+      return data.protocol.orderDate;
+    case 'orden.emision':
+      return data.protocol.issuedAt;
+    case 'cobertura.obraSocial':
+      return `${data.insurer.name}${data.insurer.affiliateNumber ? ` · ${data.insurer.affiliateNumber}` : ''}`;
+    case 'cobertura.nroAfiliado':
+      return data.insurer.affiliateNumber ?? '—';
+    case 'medico.nombre':
+      return data.doctor.name ?? '—';
+    case 'medico.mp':
+      return data.doctor.mp ? `M.P. ${data.doctor.mp}` : '—';
+    case 'medico.diagnostico':
+      return data.doctor.diagnosis ?? '—';
+    case 'firma.nombre':
+      return data.signedBy.name;
+    case 'firma.matricula':
+      return data.signedBy.matricula ?? '—';
+    case 'lab.nombre':
+      return data.lab.legalName;
+    case 'lab.cuit':
+      return data.lab.cuit;
+    case 'lab.direccion':
+      return `${data.lab.address} — ${data.lab.cityProvince}`;
+    case 'lab.telefono':
+      return data.lab.phone ?? '—';
+    case 'lab.email':
+      return data.lab.email ?? '—';
+    default:
+      return null;
+  }
+}
+
+const overlayTableStyles = StyleSheet.create({
+  headerRow: { flexDirection: 'row', borderBottomWidth: 0.5, borderBottomColor: '#999', paddingBottom: 3, marginBottom: 4 },
+  thText: { fontFamily: 'PublicSansSemiBold', fontSize: 7, color: '#333', letterSpacing: 0.3 },
+  dataRow: { flexDirection: 'row', paddingVertical: 3, borderBottomWidth: 0.25, borderBottomColor: '#ddd' },
+  cellName: { width: '30%', paddingRight: 4 },
+  cellValue: { width: '25%', paddingRight: 4 },
+  cellUnit: { width: '12%', paddingRight: 4 },
+  cellRange: { width: '18%', paddingRight: 4 },
+  cellFlag: { width: '15%' },
+  nameText: { fontFamily: 'PublicSansSemiBold', fontSize: 8, color: '#1a1a1a' },
+  codeText: { fontSize: 6.5, color: '#888', marginTop: 1 },
+  valueText: { fontFamily: 'PublicSansSemiBold', fontSize: 9, color: '#1a1a1a' },
+  normalText: { fontSize: 7.5, color: '#555' },
+  flagNormal: { fontSize: 7, color: C.success },
+  flagWarning: { fontSize: 7, color: C.warning },
+  flagDanger: { fontSize: 7, color: C.danger },
+});
+
+function OverlayResultsTable({ results }: { results: InformeResultRow[] }) {
+  return (
+    <View>
+      <View style={overlayTableStyles.headerRow}>
+        <Text style={[overlayTableStyles.thText, overlayTableStyles.cellName]}>PRÁCTICA</Text>
+        <Text style={[overlayTableStyles.thText, overlayTableStyles.cellValue]}>RESULTADO</Text>
+        <Text style={[overlayTableStyles.thText, overlayTableStyles.cellUnit]}>UNIDAD</Text>
+        <Text style={[overlayTableStyles.thText, overlayTableStyles.cellRange]}>REFERENCIA</Text>
+        <Text style={[overlayTableStyles.thText, overlayTableStyles.cellFlag]}>ESTADO</Text>
+      </View>
+      {results.map((r) => {
+        let flagStyle = overlayTableStyles.normalText;
+        if (r.flag === 'normal') flagStyle = overlayTableStyles.flagNormal;
+        else if (r.flag === 'low' || r.flag === 'high') flagStyle = overlayTableStyles.flagWarning;
+        else if (r.flag === 'critical_low' || r.flag === 'critical_high') flagStyle = overlayTableStyles.flagDanger;
+        return (
+          <View key={r.nbuCode} style={overlayTableStyles.dataRow} wrap={false}>
+            <View style={overlayTableStyles.cellName}>
+              <Text style={overlayTableStyles.nameText}>{r.name}</Text>
+              <Text style={overlayTableStyles.codeText}>NBU {r.nbuCode}</Text>
+            </View>
+            <View style={overlayTableStyles.cellValue}>
+              <Text style={overlayTableStyles.valueText}>{r.value || '—'}</Text>
+            </View>
+            <View style={overlayTableStyles.cellUnit}>
+              <Text style={overlayTableStyles.normalText}>{r.unit ?? '—'}</Text>
+            </View>
+            <View style={overlayTableStyles.cellRange}>
+              <Text style={overlayTableStyles.normalText}>{r.range ?? '—'}</Text>
+            </View>
+            <View style={overlayTableStyles.cellFlag}>
+              <Text style={flagStyle}>{flagLabel(r.flag)}</Text>
+            </View>
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
+function WatermarkInforme({ data }: { data: InformeData }) {
+  const campos = data.layoutConfig ?? {};
+  const entries = Object.entries(campos);
+  const textFields = entries.filter(([k]) => !k.startsWith('tabla.') && k !== 'firma.imagen' && k !== 'qr');
+  const tableField = entries.find(([k]) => k === 'tabla.resultados');
+  const signField = entries.find(([k]) => k === 'firma.imagen');
+  const qrField = entries.find(([k]) => k === 'qr');
+
+  return (
+    <Document
+      title={`Informe ${data.protocol.number}`}
+      author={data.lab.legalName}
+      subject="Informe de laboratorio"
+    >
+      <Page
+        size="A4"
+        style={{ fontFamily: 'PublicSans', fontSize: 9.5, color: C.ink }}
+      >
+        {/* Marca de agua como fondo */}
+        <Image
+          src={data.fondoSrc!}
+          style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
+          fixed
+        />
+
+        {/* Campos de texto posicionados */}
+        {textFields.map(([key, pos]) => {
+          const value = resolveFieldValue(key, data);
+          if (value === null) return null;
+          const displayText = pos.prefix ? `${pos.prefix}${value}` : value;
+          return (
+            <View key={key} style={{ position: 'absolute', left: pos.x, top: pos.y }}>
+              <Text style={{ fontSize: pos.fontSize ?? 9, color: pos.color ?? '#000000', fontFamily: 'PublicSans' }}>
+                {displayText}
+              </Text>
+            </View>
+          );
+        })}
+
+        {/* Tabla de resultados */}
+        {tableField && data.results.length > 0 ? (
+          <View style={{ position: 'absolute', left: tableField[1].x, top: tableField[1].y, width: 500 }}>
+            <OverlayResultsTable results={data.results} />
+          </View>
+        ) : null}
+
+        {/* Firma imagen */}
+        {signField && data.signedBy.signatureSrc ? (
+          <View style={{ position: 'absolute', left: signField[1].x, top: signField[1].y }}>
+            <Image src={data.signedBy.signatureSrc} style={{ width: 140, height: 50, objectFit: 'contain' }} />
+          </View>
+        ) : null}
+
+        {/* QR */}
+        {qrField && data.qrCodeDataUri ? (
+          <View style={{ position: 'absolute', left: qrField[1].x, top: qrField[1].y }}>
+            <Image src={data.qrCodeDataUri} style={{ width: 55, height: 55 }} />
+          </View>
+        ) : null}
+      </Page>
+    </Document>
+  );
+}
+
+// ── Modo estructurado (sin marca de agua) ────────────────────────────
+
 export function InformeTemplate({ data }: { data: InformeData }) {
+  // Cuando hay marca de agua: solo fondo + campos posicionados.
+  if (data.fondoSrc) {
+    return <WatermarkInforme data={data} />;
+  }
+
+  // Sin marca de agua: template estructurado completo.
   const sexLabel = data.patient.sex ? SEX_LABEL[data.patient.sex] : '—';
-  // Acento de marca derivado del lab (con fallback al navy Banco Vital).
   const accent = data.accent || C.primary;
   const accentSoft = data.accentSoft || C.primarySoft;
   const pageStyle = data.margins
@@ -377,19 +532,6 @@ export function InformeTemplate({ data }: { data: InformeData }) {
       subject="Informe de laboratorio"
     >
       <Page size="A4" style={pageStyle}>
-        {data.fondoSrc ? (
-          <Image
-            src={data.fondoSrc}
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              width: '100%',
-              height: '100%',
-            }}
-            fixed
-          />
-        ) : null}
         {/* Header: logo + lab info */}
         <View style={styles.header}>
           {data.lab.logoSrc ? <Image src={data.lab.logoSrc} style={styles.logo} /> : null}
@@ -504,10 +646,9 @@ export function InformeTemplate({ data }: { data: InformeData }) {
           })}
         </View>
 
-        {/* Empuja la firma/footer al fondo de la página */}
         <View style={styles.flexSpacer} />
 
-        {/* Footer — solo en la última página, después de todos los resultados */}
+        {/* Footer */}
         <View style={[styles.footer, { borderTopColor: accent }]}>
           <View style={styles.signBlock}>
             {data.signedBy.signatureSrc ? (
@@ -533,7 +674,6 @@ export function InformeTemplate({ data }: { data: InformeData }) {
           </View>
         </View>
 
-        {/* Sede principal del lab (si está configurada) */}
         {data.sede ? (
           <View style={styles.sedeLine}>
             <Text style={styles.sedeText}>

@@ -1,6 +1,19 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsBoolean, IsInt, IsObject, IsOptional, Max, Min, ValidateNested } from 'class-validator';
+import {
+  IsBoolean,
+  IsIn,
+  IsInt,
+  IsObject,
+  IsOptional,
+  IsString,
+  Max,
+  MaxLength,
+  Min,
+  MinLength,
+  ValidateNested,
+} from 'class-validator';
+import { TIPOS_PDF, type TipoPdf } from './create-preferencia-pdf.dto';
 
 export class PdfLayoutCampoDto {
   @ApiProperty({ example: 120 })
@@ -25,9 +38,27 @@ export class PdfLayoutCampoDto {
   @ApiProperty({ required: false, example: '#000000' })
   @IsOptional()
   color?: string;
+
+  @ApiProperty({ required: false, example: 'Nombre: ' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  prefix?: string;
 }
 
 export class UpdatePreferenciaPdfDto {
+  @ApiProperty({ required: false, example: 'Membrete institucional' })
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  nombre?: string;
+
+  @ApiProperty({ required: false, enum: TIPOS_PDF })
+  @IsOptional()
+  @IsIn(TIPOS_PDF)
+  tipo?: TipoPdf;
+
   @ApiProperty({
     required: false,
     default: true,
