@@ -112,7 +112,7 @@ export interface RenderInformeInput {
 // El header de la tabla usa texto BLANCO sobre el acento, así que oscurecemos el
 // color hasta garantizar contraste legible (WCAG) antes de usarlo. react-pdf no
 // soporta color-mix, por eso la matemática va en JS.
-const DEFAULT_PDF_ACCENT = '#0db5b0';
+const DEFAULT_PDF_ACCENT = '#1f2b5b';
 type Rgb = [number, number, number];
 
 function parseHex(hex: string): Rgb | null {
@@ -276,8 +276,8 @@ export function buildInformeData(input: RenderInformeInput): InformeData {
   const layoutConfig = rawLayout?.campos ?? null;
   // Solo se dibuja el fondo si el admin no lo desactivó (undefined/true => dibujar).
   const fondoSrc = rawLayout?.usarFondo === false ? null : (input.fondoDataUri ?? null);
-  // Des-slug: acento fijo bancovital (ya no se deriva del color per-lab).
-  const { accent, accentSoft } = pdfAccentPalette(null);
+  // White-label: el acento del informe = el color de marca del lab (fallback navy Banco Vital).
+  const { accent, accentSoft } = pdfAccentPalette(lab.primaryColor);
 
   return {
     lab: {
@@ -383,8 +383,8 @@ export interface SampleInformeAssets {
  */
 export function buildSampleInformeData(opts: SampleInformeAssets): InformeData {
   const { lab, preferenciaPdf: pref } = opts;
-  // Des-slug: acento fijo bancovital (ya no se deriva del color per-lab).
-  const { accent, accentSoft } = pdfAccentPalette(null);
+  // White-label: el acento del informe = el color de marca del lab (fallback navy Banco Vital).
+  const { accent, accentSoft } = pdfAccentPalette(lab.primaryColor);
   const usarFondo = (pref?.layoutConfig as { usarFondo?: boolean } | null | undefined)?.usarFondo;
   return {
     lab: {
