@@ -281,6 +281,9 @@ export function buildInformeData(input: RenderInformeInput): InformeData {
       sex: patient.sex,
       age: patient.birthDate ? ageString(patient.birthDate) : '—',
       birthDate: patient.birthDate ? formatDate(patient.birthDate) : '—',
+      streetAddress: patient.streetAddress,
+      city: patient.city,
+      phone: patient.phone,
     },
     insurer: {
       name: insurer.name,
@@ -290,6 +293,11 @@ export function buildInformeData(input: RenderInformeInput): InformeData {
       name: order.referringDoctorName,
       mp: order.referringDoctorMp,
       diagnosis: order.diagnosis,
+    },
+    order: {
+      origin: order.origin,
+      isUrgent: order.isUrgent,
+      notes: order.notes,
     },
     results: lines
       .filter((l) => l.includeInReport && l.practiceId !== null)
@@ -388,9 +396,13 @@ export function buildSampleInformeData(opts: SampleInformeAssets): InformeData {
       sex: 'F',
       age: '34 años',
       birthDate: '15/03/1992',
+      streetAddress: 'Av. Siempre Viva 742',
+      city: 'Santa Fe',
+      phone: '342-4567890',
     },
     insurer: { name: 'OSDE', affiliateNumber: '61234567-01' },
     doctor: { name: 'Dr. Juan Gómez', mp: '12345', diagnosis: 'Control anual' },
+    order: { origin: 'Ambulatorio', isUrgent: false, notes: null },
     results: [
       {
         nbuCode: '660045',

@@ -44,6 +44,31 @@ export class PdfLayoutCampoDto {
   @IsString()
   @MaxLength(50)
   prefix?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  bold?: boolean;
+
+  @ApiProperty({ required: false, example: '#f5f0e8' })
+  @IsOptional()
+  @IsString()
+  headerBg?: string;
+
+  @ApiProperty({ required: false, example: '#5a4a2f' })
+  @IsOptional()
+  @IsString()
+  headerColor?: string;
+
+  @ApiProperty({ required: false, example: '#d4c9b0' })
+  @IsOptional()
+  @IsString()
+  borderColor?: string;
+
+  @ApiProperty({ required: false, example: '#000000' })
+  @IsOptional()
+  @IsString()
+  rowColor?: string;
 }
 
 export class UpdatePreferenciaPdfDto {

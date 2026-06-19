@@ -42,6 +42,9 @@ export interface InformeData {
     sex: 'F' | 'M' | 'X' | null;
     age: string;
     birthDate: string;
+    streetAddress?: string | null;
+    city?: string | null;
+    phone?: string | null;
   };
   insurer: {
     name: string;
@@ -52,6 +55,11 @@ export interface InformeData {
     mp: string | null;
     diagnosis: string | null;
   };
+  order?: {
+    origin?: string | null;
+    isUrgent?: boolean;
+    notes?: string | null;
+  };
   results: InformeResultRow[];
   signedBy: {
     name: string;
@@ -59,7 +67,7 @@ export interface InformeData {
     signatureSrc: string | null;
   };
   fondoSrc?: string | null;
-  layoutConfig?: Record<string, { x: number; y: number; fontSize?: number; color?: string; prefix?: string }> | null;
+  layoutConfig?: Record<string, { x: number; y: number; fontSize?: number; color?: string; prefix?: string; bold?: boolean; headerBg?: string; headerColor?: string; borderColor?: string; rowColor?: string }> | null;
   margins?: { top: number; bottom: number; left: number; right: number };
   accent?: string | null;
   accentSoft?: string | null;
@@ -362,6 +370,20 @@ function resolveFieldValue(key: string, data: InformeData): string | null {
       return data.doctor.mp ? `M.P. ${data.doctor.mp}` : '—';
     case 'medico.diagnostico':
       return data.doctor.diagnosis ?? '—';
+    case 'orden.diagnostico':
+      return data.doctor.diagnosis ?? '—';
+    case 'orden.origen':
+      return data.order?.origin ?? '—';
+    case 'orden.urgente':
+      return data.order?.isUrgent ? 'Sí' : 'No';
+    case 'orden.notas':
+      return data.order?.notes ?? '—';
+    case 'paciente.domicilio':
+      return data.patient.streetAddress ?? '—';
+    case 'paciente.ciudad':
+      return data.patient.city ?? '—';
+    case 'paciente.telefono':
+      return data.patient.phone ?? '—';
     case 'firma.nombre':
       return data.signedBy.name;
     case 'firma.matricula':
@@ -381,56 +403,52 @@ function resolveFieldValue(key: string, data: InformeData): string | null {
   }
 }
 
-const overlayTableStyles = StyleSheet.create({
-  headerRow: { flexDirection: 'row', borderBottomWidth: 0.5, borderBottomColor: '#999', paddingBottom: 3, marginBottom: 4 },
-  thText: { fontFamily: 'PublicSansSemiBold', fontSize: 7, color: '#333', letterSpacing: 0.3 },
-  dataRow: { flexDirection: 'row', paddingVertical: 3, borderBottomWidth: 0.25, borderBottomColor: '#ddd' },
-  cellName: { width: '30%', paddingRight: 4 },
-  cellValue: { width: '25%', paddingRight: 4 },
-  cellUnit: { width: '12%', paddingRight: 4 },
-  cellRange: { width: '18%', paddingRight: 4 },
-  cellFlag: { width: '15%' },
-  nameText: { fontFamily: 'PublicSansSemiBold', fontSize: 8, color: '#1a1a1a' },
-  codeText: { fontSize: 6.5, color: '#888', marginTop: 1 },
-  valueText: { fontFamily: 'PublicSansSemiBold', fontSize: 9, color: '#1a1a1a' },
-  normalText: { fontSize: 7.5, color: '#555' },
-  flagNormal: { fontSize: 7, color: C.success },
-  flagWarning: { fontSize: 7, color: C.warning },
-  flagDanger: { fontSize: 7, color: C.danger },
-});
+interface TableColors {
+  headerBg: string;
+  headerColor: string;
+  borderColor: string;
+  rowColor: string;
+}
 
-function OverlayResultsTable({ results }: { results: InformeResultRow[] }) {
+const DEFAULT_TABLE_COLORS: TableColors = {
+  headerBg: '#f5f0e8',
+  headerColor: '#5a4a2f',
+  borderColor: '#d4c9b0',
+  rowColor: '#000000',
+};
+
+function OverlayResultsTable({ results, colors }: { results: InformeResultRow[]; colors: TableColors }) {
   return (
-    <View>
-      <View style={overlayTableStyles.headerRow}>
-        <Text style={[overlayTableStyles.thText, overlayTableStyles.cellName]}>PRÁCTICA</Text>
-        <Text style={[overlayTableStyles.thText, overlayTableStyles.cellValue]}>RESULTADO</Text>
-        <Text style={[overlayTableStyles.thText, overlayTableStyles.cellUnit]}>UNIDAD</Text>
-        <Text style={[overlayTableStyles.thText, overlayTableStyles.cellRange]}>REFERENCIA</Text>
-        <Text style={[overlayTableStyles.thText, overlayTableStyles.cellFlag]}>ESTADO</Text>
+    <View style={{ borderWidth: 0.5, borderColor: colors.borderColor, borderRadius: 3, overflow: 'hidden' }}>
+      <View style={{ flexDirection: 'row', backgroundColor: colors.headerBg, paddingVertical: 5, paddingHorizontal: 8 }}>
+        <Text style={{ width: '30%', fontFamily: 'PublicSansSemiBold', fontSize: 7, color: colors.headerColor, letterSpacing: 0.3 }}>PRÁCTICA</Text>
+        <Text style={{ width: '25%', fontFamily: 'PublicSansSemiBold', fontSize: 7, color: colors.headerColor, letterSpacing: 0.3 }}>RESULTADO</Text>
+        <Text style={{ width: '12%', fontFamily: 'PublicSansSemiBold', fontSize: 7, color: colors.headerColor, letterSpacing: 0.3 }}>UNIDAD</Text>
+        <Text style={{ width: '18%', fontFamily: 'PublicSansSemiBold', fontSize: 7, color: colors.headerColor, letterSpacing: 0.3 }}>REFERENCIA</Text>
+        <Text style={{ width: '15%', fontFamily: 'PublicSansSemiBold', fontSize: 7, color: colors.headerColor, letterSpacing: 0.3 }}>ESTADO</Text>
       </View>
       {results.map((r) => {
-        let flagStyle = overlayTableStyles.normalText;
-        if (r.flag === 'normal') flagStyle = overlayTableStyles.flagNormal;
-        else if (r.flag === 'low' || r.flag === 'high') flagStyle = overlayTableStyles.flagWarning;
-        else if (r.flag === 'critical_low' || r.flag === 'critical_high') flagStyle = overlayTableStyles.flagDanger;
+        let flagColor = colors.rowColor;
+        if (r.flag === 'normal') flagColor = C.success;
+        else if (r.flag === 'low' || r.flag === 'high') flagColor = C.warning;
+        else if (r.flag === 'critical_low' || r.flag === 'critical_high') flagColor = C.danger;
         return (
-          <View key={r.nbuCode} style={overlayTableStyles.dataRow} wrap={false}>
-            <View style={overlayTableStyles.cellName}>
-              <Text style={overlayTableStyles.nameText}>{r.name}</Text>
-              <Text style={overlayTableStyles.codeText}>NBU {r.nbuCode}</Text>
+          <View key={r.nbuCode} style={{ flexDirection: 'row', paddingVertical: 5, paddingHorizontal: 8, borderTopWidth: 0.25, borderTopColor: colors.borderColor }} wrap={false}>
+            <View style={{ width: '30%', paddingRight: 4 }}>
+              <Text style={{ fontFamily: 'PublicSansSemiBold', fontSize: 8, color: colors.rowColor }}>{r.name}</Text>
+              <Text style={{ fontSize: 6.5, color: colors.borderColor, marginTop: 1 }}>NBU {r.nbuCode}</Text>
             </View>
-            <View style={overlayTableStyles.cellValue}>
-              <Text style={overlayTableStyles.valueText}>{r.value || '—'}</Text>
+            <View style={{ width: '25%', paddingRight: 4 }}>
+              <Text style={{ fontFamily: 'PublicSansSemiBold', fontSize: 9, color: colors.rowColor }}>{r.value || '—'}</Text>
             </View>
-            <View style={overlayTableStyles.cellUnit}>
-              <Text style={overlayTableStyles.normalText}>{r.unit ?? '—'}</Text>
+            <View style={{ width: '12%', paddingRight: 4 }}>
+              <Text style={{ fontSize: 7.5, color: colors.rowColor }}>{r.unit ?? '—'}</Text>
             </View>
-            <View style={overlayTableStyles.cellRange}>
-              <Text style={overlayTableStyles.normalText}>{r.range ?? '—'}</Text>
+            <View style={{ width: '18%', paddingRight: 4 }}>
+              <Text style={{ fontSize: 7.5, color: colors.rowColor }}>{r.range ?? '—'}</Text>
             </View>
-            <View style={overlayTableStyles.cellFlag}>
-              <Text style={flagStyle}>{flagLabel(r.flag)}</Text>
+            <View style={{ width: '15%' }}>
+              <Text style={{ fontSize: 7, color: flagColor }}>{flagLabel(r.flag)}</Text>
             </View>
           </View>
         );
@@ -468,20 +486,34 @@ function WatermarkInforme({ data }: { data: InformeData }) {
         {textFields.map(([key, pos]) => {
           const value = resolveFieldValue(key, data);
           if (value === null) return null;
-          const displayText = pos.prefix ? `${pos.prefix}${value}` : value;
+          const fs = pos.fontSize ?? 9;
+          const color = pos.color ?? '#000000';
           return (
-            <View key={key} style={{ position: 'absolute', left: pos.x, top: pos.y }}>
-              <Text style={{ fontSize: pos.fontSize ?? 9, color: pos.color ?? '#000000', fontFamily: 'PublicSans' }}>
-                {displayText}
+            <View key={key} style={{ position: 'absolute', left: pos.x, top: pos.y, flexDirection: 'row' }}>
+              {pos.prefix ? (
+                <Text style={{ fontSize: fs, color, fontFamily: pos.bold ? 'PublicSansSemiBold' : 'PublicSans' }}>
+                  {pos.prefix}
+                </Text>
+              ) : null}
+              <Text style={{ fontSize: fs, color, fontFamily: 'PublicSans' }}>
+                {value}
               </Text>
             </View>
           );
         })}
 
-        {/* Tabla de resultados */}
+        {/* Tabla de resultados — ancho dinámico: desde x hasta el margen derecho (30pt) */}
         {tableField && data.results.length > 0 ? (
-          <View style={{ position: 'absolute', left: tableField[1].x, top: tableField[1].y, width: 500 }}>
-            <OverlayResultsTable results={data.results} />
+          <View style={{ position: 'absolute', left: tableField[1].x, top: tableField[1].y, width: Math.max(200, 595 - tableField[1].x - 30) }}>
+            <OverlayResultsTable
+              results={data.results}
+              colors={{
+                headerBg: tableField[1].headerBg ?? DEFAULT_TABLE_COLORS.headerBg,
+                headerColor: tableField[1].headerColor ?? DEFAULT_TABLE_COLORS.headerColor,
+                borderColor: tableField[1].borderColor ?? DEFAULT_TABLE_COLORS.borderColor,
+                rowColor: tableField[1].rowColor ?? DEFAULT_TABLE_COLORS.rowColor,
+              }}
+            />
           </View>
         ) : null}
 
