@@ -112,7 +112,7 @@ export class PublicReportsService {
     const [pat] = await this.db
       .select({ dni: patient.dni })
       .from(patient)
-      .where(eq(patient.id, ord.patientId))
+      .where(eq(patient.id, ord.patientId!))
       .limit(1);
     if (!pat) throw new NotFoundException('Informe no encontrado');
 

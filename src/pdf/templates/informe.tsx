@@ -437,6 +437,12 @@ function OverlayResultsTable({ results, colors }: { results: InformeResultRow[];
             <View style={{ width: '30%', paddingRight: 4 }}>
               <Text style={{ fontFamily: 'PublicSansSemiBold', fontSize: 8, color: colors.rowColor }}>{r.name}</Text>
               <Text style={{ fontSize: 6.5, color: colors.borderColor, marginTop: 1 }}>NBU {r.nbuCode}</Text>
+              {r.methodology ? (
+                <Text style={{ fontSize: 6.5, color: colors.rowColor, marginTop: 1 }}>Método: {r.methodology}</Text>
+              ) : null}
+              {r.referenceValue ? (
+                <Text style={{ fontSize: 6.5, color: colors.rowColor, marginTop: 1 }}>Ref.: {r.referenceValue}</Text>
+              ) : null}
             </View>
             <View style={{ width: '25%', paddingRight: 4 }}>
               <Text style={{ fontFamily: 'PublicSansSemiBold', fontSize: 9, color: colors.rowColor }}>{r.value || '—'}</Text>
