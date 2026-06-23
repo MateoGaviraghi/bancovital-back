@@ -41,6 +41,8 @@ export interface HydratedLine {
   result: Result | null;
   referenceRule: RangeRule | null;
   unidades: HydratedUnidadEntry[];
+  parentId: number | null;
+  condicionVisibilidad: Practice['condicionVisibilidad'];
 }
 
 @Injectable()
@@ -162,6 +164,8 @@ export class ResultsService {
         result: r.result,
         referenceRule: rule,
         unidades,
+        parentId: r.practice?.parentId ?? null,
+        condicionVisibilidad: r.practice?.condicionVisibilidad ?? null,
       };
     });
   }

@@ -69,7 +69,28 @@ export class OrdersService {
     dto: CreateOrderDto,
     createdBy: string,
   ): Promise<{ order: Order; lines: OrderPractice[] }> {
-    const pat = await this.resolvePatient(labId, dto.patientId);
+    const orderType = dto.orderType ?? 'humana';
+
+    let patientId: number | null = null;
+    let animalPatientId: number | null = null;
+    let veterinarioId: number | null = null;
+
+    if (orderType === 'humana') {
+      if (!dto.patientId) {
+        throw new UnprocessableEntityException('patientId es requerido para ordenes humanas');
+      }
+      const pat = await this.resolvePatient(labId, dto.patientId);
+      patientId = pat.id;
+    } else {
+      if (!dto.animalPatientId) {
+        throw new UnprocessableEntityException(
+          'animalPatientId es requerido para ordenes veterinarias',
+        );
+      }
+      animalPatientId = dto.animalPatientId;
+      veterinarioId = dto.veterinarioId ?? null;
+    }
+
     const ins = await this.resolveInsurer(dto.insurerId);
     const effectivePractices = await this.expandWithChildren(dto.practices);
     const practices = await this.resolvePractices(effectivePractices);
@@ -113,7 +134,10 @@ export class OrdersService {
 
       const orderValues: NewOrder = {
         labId,
-        patientId: pat.id,
+        orderType,
+        patientId,
+        animalPatientId,
+        veterinarioId,
         insurerId: ins.id,
         insuranceAffiliateNumber: dto.insuranceAffiliateNumber ?? null,
         referringDoctorId: referringDoctorSnapshot.id,

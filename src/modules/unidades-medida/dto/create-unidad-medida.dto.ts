@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsArray, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 
 export class CreateUnidadMedidaDto {
   @ApiProperty({ description: 'Nombre de la unidad (ej "pH", "Color", "mg/dL")', maxLength: 80 })
@@ -21,4 +21,15 @@ export class CreateUnidadMedidaDto {
   @IsString()
   @MaxLength(20)
   simbolo?: string;
+
+  @ApiProperty({
+    required: false,
+    nullable: true,
+    description: 'Opciones predeterminadas para select (ej ["Amarillo", "Ámbar", "Rojizo"])',
+    type: [String],
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  opcionesPredeterminadas?: string[] | null;
 }

@@ -39,10 +39,28 @@ export class OrderPracticeInputDto {
 }
 
 export class CreateOrderDto {
-  @ApiProperty()
+  @ApiProperty({ enum: ['humana', 'veterinaria'], default: 'humana', required: false })
+  @IsOptional()
+  @IsIn(['humana', 'veterinaria'])
+  orderType?: 'humana' | 'veterinaria';
+
+  @ApiProperty({ required: false, description: 'Requerido para ordenes humanas' })
+  @IsOptional()
   @IsInt()
   @Min(1)
-  patientId!: number;
+  patientId?: number;
+
+  @ApiProperty({ required: false, description: 'Requerido para ordenes veterinarias' })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  animalPatientId?: number;
+
+  @ApiProperty({ required: false, description: 'Veterinario solicitante (solo ordenes veterinarias)' })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  veterinarioId?: number;
 
   @ApiProperty()
   @IsInt()
