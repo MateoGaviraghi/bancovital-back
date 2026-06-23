@@ -13,11 +13,13 @@ import {
   varchar,
 } from 'drizzle-orm/pg-core';
 import { doctor } from './doctor';
-import { orderOriginEnum, orderStatusEnum } from './enums';
+import { orderOriginEnum, orderStatusEnum, orderTypeEnum } from './enums';
 import { insurer } from './insurer';
 import { laboratorio } from './laboratorio';
+import { pacienteAnimal } from './paciente-animal';
 import { patient } from './patient';
 import { user } from './user';
+import { veterinario } from './veterinario';
 
 export const order = pgTable(
   'order',
@@ -28,12 +30,21 @@ export const order = pgTable(
     labId: bigint('lab_id', { mode: 'number' })
       .notNull()
       .references(() => laboratorio.id, { onDelete: 'restrict' }),
+    orderType: orderTypeEnum('order_type').notNull().default('humana'),
     protocolNumber: bigint('protocol_number', { mode: 'number' })
       .notNull()
       .default(sql`nextval('seq_protocol')`),
-    patientId: bigint('patient_id', { mode: 'number' })
-      .notNull()
-      .references(() => patient.id, { onDelete: 'restrict' }),
+    patientId: bigint('patient_id', { mode: 'number' }).references(() => patient.id, {
+      onDelete: 'restrict',
+    }),
+    animalPatientId: bigint('animal_patient_id', { mode: 'number' }).references(
+      () => pacienteAnimal.id,
+      { onDelete: 'restrict' },
+    ),
+    veterinarioId: bigint('veterinario_id', { mode: 'number' }).references(
+      () => veterinario.id,
+      { onDelete: 'set null' },
+    ),
     insurerId: bigint('insurer_id', { mode: 'number' })
       .notNull()
       .references(() => insurer.id, { onDelete: 'restrict' }),
@@ -80,6 +91,8 @@ export const order = pgTable(
     patientDateIdx: index('idx_order_patient_date').on(t.patientId, t.orderDate),
     statusDateIdx: index('idx_order_status_date').on(t.status, t.orderDate),
     labStatusIdx: index('idx_order_lab_status').on(t.labId, t.status),
+    animalPatientIdx: index('idx_order_animal_patient').on(t.animalPatientId),
+    orderTypeIdx: index('idx_order_type').on(t.orderType),
     // Lookup O(1) por token del portal público (múltiples NULL permitidos en PG).
     publicTokenIdx: uniqueIndex('idx_order_public_token').on(t.publicReportToken),
   }),

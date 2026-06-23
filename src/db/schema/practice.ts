@@ -14,6 +14,10 @@ import {
 
 export type { ReferenceValueTemplate } from '@/domain/validation/validation';
 
+export interface CondicionVisibilidad {
+  parentValue?: { equals?: string; notEquals?: string };
+}
+
 export const practice = pgTable(
   'practice',
   {
@@ -39,6 +43,7 @@ export const practice = pgTable(
     methodology: text('methodology'),
     /** true = el laboratorio la elabora; false = se deriva a otro laboratorio. */
     isElaborated: boolean('is_elaborated').notNull().default(false),
+    condicionVisibilidad: jsonb('condicion_visibilidad').$type<CondicionVisibilidad>(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },

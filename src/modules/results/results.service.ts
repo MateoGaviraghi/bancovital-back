@@ -58,7 +58,7 @@ export class ResultsService {
     const [pat] = await this.db
       .select({ sex: patient.sex, birthDate: patient.birthDate })
       .from(patient)
-      .where(eq(patient.id, ord.patientId))
+      .where(eq(patient.id, ord.patientId!))
       .limit(1);
     if (!pat) throw new NotFoundException('Paciente de la orden no encontrado');
 
@@ -206,7 +206,7 @@ export class ResultsService {
 
     if (dto.valueNumeric) {
       const pract = await this.getPractice(line.practiceId);
-      const pat = await this.getPatient(ord.patientId);
+      const pat = await this.getPatient(ord.patientId!);
       const template = pract.referenceValueTemplate ?? null;
       const rule = template ? pickRangeRule(template, pat) : null;
       if (rule) {

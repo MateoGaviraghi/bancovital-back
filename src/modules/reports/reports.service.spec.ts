@@ -26,8 +26,11 @@ function orderFixture(overrides: Partial<Order> = {}): Order {
   return {
     id: 1,
     labId: LAB_ID,
+    orderType: 'humana',
     protocolNumber: 11,
     patientId: 1,
+    animalPatientId: null,
+    veterinarioId: null,
     insurerId: 1,
     insuranceAffiliateNumber: null,
     referringDoctorId: null,

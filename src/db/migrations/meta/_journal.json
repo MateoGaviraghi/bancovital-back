@@ -120,6 +120,13 @@
       "when": 1781791583176,
       "tag": "0016_perfect_jetstream",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1782142121104,
+      "tag": "0017_curly_vindicator",
+      "breakpoints": true
     }
   ]
 }

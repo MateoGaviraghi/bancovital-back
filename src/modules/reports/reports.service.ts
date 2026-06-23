@@ -199,7 +199,7 @@ export class ReportsService {
       this.db
         .select()
         .from(patient)
-        .where(eq(patient.id, ord.patientId))
+        .where(eq(patient.id, ord.patientId!))
         .limit(1)
         .then((r) => r[0]),
       this.db
@@ -366,7 +366,7 @@ export class ReportsService {
     const [pat] = await this.db
       .select()
       .from(patient)
-      .where(eq(patient.id, ord.patientId))
+      .where(eq(patient.id, ord.patientId!))
       .limit(1);
     if (!pat) throw new NotFoundException('Paciente de la orden no encontrado');
 
