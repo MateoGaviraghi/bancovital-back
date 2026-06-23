@@ -3,6 +3,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
@@ -13,10 +14,11 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiNoContentResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CatalogQueryDto } from './dto/catalog-query.dto';
 import { CreatePracticeDto } from './dto/create-practice.dto';
 import { UpdatePracticeDto } from './dto/update-practice.dto';
+import { UpsertReferenciaEspecieDto } from './dto/upsert-referencia-especie.dto';
 import { PracticesService } from './practices.service';
 
 @ApiTags('practices')
@@ -91,5 +93,35 @@ export class PracticesController {
   @ApiOperation({ summary: 'Actualizar práctica (campos parciales)' })
   update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdatePracticeDto) {
     return this.practices.update(id, dto);
+  }
+
+  // ── Valores de referencia por especie ──────────────────────────────
+
+  @Get(':id/referencias-especie')
+  @ApiOperation({ summary: 'Valores de referencia por especie para esta práctica' })
+  referenciasByPractice(@Param('id', ParseIntPipe) id: number) {
+    return this.practices.referenciasByPractice(id);
+  }
+
+  @Post(':id/referencias-especie')
+  @Roles('admin')
+  @ApiOperation({ summary: 'Crear o actualizar valor de referencia por especie' })
+  upsertReferencia(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpsertReferenciaEspecieDto,
+  ) {
+    return this.practices.upsertReferencia(id, dto.especieId, dto);
+  }
+
+  @Delete(':id/referencias-especie/:especieId')
+  @Roles('admin')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiNoContentResponse({ description: 'Referencia eliminada' })
+  @ApiOperation({ summary: 'Eliminar valor de referencia por especie' })
+  async deleteReferencia(
+    @Param('id', ParseIntPipe) id: number,
+    @Param('especieId', ParseIntPipe) especieId: number,
+  ) {
+    await this.practices.deleteReferencia(id, especieId);
   }
 }

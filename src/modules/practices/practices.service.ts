@@ -1,7 +1,13 @@
 import { isUniqueViolation } from '@/common/db-errors';
 import type { Db } from '@/db/client';
 import { DATABASE } from '@/db/database.module';
-import { type Practice, practice } from '@/db/schema';
+import {
+  type NewPracticeReferenciaEspecie,
+  type Practice,
+  type PracticeReferenciaEspecie,
+  practice,
+  practiceReferenciaEspecie,
+} from '@/db/schema';
 import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { type SQL, and, asc, eq, ilike, inArray, isNull, or, sql } from 'drizzle-orm';
 import type { CatalogQueryDto } from './dto/catalog-query.dto';
@@ -165,6 +171,60 @@ export class PracticesService {
       }
       throw err;
     }
+  }
+
+  // ── Valores de referencia por especie ──────────────────────────────
+
+  async referenciasByPractice(practiceId: number): Promise<PracticeReferenciaEspecie[]> {
+    return this.db
+      .select()
+      .from(practiceReferenciaEspecie)
+      .where(eq(practiceReferenciaEspecie.practiceId, practiceId))
+      .orderBy(asc(practiceReferenciaEspecie.especieId));
+  }
+
+  async upsertReferencia(
+    practiceId: number,
+    especieId: number,
+    dto: {
+      rangeLow?: string | null;
+      rangeHigh?: string | null;
+      unit?: string | null;
+      referenceText?: string | null;
+      notes?: string | null;
+    },
+  ): Promise<PracticeReferenciaEspecie> {
+    const values: NewPracticeReferenciaEspecie = {
+      practiceId,
+      especieId,
+      rangeLow: dto.rangeLow ?? null,
+      rangeHigh: dto.rangeHigh ?? null,
+      unit: dto.unit ?? null,
+      referenceText: dto.referenceText ?? null,
+      notes: dto.notes ?? null,
+    };
+    const [row] = await this.db
+      .insert(practiceReferenciaEspecie)
+      .values(values)
+      .onConflictDoUpdate({
+        target: [practiceReferenciaEspecie.practiceId, practiceReferenciaEspecie.especieId],
+        set: { ...values, updatedAt: new Date() },
+      })
+      .returning();
+    return row;
+  }
+
+  async deleteReferencia(practiceId: number, especieId: number): Promise<void> {
+    const [row] = await this.db
+      .delete(practiceReferenciaEspecie)
+      .where(
+        and(
+          eq(practiceReferenciaEspecie.practiceId, practiceId),
+          eq(practiceReferenciaEspecie.especieId, especieId),
+        ),
+      )
+      .returning();
+    if (!row) throw new NotFoundException('Referencia no encontrada');
   }
 
   private async hydrateChildren(parents: Practice[]): Promise<PracticeWithChildren[]> {

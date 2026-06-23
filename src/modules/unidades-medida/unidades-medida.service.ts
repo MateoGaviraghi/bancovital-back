@@ -127,6 +127,7 @@ export class UnidadesMedidaService {
         labId,
         nombre,
         simbolo: dto.simbolo?.trim() || null,
+        opcionesPredeterminadas: dto.opcionesPredeterminadas ?? null,
         createdBy,
       })
       .returning();
@@ -156,6 +157,9 @@ export class UnidadesMedidaService {
     const patch: Partial<UnidadMedida> = {
       ...(dto.nombre !== undefined && { nombre: dto.nombre.trim() }),
       ...(dto.simbolo !== undefined && { simbolo: dto.simbolo }),
+      ...('opcionesPredeterminadas' in dto && {
+        opcionesPredeterminadas: (dto.opcionesPredeterminadas as string[] | null) ?? null,
+      }),
       updatedAt: new Date(),
     };
 
