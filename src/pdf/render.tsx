@@ -63,12 +63,8 @@ function ensureFontsRegistered(): void {
     Font.register({ family: 'SourceSerif4Bold', src: 'Times-Bold', fontWeight: 'normal' });
   }
 
-  // Registrar 'Helvetica' como alias de PublicSans para que el fallback interno
-  // de @react-pdf/layout (que agrega 'Helvetica' a todo fontStack) resuelva
-  // correctamente cuando ningún glyph del font principal cubre el codepoint
-  // (ej: caracteres de control como \n que generan párrafos vacíos).
-  const helveticaSrc = existsSync(publicSansRegularPath) ? publicSansRegularPath : 'Helvetica';
-  Font.register({ family: 'Helvetica', src: helveticaSrc, fontWeight: 'normal' });
+  // No sobrescribir 'Helvetica' — @react-pdf lo usa internamente como fallback
+  // y espera las métricas built-in. Sobrescribirlo causa "unitsPerEm undefined".
 
   Font.registerHyphenationCallback((word) => [word]);
   fontsRegistered = true;

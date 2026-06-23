@@ -159,6 +159,7 @@ export class PracticesService {
     if (dto.active !== undefined) set.active = dto.active;
     if ('parentId' in dto) set.parentId = dto.parentId ?? null;
     if ('referenceValue' in dto) set.referenceValue = dto.referenceValue ?? null;
+    if ('methodology' in dto) set.methodology = dto.methodology?.trim() || null;
     if (dto.isElaborated !== undefined) set.isElaborated = dto.isElaborated;
 
     try {
