@@ -189,6 +189,7 @@ export class SuperService {
           email: dto.email ?? null,
           signingProfessionalName: dto.signingProfessionalName ?? null,
           signingProfessionalMp: dto.signingProfessionalMp ?? null,
+          veterinariaHabilitada: dto.veterinariaHabilitada ?? false,
         })
         .returning();
       return row;
