@@ -34,6 +34,10 @@ export interface HydratedUnidadEntry {
   simbolo: string | null;
   sortOrder: number;
   value: OrderPracticeUnidadValue | null;
+  opcionesPredeterminadas: string[] | null;
+  rangeLow: string | null;
+  rangeHigh: string | null;
+  referenceText: string | null;
 }
 
 export interface HydratedLine {
@@ -89,6 +93,9 @@ export class ResultsService {
               practiceId: number;
               associationId: number;
               sortOrder: number;
+              rangeLow: string | null;
+              rangeHigh: string | null;
+              referenceText: string | null;
               unidad: typeof unidadMedida.$inferSelect;
             }>,
           )
@@ -97,6 +104,9 @@ export class ResultsService {
               practiceId: practiceUnidad.practiceId,
               associationId: practiceUnidad.id,
               sortOrder: practiceUnidad.sortOrder,
+              rangeLow: practiceUnidad.rangeLow,
+              rangeHigh: practiceUnidad.rangeHigh,
+              referenceText: practiceUnidad.referenceText,
               unidad: unidadMedida,
             })
             .from(practiceUnidad)
@@ -118,12 +128,22 @@ export class ResultsService {
       Array<{
         associationId: number;
         sortOrder: number;
+        rangeLow: string | null;
+        rangeHigh: string | null;
+        referenceText: string | null;
         unidad: typeof unidadMedida.$inferSelect;
       }>
     >();
     for (const a of associations) {
       const list = assocByPractice.get(a.practiceId) ?? [];
-      list.push({ associationId: a.associationId, sortOrder: a.sortOrder, unidad: a.unidad });
+      list.push({
+        associationId: a.associationId,
+        sortOrder: a.sortOrder,
+        rangeLow: a.rangeLow,
+        rangeHigh: a.rangeHigh,
+        referenceText: a.referenceText,
+        unidad: a.unidad,
+      });
       assocByPractice.set(a.practiceId, list);
     }
 
@@ -157,6 +177,10 @@ export class ResultsService {
         simbolo: a.unidad.simbolo,
         sortOrder: a.sortOrder,
         value: valueByOpAndUnidad.get(`${r.orderPractice.id}:${a.unidad.id}`) ?? null,
+        opcionesPredeterminadas: a.unidad.opcionesPredeterminadas ?? null,
+        rangeLow: a.rangeLow,
+        rangeHigh: a.rangeHigh,
+        referenceText: a.referenceText,
       }));
 
       return {

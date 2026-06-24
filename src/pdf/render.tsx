@@ -1,3 +1,4 @@
+
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import type {
@@ -63,10 +64,6 @@ function ensureFontsRegistered(): void {
     Font.register({ family: 'SourceSerif4Bold', src: 'Times-Bold', fontWeight: 'normal' });
   }
 
-  // Registrar 'Helvetica' como alias de PublicSans para que el fallback interno
-  // de @react-pdf/layout (que agrega 'Helvetica' a todo fontStack) resuelva
-  // correctamente cuando ningún glyph del font principal cubre el codepoint
-  // (ej: caracteres de control como \n que generan párrafos vacíos).
   const helveticaSrc = existsSync(publicSansRegularPath) ? publicSansRegularPath : 'Helvetica';
   Font.register({ family: 'Helvetica', src: helveticaSrc, fontWeight: 'normal' });
 
@@ -82,6 +79,8 @@ export interface RenderInformeInput {
   resultsByLineId: Map<number, Result>;
   /** Valores de unidades cargados, agrupados por orderPracticeId (sort ya aplicado). */
   unidadValuesByLineId?: Map<number, OrderPracticeUnidadValue[]>;
+  /** Rangos de referencia por unidad asociada: key = "practiceId:unidadId" */
+  unidadRefsByKey?: Map<string, { rangeLow: string | null; rangeHigh: string | null; referenceText: string | null }>;
   /** Metodologia y valor de referencia por practiceId (para mostrar en PDF cuando no hay resultado). */
   practiceDataById?: Map<number, { methodology: string | null; referenceValue: string | null }>;
   lab: Laboratorio;
@@ -305,11 +304,18 @@ export function buildInformeData(input: RenderInformeInput): InformeData {
         const r = resultsByLineId.get(l.id);
         const value = r?.valueNumeric ? cleanNumber(r.valueNumeric) : (r?.valueText ?? '');
         const rawUnidades = unidadValuesByLineId?.get(l.id) ?? [];
-        const unidades: InformeUnidadRow[] = rawUnidades.map((u) => ({
-          nombre: u.unidadNombreSnapshot,
-          simbolo: u.unidadSimboloSnapshot,
-          value: u.valueNumeric ? cleanNumber(u.valueNumeric) : (u.valueText ?? ''),
-        }));
+        const unidades: InformeUnidadRow[] = rawUnidades.map((u) => {
+          const refKey = l.practiceId ? `${l.practiceId}:${u.unidadId}` : '';
+          const ref = refKey ? (input.unidadRefsByKey?.get(refKey) ?? null) : null;
+          return {
+            nombre: u.unidadNombreSnapshot,
+            simbolo: u.unidadSimboloSnapshot,
+            value: u.valueNumeric ? cleanNumber(u.valueNumeric) : (u.valueText ?? ''),
+            rangeLow: ref?.rangeLow ?? null,
+            rangeHigh: ref?.rangeHigh ?? null,
+            referenceText: ref?.referenceText ?? null,
+          };
+        });
         const practiceData = l.practiceId ? (practiceDataById?.get(l.practiceId) ?? null) : null;
         return {
           nbuCode: l.nbuCodeSnapshot,
@@ -483,11 +489,13 @@ function ageString(birth: Date | string): string {
   return `${years} años`;
 }
 
+const AR_NUM = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 6, useGrouping: true });
+
 function cleanNumber(s: string): string {
-  if (!/^-?\d+(\.\d+)?$/.test(s)) return s;
-  const [int, dec = ''] = s.split('.');
-  const trimmed = dec.replace(/0+$/, '');
-  return trimmed ? `${int},${trimmed}` : int;
+  const normalized = s.replace(',', '.').trim();
+  const n = Number(normalized);
+  if (Number.isNaN(n)) return s;
+  return AR_NUM.format(n);
 }
 
 function formatRange(low: string | null, high: string | null, unit: string | null): string | null {

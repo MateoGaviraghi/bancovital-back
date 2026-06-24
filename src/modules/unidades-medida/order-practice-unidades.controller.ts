@@ -36,6 +36,10 @@ export class OrderPracticeUnidadesController {
       simbolo: r.unidad.simbolo,
       sortOrder: r.sortOrder,
       value: r.value,
+      opcionesPredeterminadas: r.unidad.opcionesPredeterminadas ?? null,
+      rangeLow: r.rangeLow,
+      rangeHigh: r.rangeHigh,
+      referenceText: r.referenceText,
     }));
   }
 

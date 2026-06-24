@@ -38,6 +38,9 @@ export interface PracticeUnidadRow {
   associationId: number;
   unidad: UnidadMedida;
   sortOrder: number;
+  rangeLow: string | null;
+  rangeHigh: string | null;
+  referenceText: string | null;
 }
 
 export interface OrderPracticeUnidadRow {
@@ -45,6 +48,9 @@ export interface OrderPracticeUnidadRow {
   unidad: UnidadMedida;
   sortOrder: number;
   value: OrderPracticeUnidadValue | null;
+  rangeLow: string | null;
+  rangeHigh: string | null;
+  referenceText: string | null;
 }
 
 @Injectable()
@@ -202,6 +208,9 @@ export class UnidadesMedidaService {
       .select({
         associationId: practiceUnidad.id,
         sortOrder: practiceUnidad.sortOrder,
+        rangeLow: practiceUnidad.rangeLow,
+        rangeHigh: practiceUnidad.rangeHigh,
+        referenceText: practiceUnidad.referenceText,
         unidad: unidadMedida,
       })
       .from(practiceUnidad)
@@ -244,8 +253,36 @@ export class UnidadesMedidaService {
         practiceId,
         unidadId: dto.unidadId,
         sortOrder: dto.sortOrder ?? 0,
+        rangeLow: dto.rangeLow ?? null,
+        rangeHigh: dto.rangeHigh ?? null,
+        referenceText: dto.referenceText?.trim() || null,
       })
       .returning();
+    return row;
+  }
+
+  async updateAssociation(
+    labId: number,
+    practiceId: number,
+    unidadId: number,
+    dto: { rangeLow?: string | null; rangeHigh?: string | null; referenceText?: string | null; sortOrder?: number },
+  ): Promise<PracticeUnidad> {
+    const set: Record<string, unknown> = {};
+    if (dto.rangeLow !== undefined) set.rangeLow = dto.rangeLow;
+    if (dto.rangeHigh !== undefined) set.rangeHigh = dto.rangeHigh;
+    if (dto.referenceText !== undefined) set.referenceText = dto.referenceText?.trim() || null;
+    if (dto.sortOrder !== undefined) set.sortOrder = dto.sortOrder;
+    if (Object.keys(set).length === 0) {
+      const [row] = await this.db.select().from(practiceUnidad).where(
+        and(eq(practiceUnidad.labId, labId), eq(practiceUnidad.practiceId, practiceId), eq(practiceUnidad.unidadId, unidadId)),
+      ).limit(1);
+      if (!row) throw new NotFoundException('Asociación no encontrada');
+      return row;
+    }
+    const [row] = await this.db.update(practiceUnidad).set(set).where(
+      and(eq(practiceUnidad.labId, labId), eq(practiceUnidad.practiceId, practiceId), eq(practiceUnidad.unidadId, unidadId)),
+    ).returning();
+    if (!row) throw new NotFoundException('Asociación no encontrada');
     return row;
   }
 
@@ -302,6 +339,9 @@ export class UnidadesMedidaService {
       .select({
         associationId: practiceUnidad.id,
         sortOrder: practiceUnidad.sortOrder,
+        rangeLow: practiceUnidad.rangeLow,
+        rangeHigh: practiceUnidad.rangeHigh,
+        referenceText: practiceUnidad.referenceText,
         unidad: unidadMedida,
       })
       .from(practiceUnidad)
@@ -323,6 +363,9 @@ export class UnidadesMedidaService {
       sortOrder: a.sortOrder,
       unidad: a.unidad,
       value: byUnidad.get(a.unidad.id) ?? null,
+      rangeLow: a.rangeLow,
+      rangeHigh: a.rangeHigh,
+      referenceText: a.referenceText,
     }));
   }
 

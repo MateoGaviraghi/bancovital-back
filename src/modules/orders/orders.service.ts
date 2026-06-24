@@ -453,8 +453,13 @@ export class OrdersService {
     return { order: updatedOrder, lines };
   }
 
-  async list(labId: number, filters: ListOrdersDto): Promise<OrderSummary[]> {
-    const limit = Math.min(Math.max(filters.limit ?? 50, 1), 200);
+  async list(
+    labId: number,
+    filters: ListOrdersDto,
+  ): Promise<{ data: OrderSummary[]; total: number; page: number; pageSize: number }> {
+    const pageSize = Math.min(Math.max(filters.limit ?? 50, 1), 200);
+    const page = Math.max(filters.page ?? 1, 1);
+    const offset = (page - 1) * pageSize;
 
     const conds = [eq(order.labId, labId)];
     if (filters.status && filters.status.length > 0) {
@@ -483,25 +488,36 @@ export class OrdersService {
       if (searchExpr) conds.push(searchExpr);
     }
 
-    const rows = await this.db
-      .select({
-        order: order,
-        patientId: patient.id,
-        patientFirstName: patient.firstName,
-        patientLastName: patient.lastName,
-        patientDni: patient.dni,
-        insurerId: insurer.id,
-        insurerCode: insurer.code,
-        insurerName: insurer.name,
-      })
-      .from(order)
-      .innerJoin(patient, and(eq(patient.id, order.patientId), eq(patient.labId, labId)))
-      .innerJoin(insurer, eq(insurer.id, order.insurerId))
-      .where(and(...conds))
-      .orderBy(desc(order.orderDate))
-      .limit(limit);
+    const whereExpr = and(...conds);
 
-    return rows.map((r) => ({
+    const [rows, countResult] = await Promise.all([
+      this.db
+        .select({
+          order: order,
+          patientId: patient.id,
+          patientFirstName: patient.firstName,
+          patientLastName: patient.lastName,
+          patientDni: patient.dni,
+          insurerId: insurer.id,
+          insurerCode: insurer.code,
+          insurerName: insurer.name,
+        })
+        .from(order)
+        .innerJoin(patient, and(eq(patient.id, order.patientId), eq(patient.labId, labId)))
+        .innerJoin(insurer, eq(insurer.id, order.insurerId))
+        .where(whereExpr)
+        .orderBy(desc(order.orderDate))
+        .limit(pageSize)
+        .offset(offset),
+      this.db
+        .select({ n: sql<number>`count(*)::int` })
+        .from(order)
+        .innerJoin(patient, and(eq(patient.id, order.patientId), eq(patient.labId, labId)))
+        .innerJoin(insurer, eq(insurer.id, order.insurerId))
+        .where(whereExpr),
+    ]);
+
+    const data = rows.map((r) => ({
       ...r.order,
       patient: {
         id: r.patientId,
@@ -511,6 +527,8 @@ export class OrdersService {
       },
       insurer: { id: r.insurerId, code: r.insurerCode, name: r.insurerName },
     }));
+
+    return { data, total: countResult[0]?.n ?? 0, page, pageSize };
   }
 
   async byId(labId: number, id: number): Promise<OrderSummary> {
