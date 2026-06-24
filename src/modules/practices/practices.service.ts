@@ -70,23 +70,18 @@ export class PracticesService {
     }
     const where = filters.length ? and(...filters) : undefined;
 
-    // El catalogo muestra solo practicas raiz (parentId IS NULL); los hijos
-    // se hidratan en el campo children de cada padre.
-    const rootWhere = where ? and(where, isNull(practice.parentId)) : isNull(practice.parentId);
-
     const [rows, totalRows, sectionRows] = await Promise.all([
       this.db
         .select()
         .from(practice)
-        .where(rootWhere)
+        .where(where)
         .orderBy(asc(practice.name))
         .limit(pageSize)
         .offset((page - 1) * pageSize),
-      this.db.select({ n: sql<number>`count(*)::int` }).from(practice).where(rootWhere),
+      this.db.select({ n: sql<number>`count(*)::int` }).from(practice).where(where),
       this.db
         .selectDistinct({ section: practice.section })
         .from(practice)
-        .where(isNull(practice.parentId))
         .orderBy(asc(practice.section)),
     ]);
 
@@ -148,18 +143,18 @@ export class PracticesService {
     const set: Record<string, unknown> = { updatedAt: new Date() };
     if (dto.nbuCode !== undefined) set.nbuCode = dto.nbuCode.trim();
     if (dto.name !== undefined) set.name = dto.name.trim();
-    if ('shortName' in dto) set.shortName = dto.shortName?.trim() || null;
-    if ('category' in dto) set.category = dto.category?.trim() || null;
-    if ('section' in dto) set.section = dto.section?.trim() || null;
-    if ('units' in dto) set.units = dto.units ?? null;
-    if ('notes' in dto) set.notes = dto.notes?.trim() || null;
+    if (dto.shortName !== undefined) set.shortName = dto.shortName?.trim() || null;
+    if (dto.category !== undefined) set.category = dto.category?.trim() || null;
+    if (dto.section !== undefined) set.section = dto.section?.trim() || null;
+    if (dto.units !== undefined) set.units = dto.units ?? null;
+    if (dto.notes !== undefined) set.notes = dto.notes?.trim() || null;
     if (dto.requiresAuthorization !== undefined)
       set.requiresAuthorization = dto.requiresAuthorization;
     if (dto.isSpecialAct !== undefined) set.isSpecialAct = dto.isSpecialAct;
     if (dto.active !== undefined) set.active = dto.active;
-    if ('parentId' in dto) set.parentId = dto.parentId ?? null;
-    if ('referenceValue' in dto) set.referenceValue = dto.referenceValue ?? null;
-    if ('methodology' in dto) set.methodology = dto.methodology?.trim() || null;
+    if (dto.parentId !== undefined) set.parentId = dto.parentId ?? null;
+    if (dto.referenceValue !== undefined) set.referenceValue = dto.referenceValue ?? null;
+    if (dto.methodology !== undefined) set.methodology = dto.methodology?.trim() || null;
     if (dto.isElaborated !== undefined) set.isElaborated = dto.isElaborated;
 
     try {

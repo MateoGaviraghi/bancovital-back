@@ -1,11 +1,20 @@
 import { Document, Image, Page, StyleSheet, Text, View } from '@react-pdf/renderer';
 
+const AR_NUM = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 6, useGrouping: true });
+function fmtNum(s: string): string {
+  const n = Number(s.replace(',', '.').trim());
+  return Number.isNaN(n) ? s : AR_NUM.format(n);
+}
+
 export type InformeFlag = 'normal' | 'low' | 'high' | 'critical_low' | 'critical_high' | null;
 
 export interface InformeUnidadRow {
   nombre: string;
   simbolo: string | null;
   value: string;
+  rangeLow: string | null;
+  rangeHigh: string | null;
+  referenceText: string | null;
 }
 
 export interface InformeResultRow {
@@ -463,13 +472,27 @@ function OverlayResultsTable({ results, colors }: { results: InformeResultRow[];
   );
 }
 
+function WmRow({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={{ flexDirection: 'row', marginVertical: 1.5 }}>
+      <Text style={{ fontFamily: 'PublicSansSemiBold', fontSize: 9, color: '#1a1a1a', width: 95 }}>
+        {label}
+      </Text>
+      <Text style={{ fontSize: 9, color: '#1a1a1a' }}>{value}</Text>
+    </View>
+  );
+}
+
 function WatermarkInforme({ data }: { data: InformeData }) {
-  const campos = data.layoutConfig ?? {};
-  const entries = Object.entries(campos);
-  const textFields = entries.filter(([k]) => !k.startsWith('tabla.') && k !== 'firma.imagen' && k !== 'qr');
-  const tableField = entries.find(([k]) => k === 'tabla.resultados');
-  const signField = entries.find(([k]) => k === 'firma.imagen');
-  const qrField = entries.find(([k]) => k === 'qr');
+  const sexLabel = data.patient.sex ? SEX_LABEL[data.patient.sex] : '—';
+  const tc = data.layoutConfig?.['tabla.resultados'];
+  const tableColors: TableColors = {
+    headerBg: tc?.headerBg ?? DEFAULT_TABLE_COLORS.headerBg,
+    headerColor: tc?.headerColor ?? DEFAULT_TABLE_COLORS.headerColor,
+    borderColor: tc?.borderColor ?? DEFAULT_TABLE_COLORS.borderColor,
+    rowColor: tc?.rowColor ?? DEFAULT_TABLE_COLORS.rowColor,
+  };
+  const m = data.margins ?? { top: 20, bottom: 20, left: 40, right: 40 };
 
   return (
     <Document
@@ -479,61 +502,90 @@ function WatermarkInforme({ data }: { data: InformeData }) {
     >
       <Page
         size="A4"
-        style={{ fontFamily: 'PublicSans', fontSize: 9.5, color: C.ink }}
+        style={{
+          fontFamily: 'PublicSans',
+          fontSize: 9,
+          color: '#1a1a1a',
+          paddingTop: m.top,
+          paddingBottom: m.bottom,
+          paddingLeft: m.left,
+          paddingRight: m.right,
+        }}
       >
-        {/* Marca de agua como fondo */}
         <Image
           src={data.fondoSrc!}
           style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
           fixed
         />
 
-        {/* Campos de texto posicionados */}
-        {textFields.map(([key, pos]) => {
-          const value = resolveFieldValue(key, data);
-          if (value === null) return null;
-          const fs = pos.fontSize ?? 9;
-          const color = pos.color ?? '#000000';
-          return (
-            <View key={key} style={{ position: 'absolute', left: pos.x, top: pos.y, flexDirection: 'row' }}>
-              {pos.prefix ? (
-                <Text style={{ fontSize: fs, color, fontFamily: pos.bold ? 'PublicSansSemiBold' : 'PublicSans' }}>
-                  {pos.prefix}
-                </Text>
-              ) : null}
-              <Text style={{ fontSize: fs, color, fontFamily: 'PublicSans' }}>
-                {value}
-              </Text>
-            </View>
-          );
-        })}
+        {/* Espacio para encabezado del membrete */}
+        <View style={{ height: 100 }} />
 
-        {/* Tabla de resultados — ancho dinámico: desde x hasta el margen derecho (30pt) */}
-        {tableField && data.results.length > 0 ? (
-          <View style={{ position: 'absolute', left: tableField[1].x, top: tableField[1].y, width: Math.max(200, 595 - tableField[1].x - 30) }}>
-            <OverlayResultsTable
-              results={data.results}
-              colors={{
-                headerBg: tableField[1].headerBg ?? DEFAULT_TABLE_COLORS.headerBg,
-                headerColor: tableField[1].headerColor ?? DEFAULT_TABLE_COLORS.headerColor,
-                borderColor: tableField[1].borderColor ?? DEFAULT_TABLE_COLORS.borderColor,
-                rowColor: tableField[1].rowColor ?? DEFAULT_TABLE_COLORS.rowColor,
-              }}
+        {/* Protocolo arriba a la derecha */}
+        <View style={{ position: 'absolute', top: m.top + 10, right: m.right, alignItems: 'flex-end' }}>
+          <Text style={{ fontFamily: 'PublicSansSemiBold', fontSize: 7, color: '#888', letterSpacing: 0.5 }}>
+            PROTOCOLO
+          </Text>
+          <Text style={{ fontFamily: 'PublicSansSemiBold', fontSize: 12, color: '#1a1a1a' }}>
+            {data.protocol.number}
+          </Text>
+          <Text style={{ fontSize: 7, color: '#888' }}>{data.protocol.orderDate}</Text>
+        </View>
+
+        {/* Datos del paciente */}
+        <View style={{ marginBottom: 14 }}>
+          <WmRow label="Nombre:" value={data.patient.fullName} />
+          <WmRow label="DNI:" value={data.patient.dni} />
+          <WmRow label="Sexo:" value={sexLabel} />
+          <WmRow label="Edad:" value={data.patient.age} />
+          <WmRow label="F. Nacimiento:" value={data.patient.birthDate} />
+          <WmRow
+            label="Cobertura:"
+            value={`${data.insurer.name}${data.insurer.affiliateNumber ? ` · ${data.insurer.affiliateNumber}` : ''}`}
+          />
+          {data.doctor.name ? (
+            <WmRow
+              label="Médico:"
+              value={`${data.doctor.name}${data.doctor.mp ? ` · M.P. ${data.doctor.mp}` : ''}`}
             />
-          </View>
+          ) : null}
+          {data.doctor.diagnosis ? (
+            <WmRow label="Diagnóstico:" value={data.doctor.diagnosis} />
+          ) : null}
+        </View>
+
+        {/* Tabla de resultados */}
+        {data.results.length > 0 ? (
+          <OverlayResultsTable results={data.results} colors={tableColors} />
         ) : null}
 
-        {/* Firma imagen */}
-        {signField && data.signedBy.signatureSrc ? (
-          <View style={{ position: 'absolute', left: signField[1].x, top: signField[1].y }}>
-            <Image src={data.signedBy.signatureSrc} style={{ width: 140, height: 50, objectFit: 'contain' }} />
-          </View>
-        ) : null}
+        <View style={{ flexGrow: 1, minHeight: 20 }} />
 
-        {/* QR */}
-        {qrField && data.qrCodeDataUri ? (
-          <View style={{ position: 'absolute', left: qrField[1].x, top: qrField[1].y }}>
-            <Image src={data.qrCodeDataUri} style={{ width: 55, height: 55 }} />
+        {/* Firma */}
+        <View style={{ alignItems: 'center', marginTop: 10 }}>
+          {data.signedBy.signatureSrc ? (
+            <Image
+              src={data.signedBy.signatureSrc}
+              style={{ width: 140, height: 50, objectFit: 'contain', marginBottom: 2 }}
+            />
+          ) : (
+            <View style={{ height: 40 }} />
+          )}
+          <Text style={{ fontFamily: 'PublicSansSemiBold', fontSize: 6.5, color: '#888', letterSpacing: 0.5, marginBottom: 4 }}>
+            Responsable Técnico:
+          </Text>
+          <Text style={{ fontFamily: 'PublicSansSemiBold', fontSize: 10, color: '#1a1a1a' }}>
+            {data.signedBy.name}
+          </Text>
+          {data.signedBy.matricula ? (
+            <Text style={{ fontSize: 8, color: '#666', marginTop: 1 }}>MP {data.signedBy.matricula}</Text>
+          ) : null}
+        </View>
+
+        {data.qrCodeDataUri ? (
+          <View style={{ position: 'absolute', bottom: m.bottom + 5, right: m.right, alignItems: 'center' }}>
+            <Image src={data.qrCodeDataUri} style={{ width: 50, height: 50 }} />
+            <Text style={{ fontSize: 5, color: '#999', marginTop: 1 }}>Verificá tu informe</Text>
           </View>
         ) : null}
       </Page>
@@ -544,15 +596,18 @@ function WatermarkInforme({ data }: { data: InformeData }) {
 // ── Modo estructurado (sin marca de agua) ────────────────────────────
 
 export function InformeTemplate({ data }: { data: InformeData }) {
-  // Cuando hay marca de agua: solo fondo + campos posicionados.
-  if (data.fondoSrc) {
-    return <WatermarkInforme data={data} />;
-  }
-
-  // Sin marca de agua: template estructurado completo.
   const sexLabel = data.patient.sex ? SEX_LABEL[data.patient.sex] : '—';
   const accent = data.accent || C.primary;
   const accentSoft = data.accentSoft || C.primarySoft;
+  const tc = data.layoutConfig?.['tabla.resultados'];
+  const tHeaderBg = tc?.headerBg || accent;
+  const tHeaderColor = tc?.headerColor || '#ffffff';
+  const tBorder = tc?.borderColor || C.border;
+  const tRowColor = tc?.rowColor || C.ink;
+  const cc = data.layoutConfig?.['cuadros'];
+  const cardTitle = cc?.color || accent;
+  const cardBorder = cc?.borderColor || C.border;
+  const cardBg = cc?.headerBg || C.bandBg;
   const pageStyle = data.margins
     ? {
         ...styles.page,
@@ -570,42 +625,55 @@ export function InformeTemplate({ data }: { data: InformeData }) {
       subject="Informe de laboratorio"
     >
       <Page size="A4" style={pageStyle}>
-        {/* Header: logo + lab info */}
-        <View style={styles.header}>
-          {data.lab.logoSrc ? <Image src={data.lab.logoSrc} style={styles.logo} /> : null}
-          <View style={styles.labInfo}>
-            <Text style={styles.legalName}>{data.lab.legalName}</Text>
-            <Text style={styles.labLine}>
-              {data.lab.address} — {data.lab.cityProvince}
-            </Text>
-            <Text style={styles.labLine}>
-              CUIT {data.lab.cuit}
-              {data.lab.phone ? `  ·  Tel. ${data.lab.phone}` : ''}
-              {data.lab.email ? `  ·  ${data.lab.email}` : ''}
-            </Text>
-          </View>
-          <View style={[styles.protocolBadge, { backgroundColor: accentSoft }]}>
-            <Text style={[styles.protocolLabel, { color: accent }]}>PROTOCOLO</Text>
-            <Text style={[styles.protocolNumber, { color: accent }]}>{data.protocol.number}</Text>
-            <Text style={styles.protocolDate}>{data.protocol.orderDate}</Text>
-          </View>
-        </View>
+        {/* Imagen de fondo (membrete) si existe */}
+        {data.fondoSrc ? (
+          <Image
+            src={data.fondoSrc}
+            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
+            fixed
+          />
+        ) : null}
 
-        {/* Accent rule */}
-        <View style={[styles.rule, { backgroundColor: accent }]} />
+        {/* Header + rule: si hay fondo se dejan 80pt de espacio; si no, header completo */}
+        {data.fondoSrc ? (
+          <View style={{ height: 80 }} />
+        ) : (
+          <>
+            <View style={styles.header}>
+              {data.lab.logoSrc ? <Image src={data.lab.logoSrc} style={styles.logo} /> : null}
+              <View style={styles.labInfo}>
+                <Text style={styles.legalName}>{data.lab.legalName}</Text>
+                <Text style={styles.labLine}>
+                  {data.lab.address} — {data.lab.cityProvince}
+                </Text>
+                <Text style={styles.labLine}>
+                  CUIT {data.lab.cuit}
+                  {data.lab.phone ? `  ·  Tel. ${data.lab.phone}` : ''}
+                  {data.lab.email ? `  ·  ${data.lab.email}` : ''}
+                </Text>
+              </View>
+              <View style={[styles.protocolBadge, { backgroundColor: accentSoft }]}>
+                <Text style={[styles.protocolLabel, { color: accent }]}>PROTOCOLO</Text>
+                <Text style={[styles.protocolNumber, { color: accent }]}>{data.protocol.number}</Text>
+                <Text style={styles.protocolDate}>{data.protocol.orderDate}</Text>
+              </View>
+            </View>
+            <View style={[styles.rule, { backgroundColor: accent }]} />
+          </>
+        )}
 
         {/* Patient + coverage cards */}
         <View style={styles.infoGrid}>
-          <View style={styles.infoCard}>
-            <Text style={[styles.cardTitle, { color: accent }]}>PACIENTE</Text>
+          <View style={[styles.infoCard, { borderColor: cardBorder, backgroundColor: cardBg }]}>
+            <Text style={[styles.cardTitle, { color: cardTitle }]}>PACIENTE</Text>
             <InfoRow label="Apellido, Nombre" value={data.patient.fullName} />
             <InfoRow label="DNI" value={data.patient.dni} />
             <InfoRow label="Sexo · Edad" value={`${sexLabel} · ${data.patient.age}`} />
             <InfoRow label="Nacimiento" value={data.patient.birthDate} />
           </View>
 
-          <View style={styles.infoCard}>
-            <Text style={[styles.cardTitle, { color: accent }]}>COBERTURA Y MÉDICO</Text>
+          <View style={[styles.infoCard, { borderColor: cardBorder, backgroundColor: cardBg }]}>
+            <Text style={[styles.cardTitle, { color: cardTitle }]}>COBERTURA Y MÉDICO</Text>
             <InfoRow
               label="Obra social"
               value={`${data.insurer.name}${
@@ -626,21 +694,21 @@ export function InformeTemplate({ data }: { data: InformeData }) {
 
         {/* Results table */}
         <Text style={[styles.resultsTitle, { color: accent }]}>Resultados</Text>
-        <View style={styles.table}>
-          <View style={[styles.tableHeader, { backgroundColor: accent }]} fixed>
-            <Text style={[styles.th, styles.colName]}>PRÁCTICA</Text>
-            <Text style={[styles.th, styles.colValue]}>RESULTADO</Text>
-            <Text style={[styles.th, styles.colUnit]}>UNIDAD</Text>
-            <Text style={[styles.th, styles.colRange]}>REFERENCIA</Text>
-            <Text style={[styles.th, styles.colFlag]}>ESTADO</Text>
+        <View style={[styles.table, { borderColor: tBorder }]}>
+          <View style={[styles.tableHeader, { backgroundColor: tHeaderBg }]} fixed>
+            <Text style={[styles.th, styles.colName, { color: tHeaderColor }]}>PRÁCTICA</Text>
+            <Text style={[styles.th, styles.colValue, { color: tHeaderColor }]}>RESULTADO</Text>
+            <Text style={[styles.th, styles.colUnit, { color: tHeaderColor }]}>UNIDAD</Text>
+            <Text style={[styles.th, styles.colRange, { color: tHeaderColor }]}>REFERENCIA</Text>
+            <Text style={[styles.th, styles.colFlag, { color: tHeaderColor }]}>ESTADO</Text>
           </View>
           {data.results.map((r) => {
             const bStyle = badgeStyle(r.flag);
             const numeric = isNumericValue(r.value);
             return (
-              <View key={r.nbuCode} style={styles.tableRow} wrap={false}>
+              <View key={r.nbuCode} style={[styles.tableRow, { borderTopColor: tBorder }]} wrap={false}>
                 <View style={styles.colName}>
-                  <Text style={styles.practiceName}>{r.name}</Text>
+                  <Text style={[styles.practiceName, { color: tRowColor }]}>{r.name}</Text>
                   <Text style={styles.nbuCode}>NBU {r.nbuCode}</Text>
                   {r.methodology ? (
                     <Text style={styles.metaText}>Método: {r.methodology}</Text>
@@ -656,13 +724,19 @@ export function InformeTemplate({ data }: { data: InformeData }) {
                   </Text>
                   {r.unidades && r.unidades.length > 0 ? (
                     <View style={styles.unidadesBlock}>
-                      {r.unidades.map((u, i) => (
-                        <View key={`${u.nombre}-${i}`} style={styles.unidadRow} wrap={false}>
-                          <Text style={styles.unidadNombre}>{u.nombre}</Text>
-                          <Text style={styles.unidadValue}>{u.value || '—'}</Text>
-                          {u.simbolo ? <Text style={styles.unidadSimbolo}>{u.simbolo}</Text> : null}
-                        </View>
-                      ))}
+                      {r.unidades.map((u, i) => {
+                        const uRef = (u.rangeLow || u.rangeHigh)
+                          ? `${u.rangeLow ? fmtNum(u.rangeLow) : '—'} – ${u.rangeHigh ? fmtNum(u.rangeHigh) : '—'}`
+                          : (u.referenceText ?? null);
+                        return (
+                          <View key={`${u.nombre}-${i}`} style={styles.unidadRow} wrap={false}>
+                            <Text style={styles.unidadNombre}>{u.nombre}</Text>
+                            <Text style={styles.unidadValue}>{u.value || '—'}</Text>
+                            {u.simbolo ? <Text style={styles.unidadSimbolo}>{u.simbolo}</Text> : null}
+                            {uRef ? <Text style={{ fontSize: 7, color: C.muted, marginLeft: 6 }}>{uRef}</Text> : null}
+                          </View>
+                        );
+                      })}
                     </View>
                   ) : null}
                 </View>

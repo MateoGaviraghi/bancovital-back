@@ -10,6 +10,7 @@ import {
   HttpStatus,
   Param,
   ParseIntPipe,
+  Patch,
   Post,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -38,6 +39,18 @@ export class PracticeUnidadesController {
     @Body() dto: AssociateUnidadDto,
   ) {
     return this.unidades.associate(requireLabId(user), practiceId, dto);
+  }
+
+  @Patch(':unidadId')
+  @Roles('admin')
+  @ApiOperation({ summary: 'Actualizar rangos de referencia de una unidad asociada' })
+  updateRef(
+    @CurrentUser() user: Session,
+    @Param('practiceId', ParseIntPipe) practiceId: number,
+    @Param('unidadId', ParseIntPipe) unidadId: number,
+    @Body() dto: AssociateUnidadDto,
+  ) {
+    return this.unidades.updateAssociation(requireLabId(user), practiceId, unidadId, dto);
   }
 
   @Delete(':unidadId')
