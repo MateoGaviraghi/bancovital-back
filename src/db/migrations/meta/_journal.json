@@ -127,6 +127,13 @@
       "when": 1782142121104,
       "tag": "0017_curly_vindicator",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1782323636212,
+      "tag": "0018_resync_drift",
+      "breakpoints": true
     }
   ]
 }
