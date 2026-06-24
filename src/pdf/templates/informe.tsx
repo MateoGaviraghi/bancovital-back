@@ -119,7 +119,7 @@ const styles = StyleSheet.create({
   },
 
   header: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 },
-  logo: { width: 54, height: 54, marginRight: 14, objectFit: 'contain' },
+  logo: { width: 76, height: 76, marginRight: 16, objectFit: 'contain' },
   labInfo: { flexGrow: 1 },
   legalName: {
     fontFamily: 'SourceSerif4Bold',
@@ -204,11 +204,11 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
 
-  colName: { width: '27%', paddingRight: 8 },
-  colValue: { width: '37%', paddingRight: 8 },
-  colUnit: { width: '10%', paddingRight: 4 },
-  colRange: { width: '16%', paddingRight: 4 },
-  colFlag: { width: '10%' },
+  colName: { width: '24%', paddingRight: 8 },
+  colValue: { width: '26%', paddingRight: 8 },
+  colUnit: { width: '8%', paddingRight: 4 },
+  colRange: { width: '30%', paddingRight: 4 },
+  colFlag: { width: '12%' },
 
   practiceName: { fontFamily: 'PublicSansSemiBold', fontSize: 9.5, color: C.ink },
   nbuCode: { fontSize: 7.5, color: C.subtle, marginTop: 1 },
@@ -670,6 +670,13 @@ export function InformeTemplate({ data }: { data: InformeData }) {
             <InfoRow label="DNI" value={data.patient.dni} />
             <InfoRow label="Sexo · Edad" value={`${sexLabel} · ${data.patient.age}`} />
             <InfoRow label="Nacimiento" value={data.patient.birthDate} />
+            {data.patient.streetAddress || data.patient.city ? (
+              <InfoRow
+                label="Domicilio"
+                value={[data.patient.streetAddress, data.patient.city].filter(Boolean).join(', ')}
+              />
+            ) : null}
+            {data.patient.phone ? <InfoRow label="Teléfono" value={data.patient.phone} /> : null}
           </View>
 
           <View style={[styles.infoCard, { borderColor: cardBorder, backgroundColor: cardBg }]}>
@@ -706,7 +713,12 @@ export function InformeTemplate({ data }: { data: InformeData }) {
             const bStyle = badgeStyle(r.flag);
             const numeric = isNumericValue(r.value);
             return (
-              <View key={r.nbuCode} style={[styles.tableRow, { borderTopColor: tBorder }]} wrap={false}>
+              <View
+                key={r.nbuCode}
+                style={[styles.tableRow, { borderTopColor: tBorder, flexDirection: 'column' }]}
+                wrap={false}
+              >
+                <View style={{ flexDirection: 'row', width: '100%', alignItems: 'flex-start' }}>
                 <View style={styles.colName}>
                   <Text style={[styles.practiceName, { color: tRowColor }]}>{r.name}</Text>
                   <Text style={styles.nbuCode}>NBU {r.nbuCode}</Text>
@@ -716,7 +728,6 @@ export function InformeTemplate({ data }: { data: InformeData }) {
                   {r.referenceValue ? (
                     <Text style={styles.metaText}>Ref.: {r.referenceValue}</Text>
                   ) : null}
-                  {r.notes ? <Text style={styles.metaText}>{r.notes}</Text> : null}
                 </View>
                 <View style={styles.colValue}>
                   <Text style={numeric ? styles.valueNum : styles.valueProse}>
@@ -753,6 +764,12 @@ export function InformeTemplate({ data }: { data: InformeData }) {
                     <Text style={styles.rangeText}>—</Text>
                   )}
                 </View>
+                </View>
+                {r.notes ? (
+                  <Text style={[styles.metaText, { marginTop: 4, width: '100%' }]}>
+                    Obs.: {r.notes}
+                  </Text>
+                ) : null}
               </View>
             );
           })}

@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsArray, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 
 export class UpdateUnidadMedidaDto {
   @ApiPropertyOptional({ maxLength: 80 })
@@ -19,4 +19,14 @@ export class UpdateUnidadMedidaDto {
   @IsString()
   @MaxLength(20)
   simbolo?: string | null;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    description: 'Opciones predeterminadas para select (ej ["Amarillo", "Ámbar", "Rojizo"])',
+    type: [String],
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  opcionesPredeterminadas?: string[] | null;
 }
