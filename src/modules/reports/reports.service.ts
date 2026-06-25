@@ -3,17 +3,22 @@ import { AppConfig } from '@/config';
 import type { Db } from '@/db/client';
 import { DATABASE, SUPABASE_ADMIN } from '@/db/database.module';
 import {
+  especie,
   insurer,
   laboratorio,
   order,
   orderPractice,
   orderPracticeUnidadValue,
+  pacienteAnimal,
   patient,
   practice,
+  practiceReferenciaEspecie,
   practiceUnidad,
   preferenciaPdf,
+  propietario,
   result,
   sede,
+  veterinario,
 } from '@/db/schema';
 import type { Order, OrderPracticeUnidadValue, Result } from '@/db/schema';
 import { resolveAssetDataUri } from '@/modules/lab-config/asset-storage';
@@ -189,17 +194,11 @@ export class ReportsService {
   async ficha(labId: number, orderId: number): Promise<Buffer> {
     const ord = await this.requireOrder(labId, orderId);
 
-    const [lab, pat, ins, lines] = await Promise.all([
+    const [lab, ins, lines] = await Promise.all([
       this.db
         .select()
         .from(laboratorio)
         .where(eq(laboratorio.id, labId))
-        .limit(1)
-        .then((r) => r[0]),
-      this.db
-        .select()
-        .from(patient)
-        .where(eq(patient.id, ord.patientId!))
         .limit(1)
         .then((r) => r[0]),
       this.db
@@ -216,8 +215,13 @@ export class ReportsService {
     ]);
 
     if (!lab) throw new InternalServerErrorException('Laboratorio no configurado');
-    if (!pat) throw new NotFoundException('Paciente no encontrado');
     if (!ins) throw new NotFoundException('Obra social no encontrada');
+
+    let pat: typeof patient.$inferSelect | null = null;
+    if (ord.patientId) {
+      const [row] = await this.db.select().from(patient).where(eq(patient.id, ord.patientId)).limit(1);
+      pat = row ?? null;
+    }
 
     // Enrich each line with section and isElaborated from the practice catalog
     const practiceIds = lines.map((l) => l.practiceId).filter((id): id is number => id !== null);
@@ -363,12 +367,57 @@ export class ReportsService {
       .orderBy(desc(preferenciaPdf.updatedAt))
       .limit(1);
 
-    const [pat] = await this.db
-      .select()
-      .from(patient)
-      .where(eq(patient.id, ord.patientId!))
-      .limit(1);
-    if (!pat) throw new NotFoundException('Paciente de la orden no encontrado');
+    let pat: typeof patient.$inferSelect | null = null;
+    let animalData: {
+      nombre: string;
+      especie: string;
+      raza: string | null;
+      propietario: string;
+      propietarioDni: string;
+    } | null = null;
+    let vetData: { name: string; matricula: string } | null = null;
+
+    if (ord.patientId) {
+      const [row] = await this.db
+        .select()
+        .from(patient)
+        .where(eq(patient.id, ord.patientId))
+        .limit(1);
+      if (!row) throw new NotFoundException('Paciente de la orden no encontrado');
+      pat = row;
+    } else if (ord.animalPatientId) {
+      const [row] = await this.db
+        .select({
+          nombre: pacienteAnimal.nombre,
+          especieNombre: especie.nombre,
+          razaNombre: pacienteAnimal.nombre,
+          propNombre: propietario.firstName,
+          propApellido: propietario.lastName,
+          propDni: propietario.dni,
+        })
+        .from(pacienteAnimal)
+        .leftJoin(especie, eq(especie.id, pacienteAnimal.especieId))
+        .leftJoin(propietario, eq(propietario.id, pacienteAnimal.propietarioId))
+        .where(eq(pacienteAnimal.id, ord.animalPatientId))
+        .limit(1);
+      if (row) {
+        animalData = {
+          nombre: row.nombre,
+          especie: row.especieNombre ?? '—',
+          raza: null,
+          propietario: `${row.propApellido}, ${row.propNombre}`,
+          propietarioDni: row.propDni ?? '',
+        };
+      }
+      if (ord.veterinarioId) {
+        const [vet] = await this.db
+          .select({ firstName: veterinario.firstName, lastName: veterinario.lastName, matricula: veterinario.matricula })
+          .from(veterinario)
+          .where(eq(veterinario.id, ord.veterinarioId))
+          .limit(1);
+        if (vet) vetData = { name: `${vet.lastName}, ${vet.firstName}`, matricula: vet.matricula };
+      }
+    }
 
     const [ins] = await this.db
       .select({ name: insurer.name })
@@ -386,7 +435,7 @@ export class ReportsService {
     const practiceIds = lines.map((l) => l.practiceId).filter((id): id is number => id !== null);
     const practiceDataById = new Map<
       number,
-      { methodology: string | null; referenceValue: string | null }
+      { methodology: string | null; referenceValue: string | null; defaultUnit: string | null }
     >();
     if (practiceIds.length > 0) {
       const practiceRows = await this.db
@@ -394,6 +443,7 @@ export class ReportsService {
           id: practice.id,
           methodology: practice.methodology,
           referenceValue: practice.referenceValue,
+          defaultUnit: practice.defaultUnit,
         })
         .from(practice)
         .where(inArray(practice.id, practiceIds));
@@ -401,6 +451,7 @@ export class ReportsService {
         practiceDataById.set(p.id, {
           methodology: p.methodology,
           referenceValue: p.referenceValue,
+          defaultUnit: p.defaultUnit,
         });
     }
 
@@ -442,6 +493,54 @@ export class ReportsService {
       }
     }
 
+    const unidadRefsByKey = new Map<string, { rangeLow: string | null; rangeHigh: string | null; referenceText: string | null }>();
+    if (practiceIds.length > 0) {
+      const puRows = await this.db
+        .select({
+          practiceId: practiceUnidad.practiceId,
+          unidadId: practiceUnidad.unidadId,
+          rangeLow: practiceUnidad.rangeLow,
+          rangeHigh: practiceUnidad.rangeHigh,
+          referenceText: practiceUnidad.referenceText,
+        })
+        .from(practiceUnidad)
+        .where(and(eq(practiceUnidad.labId, ord.labId), inArray(practiceUnidad.practiceId, practiceIds)));
+      for (const pu of puRows) {
+        unidadRefsByKey.set(`${pu.practiceId}:${pu.unidadId}`, {
+          rangeLow: pu.rangeLow,
+          rangeHigh: pu.rangeHigh,
+          referenceText: pu.referenceText,
+        });
+      }
+    }
+
+    const especieRefsByPractice = new Map<number, { rangeLow: string | null; rangeHigh: string | null; unit: string | null }>();
+    if (ord.animalPatientId && practiceIds.length > 0) {
+      const [animal] = await this.db
+        .select({ especieId: pacienteAnimal.especieId })
+        .from(pacienteAnimal)
+        .where(eq(pacienteAnimal.id, ord.animalPatientId))
+        .limit(1);
+      if (animal) {
+        const refs = await this.db
+          .select()
+          .from(practiceReferenciaEspecie)
+          .where(
+            and(
+              inArray(practiceReferenciaEspecie.practiceId, practiceIds),
+              eq(practiceReferenciaEspecie.especieId, animal.especieId),
+            ),
+          );
+        for (const ref of refs) {
+          especieRefsByPractice.set(ref.practiceId, {
+            rangeLow: ref.rangeLow,
+            rangeHigh: ref.rangeHigh,
+            unit: ref.unit,
+          });
+        }
+      }
+    }
+
     const [logoDataUri, signatureDataUri, fondoDataUri] = await Promise.all([
       resolveAssetDataUri(this.storage, lab.logoPath),
       resolveAssetDataUri(this.storage, lab.signingSignaturePath),
@@ -460,12 +559,16 @@ export class ReportsService {
 
     const buffer = await renderInformePdf({
       order: ord,
-      patient: pat,
+      patient: pat ?? undefined,
+      animalPatient: animalData ?? undefined,
+      veterinario: vetData ?? undefined,
       insurer: ins,
       lines,
       resultsByLineId,
       unidadValuesByLineId,
       practiceDataById,
+      unidadRefsByKey,
+      especieRefsByPractice,
       lab,
       logoDataUri,
       signatureDataUri,

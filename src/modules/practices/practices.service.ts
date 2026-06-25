@@ -155,6 +155,7 @@ export class PracticesService {
     if (dto.parentId !== undefined) set.parentId = dto.parentId ?? null;
     if (dto.referenceValue !== undefined) set.referenceValue = dto.referenceValue ?? null;
     if (dto.methodology !== undefined) set.methodology = dto.methodology?.trim() || null;
+    if (dto.defaultUnit !== undefined) set.defaultUnit = dto.defaultUnit?.trim() || null;
     if (dto.isElaborated !== undefined) set.isElaborated = dto.isElaborated;
 
     try {

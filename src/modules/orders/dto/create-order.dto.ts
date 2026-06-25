@@ -62,10 +62,10 @@ export class CreateOrderDto {
   @Min(1)
   veterinarioId?: number;
 
-  @ApiProperty()
+  @ApiProperty({ required: false, description: 'Opcional en veterinaria (default: PARTICULAR). 0 = no seleccionado.' })
+  @IsOptional()
   @IsInt()
-  @Min(1)
-  insurerId!: number;
+  insurerId?: number;
 
   @ApiProperty({ required: false, nullable: true })
   @IsOptional()

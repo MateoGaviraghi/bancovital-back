@@ -8,8 +8,10 @@ import {
   order,
   orderPractice,
   orderPracticeUnidadValue,
+  pacienteAnimal,
   patient,
   practice,
+  practiceReferenciaEspecie,
   practiceUnidad,
   result,
   unidadMedida,
@@ -47,6 +49,7 @@ export interface HydratedLine {
   unidades: HydratedUnidadEntry[];
   parentId: number | null;
   condicionVisibilidad: Practice['condicionVisibilidad'];
+  defaultUnit: string | null;
 }
 
 @Injectable()
@@ -61,12 +64,24 @@ export class ResultsService {
       .limit(1);
     if (!ord) throw new NotFoundException('Orden no encontrada');
 
-    const [pat] = await this.db
-      .select({ sex: patient.sex, birthDate: patient.birthDate })
-      .from(patient)
-      .where(eq(patient.id, ord.patientId!))
-      .limit(1);
-    if (!pat) throw new NotFoundException('Paciente de la orden no encontrado');
+    const pat = ord.patientId
+      ? await this.db
+          .select({ sex: patient.sex, birthDate: patient.birthDate })
+          .from(patient)
+          .where(eq(patient.id, ord.patientId))
+          .limit(1)
+          .then((r) => r[0] ?? null)
+      : null;
+
+    let animalEspecieId: number | null = null;
+    if (ord.animalPatientId) {
+      const [animal] = await this.db
+        .select({ especieId: pacienteAnimal.especieId })
+        .from(pacienteAnimal)
+        .where(eq(pacienteAnimal.id, ord.animalPatientId))
+        .limit(1);
+      animalEspecieId = animal?.especieId ?? null;
+    }
 
     const rows = await this.db
       .select({
@@ -152,9 +167,34 @@ export class ResultsService {
       valueByOpAndUnidad.set(`${v.orderPracticeId}:${v.unidadId}`, v);
     }
 
+    const especieRefByPractice = new Map<number, { low: string | null; high: string | null; unit: string | null }>();
+    if (animalEspecieId && practiceIds.length > 0) {
+      const refs = await this.db
+        .select()
+        .from(practiceReferenciaEspecie)
+        .where(
+          and(
+            inArray(practiceReferenciaEspecie.practiceId, practiceIds),
+            eq(practiceReferenciaEspecie.especieId, animalEspecieId),
+          ),
+        );
+      for (const ref of refs) {
+        especieRefByPractice.set(ref.practiceId, {
+          low: ref.rangeLow,
+          high: ref.rangeHigh,
+          unit: ref.unit,
+        });
+      }
+    }
+
     return rows.map((r) => {
       const template = r.practice?.referenceValueTemplate ?? null;
-      const rule = template
+      const especieRef = r.orderPractice.practiceId
+        ? especieRefByPractice.get(r.orderPractice.practiceId) ?? null
+        : null;
+      const rule: RangeRule | null = especieRef
+        ? { band: { low: especieRef.low ?? undefined, high: especieRef.high ?? undefined }, unit: especieRef.unit ?? undefined }
+        : template && pat
         ? pickRangeRule(template, {
             sex: pat.sex,
             birthDate:
@@ -190,6 +230,7 @@ export class ResultsService {
         unidades,
         parentId: r.practice?.parentId ?? null,
         condicionVisibilidad: r.practice?.condicionVisibilidad ?? null,
+        defaultUnit: r.practice?.defaultUnit ?? null,
       };
     });
   }
@@ -216,6 +257,7 @@ export class ResultsService {
         id: order.id,
         status: order.status,
         patientId: order.patientId,
+        animalPatientId: order.animalPatientId,
         labId: order.labId,
       })
       .from(order)
@@ -233,14 +275,43 @@ export class ResultsService {
     let referenceRangeHigh: string | null = null;
 
     if (dto.valueNumeric) {
-      const pract = await this.getPractice(line.practiceId);
-      const pat = await this.getPatient(ord.patientId!);
-      const template = pract.referenceValueTemplate ?? null;
-      const rule = template ? pickRangeRule(template, pat) : null;
-      if (rule) {
-        referenceRangeLow = rule.band.low ?? null;
-        referenceRangeHigh = rule.band.high ?? null;
-        flag = classifyResult(dto.valueNumeric, rule);
+      if (ord.patientId) {
+        const pract = await this.getPractice(line.practiceId);
+        const pat = await this.getPatient(ord.patientId);
+        const template = pract.referenceValueTemplate ?? null;
+        const rule = template ? pickRangeRule(template, pat) : null;
+        if (rule) {
+          referenceRangeLow = rule.band.low ?? null;
+          referenceRangeHigh = rule.band.high ?? null;
+          flag = classifyResult(dto.valueNumeric, rule);
+        }
+      } else if (ord.animalPatientId) {
+        const [animal] = await this.db
+          .select({ especieId: pacienteAnimal.especieId })
+          .from(pacienteAnimal)
+          .where(eq(pacienteAnimal.id, ord.animalPatientId))
+          .limit(1);
+        if (animal) {
+          const [ref] = await this.db
+            .select()
+            .from(practiceReferenciaEspecie)
+            .where(
+              and(
+                eq(practiceReferenciaEspecie.practiceId, line.practiceId),
+                eq(practiceReferenciaEspecie.especieId, animal.especieId),
+              ),
+            )
+            .limit(1);
+          if (ref) {
+            referenceRangeLow = ref.rangeLow;
+            referenceRangeHigh = ref.rangeHigh;
+            const rule: RangeRule = {
+              band: { low: ref.rangeLow ?? undefined, high: ref.rangeHigh ?? undefined },
+              unit: ref.unit ?? undefined,
+            };
+            flag = classifyResult(dto.valueNumeric, rule);
+          }
+        }
       }
     }
 

@@ -31,13 +31,14 @@ export class PacientesAnimalesController {
     @CurrentUser() user: Session,
     @Query('q') q = '',
     @Query('limit', new ParseIntPipe({ optional: true })) limit = 50,
-    @Query('propietarioId', new ParseIntPipe({ optional: true })) propietarioId?: number,
+    @Query('propietarioId') rawPropietarioId?: string,
   ) {
+    const propietarioId = rawPropietarioId ? Number(rawPropietarioId) : undefined;
     return this.pacientesAnimales.search(
       requireLabId(user),
       q.trim(),
       Math.min(Math.max(limit, 1), 200),
-      propietarioId,
+      propietarioId && !Number.isNaN(propietarioId) ? propietarioId : undefined,
     );
   }
 
