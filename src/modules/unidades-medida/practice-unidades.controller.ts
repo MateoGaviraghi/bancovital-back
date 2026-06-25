@@ -15,6 +15,7 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AssociateUnidadDto } from './dto/associate-unidad.dto';
+import { UpdateAssociationDto } from './dto/update-association.dto';
 import { UnidadesMedidaService } from './unidades-medida.service';
 
 @ApiTags('unidades-medida')
@@ -48,7 +49,7 @@ export class PracticeUnidadesController {
     @CurrentUser() user: Session,
     @Param('practiceId', ParseIntPipe) practiceId: number,
     @Param('unidadId', ParseIntPipe) unidadId: number,
-    @Body() dto: AssociateUnidadDto,
+    @Body() dto: UpdateAssociationDto,
   ) {
     return this.unidades.updateAssociation(requireLabId(user), practiceId, unidadId, dto);
   }

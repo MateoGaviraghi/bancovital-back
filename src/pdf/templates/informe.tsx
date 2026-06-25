@@ -55,6 +55,13 @@ export interface InformeData {
     city?: string | null;
     phone?: string | null;
   };
+  animalPatient?: {
+    nombre: string;
+    especie: string;
+    raza: string | null;
+    propietario: string;
+    propietarioDni: string;
+  } | null;
   insurer: {
     name: string;
     affiliateNumber: string | null;
@@ -204,8 +211,8 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
 
-  colName: { width: '24%', paddingRight: 8 },
-  colValue: { width: '26%', paddingRight: 8 },
+  colName: { width: '22%', paddingRight: 8 },
+  colValue: { width: '28%', paddingRight: 8 },
   colUnit: { width: '8%', paddingRight: 4 },
   colRange: { width: '30%', paddingRight: 4 },
   colFlag: { width: '12%' },
@@ -215,7 +222,7 @@ const styles = StyleSheet.create({
   metaText: { fontSize: 7.5, color: C.muted, marginTop: 2 },
 
   valueNum: { fontFamily: 'PublicSansSemiBold', fontSize: 10.5, color: C.ink, lineHeight: 1.3 },
-  valueProse: { fontSize: 9, color: C.ink, lineHeight: 1.4 },
+  valueProse: { fontSize: 8, color: C.ink, lineHeight: 1.35 },
   unitText: { fontSize: 8.5, color: C.muted, lineHeight: 1.3 },
   rangeText: { fontSize: 8.5, color: C.muted, lineHeight: 1.3 },
 
@@ -662,33 +669,50 @@ export function InformeTemplate({ data }: { data: InformeData }) {
           </>
         )}
 
-        {/* Patient + coverage cards */}
+        {/* Patient/Animal + coverage cards */}
         <View style={styles.infoGrid}>
           <View style={[styles.infoCard, { borderColor: cardBorder, backgroundColor: cardBg }]}>
-            <Text style={[styles.cardTitle, { color: cardTitle }]}>PACIENTE</Text>
-            <InfoRow label="Apellido, Nombre" value={data.patient.fullName} />
-            <InfoRow label="DNI" value={data.patient.dni} />
-            <InfoRow label="Sexo · Edad" value={`${sexLabel} · ${data.patient.age}`} />
-            <InfoRow label="Nacimiento" value={data.patient.birthDate} />
-            {data.patient.streetAddress || data.patient.city ? (
-              <InfoRow
-                label="Domicilio"
-                value={[data.patient.streetAddress, data.patient.city].filter(Boolean).join(', ')}
-              />
-            ) : null}
-            {data.patient.phone ? <InfoRow label="Teléfono" value={data.patient.phone} /> : null}
+            {data.animalPatient ? (
+              <>
+                <Text style={[styles.cardTitle, { color: cardTitle }]}>PACIENTE ANIMAL</Text>
+                <InfoRow label="Nombre" value={data.animalPatient.nombre} />
+                <InfoRow label="Especie" value={data.animalPatient.especie} />
+                {data.animalPatient.raza ? <InfoRow label="Raza" value={data.animalPatient.raza} /> : null}
+                <InfoRow label="Propietario" value={data.animalPatient.propietario} />
+                {data.animalPatient.propietarioDni ? <InfoRow label="DNI Propietario" value={data.animalPatient.propietarioDni} /> : null}
+              </>
+            ) : (
+              <>
+                <Text style={[styles.cardTitle, { color: cardTitle }]}>PACIENTE</Text>
+                <InfoRow label="Apellido, Nombre" value={data.patient.fullName} />
+                <InfoRow label="DNI" value={data.patient.dni} />
+                <InfoRow label="Sexo · Edad" value={`${sexLabel} · ${data.patient.age}`} />
+                <InfoRow label="Nacimiento" value={data.patient.birthDate} />
+                {data.patient.streetAddress || data.patient.city ? (
+                  <InfoRow
+                    label="Domicilio"
+                    value={[data.patient.streetAddress, data.patient.city].filter(Boolean).join(', ')}
+                  />
+                ) : null}
+                {data.patient.phone ? <InfoRow label="Teléfono" value={data.patient.phone} /> : null}
+              </>
+            )}
           </View>
 
           <View style={[styles.infoCard, { borderColor: cardBorder, backgroundColor: cardBg }]}>
-            <Text style={[styles.cardTitle, { color: cardTitle }]}>COBERTURA Y MÉDICO</Text>
+            <Text style={[styles.cardTitle, { color: cardTitle }]}>
+              {data.animalPatient ? 'VETERINARIO' : 'COBERTURA Y MÉDICO'}
+            </Text>
+            {!data.animalPatient ? (
+              <InfoRow
+                label="Obra social"
+                value={`${data.insurer.name}${
+                  data.insurer.affiliateNumber ? ` · ${data.insurer.affiliateNumber}` : ''
+                }`}
+              />
+            ) : null}
             <InfoRow
-              label="Obra social"
-              value={`${data.insurer.name}${
-                data.insurer.affiliateNumber ? ` · ${data.insurer.affiliateNumber}` : ''
-              }`}
-            />
-            <InfoRow
-              label="Médico"
+              label={data.animalPatient ? 'Veterinario' : 'Médico'}
               value={`${data.doctor.name ?? '—'}${
                 data.doctor.mp ? ` · M.P. ${data.doctor.mp}` : ''
               }`}
@@ -725,9 +749,6 @@ export function InformeTemplate({ data }: { data: InformeData }) {
                   {r.methodology ? (
                     <Text style={styles.metaText}>Método: {r.methodology}</Text>
                   ) : null}
-                  {r.referenceValue ? (
-                    <Text style={styles.metaText}>Ref.: {r.referenceValue}</Text>
-                  ) : null}
                 </View>
                 <View style={styles.colValue}>
                   <Text style={numeric ? styles.valueNum : styles.valueProse}>
@@ -735,19 +756,13 @@ export function InformeTemplate({ data }: { data: InformeData }) {
                   </Text>
                   {r.unidades && r.unidades.length > 0 ? (
                     <View style={styles.unidadesBlock}>
-                      {r.unidades.map((u, i) => {
-                        const uRef = (u.rangeLow || u.rangeHigh)
-                          ? `${u.rangeLow ? fmtNum(u.rangeLow) : '—'} – ${u.rangeHigh ? fmtNum(u.rangeHigh) : '—'}`
-                          : (u.referenceText ?? null);
-                        return (
-                          <View key={`${u.nombre}-${i}`} style={styles.unidadRow} wrap={false}>
-                            <Text style={styles.unidadNombre}>{u.nombre}</Text>
-                            <Text style={styles.unidadValue}>{u.value || '—'}</Text>
-                            {u.simbolo ? <Text style={styles.unidadSimbolo}>{u.simbolo}</Text> : null}
-                            {uRef ? <Text style={{ fontSize: 7, color: C.muted, marginLeft: 6 }}>{uRef}</Text> : null}
-                          </View>
-                        );
-                      })}
+                      {r.unidades.map((u, i) => (
+                        <View key={`${u.nombre}-${i}`} style={styles.unidadRow} wrap={false}>
+                          <Text style={styles.unidadNombre}>{u.nombre}</Text>
+                          <Text style={styles.unidadValue}>{u.value || '—'}</Text>
+                          {u.simbolo ? <Text style={styles.unidadSimbolo}>{u.simbolo}</Text> : null}
+                        </View>
+                      ))}
                     </View>
                   ) : null}
                 </View>
@@ -755,7 +770,27 @@ export function InformeTemplate({ data }: { data: InformeData }) {
                   <Text style={styles.unitText}>{r.unit ?? '—'}</Text>
                 </View>
                 <View style={styles.colRange}>
-                  <Text style={styles.rangeText}>{r.range ?? '—'}</Text>
+                  {r.range ? (
+                    <Text style={styles.rangeText}>{r.range}</Text>
+                  ) : null}
+                  {r.referenceValue ? (
+                    <Text style={{ fontSize: 7.5, color: C.muted, marginTop: r.range ? 2 : 0 }}>{r.referenceValue}</Text>
+                  ) : null}
+                  {r.unidades && r.unidades.length > 0 ? (
+                    <View style={{ marginTop: (r.range || r.referenceValue) ? 3 : 0 }}>
+                      {r.unidades.map((u, i) => {
+                        const uRef = (u.rangeLow || u.rangeHigh)
+                          ? `${u.rangeLow ? fmtNum(u.rangeLow) : '—'} – ${u.rangeHigh ? fmtNum(u.rangeHigh) : '—'}`
+                          : (u.referenceText ?? null);
+                        if (!uRef) return null;
+                        return (
+                          <Text key={`ref-${u.nombre}-${i}`} style={{ fontSize: 7, color: C.muted, marginTop: 1 }}>
+                            {uRef}
+                          </Text>
+                        );
+                      })}
+                    </View>
+                  ) : null}
                 </View>
                 <View style={styles.colFlag}>
                   {bStyle ? (
@@ -776,43 +811,6 @@ export function InformeTemplate({ data }: { data: InformeData }) {
         </View>
 
         <View style={styles.flexSpacer} />
-
-        {/* Footer */}
-        <View style={[styles.footer, { borderTopColor: accent }]}>
-          <View style={styles.signBlock}>
-            {data.signedBy.signatureSrc ? (
-              <Image src={data.signedBy.signatureSrc} style={styles.signatureImg} />
-            ) : (
-              <View style={styles.signSpace} />
-            )}
-            <View style={styles.signLine} />
-            <Text style={styles.signRole}>FIRMA Y SELLO</Text>
-            <Text style={styles.signed}>{data.signedBy.name}</Text>
-            {data.signedBy.matricula ? (
-              <Text style={styles.signedMat}>{data.signedBy.matricula}</Text>
-            ) : null}
-          </View>
-          <View style={styles.footerRight}>
-            {data.qrCodeDataUri ? (
-              <View style={styles.qrBlock}>
-                <Image src={data.qrCodeDataUri} style={styles.qrImg} />
-                <Text style={styles.qrCaption}>Verificá tu informe online</Text>
-              </View>
-            ) : null}
-            <Text style={styles.issuedAt}>Emitido: {data.protocol.issuedAt}</Text>
-          </View>
-        </View>
-
-        {data.sede ? (
-          <View style={styles.sedeLine}>
-            <Text style={styles.sedeText}>
-              {data.sede.nombre} · {data.sede.direccion}
-              {data.sede.localidad ? `, ${data.sede.localidad}` : ''}
-              {data.sede.telefono ? `  ·  Tel. ${data.sede.telefono}` : ''}
-              {data.sede.horarios ? `  ·  ${data.sede.horarios}` : ''}
-            </Text>
-          </View>
-        ) : null}
       </Page>
     </Document>
   );

@@ -89,6 +89,15 @@ export class UpdatePracticeDto {
   @MaxLength(500)
   methodology?: string | null;
 
+  @ApiPropertyOptional({
+    description: 'Unidad de medida por defecto (ej: mg/dL, %, U/L). Se presetea en la carga de resultados.',
+    nullable: true,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  defaultUnit?: string | null;
+
   @ApiPropertyOptional({ nullable: true, description: 'null para quitar el padre' })
   @IsOptional()
   @ValidateIf((_o, v) => v !== null)

@@ -2,11 +2,14 @@ import type { Db } from '@/db/client';
 import { DATABASE, SUPABASE_ADMIN } from '@/db/database.module';
 import {
   doctor,
+  especie,
   insurer,
   order,
   orderPractice,
+  pacienteAnimal,
   patient,
   practice,
+  propietario,
   result,
   ubValue,
 } from '@/db/schema';
@@ -51,6 +54,13 @@ const REPORTS_BUCKET = 'reports';
 
 export interface OrderSummary extends Order {
   patient: { id: number; firstName: string; lastName: string; dni: string } | null;
+  animalPatient: {
+    id: number;
+    nombre: string;
+    especie: string;
+    raza: string | null;
+    propietario: string;
+  } | null;
   insurer: { id: number; code: string; name: string } | null;
 }
 
@@ -91,7 +101,22 @@ export class OrdersService {
       veterinarioId = dto.veterinarioId ?? null;
     }
 
-    const ins = await this.resolveInsurer(dto.insurerId);
+    let insurerId = dto.insurerId && dto.insurerId > 0 ? dto.insurerId : undefined;
+    if (!insurerId) {
+      if (orderType === 'humana') {
+        throw new UnprocessableEntityException('insurerId es requerido para ordenes humanas');
+      }
+      const [particularRow] = await this.db
+        .select({ id: insurer.id })
+        .from(insurer)
+        .where(eq(insurer.code, PARTICULAR_CODE))
+        .limit(1);
+      if (!particularRow) {
+        throw new ConflictException('No existe la obra social PARTICULAR en el sistema');
+      }
+      insurerId = particularRow.id;
+    }
+    const ins = await this.resolveInsurer(insurerId);
     const effectivePractices = await this.expandWithChildren(dto.practices);
     const practices = await this.resolvePractices(effectivePractices);
     const ubInsurer = await this.resolveCurrentUb(ins.id, ins.code);
@@ -483,6 +508,7 @@ export class OrdersService {
         ilike(patient.lastName, like),
         ilike(patient.firstName, like),
         ilike(patient.dni, like),
+        ilike(pacienteAnimal.nombre, like),
         ...(protoSearch ? [protoSearch] : []),
       );
       if (searchExpr) conds.push(searchExpr);
@@ -498,12 +524,18 @@ export class OrdersService {
           patientFirstName: patient.firstName,
           patientLastName: patient.lastName,
           patientDni: patient.dni,
+          animalNombre: pacienteAnimal.nombre,
+          especieNombre: especie.nombre,
+          propietarioNombre: propietario.lastName,
           insurerId: insurer.id,
           insurerCode: insurer.code,
           insurerName: insurer.name,
         })
         .from(order)
-        .innerJoin(patient, and(eq(patient.id, order.patientId), eq(patient.labId, labId)))
+        .leftJoin(patient, eq(patient.id, order.patientId))
+        .leftJoin(pacienteAnimal, eq(pacienteAnimal.id, order.animalPatientId))
+        .leftJoin(especie, eq(especie.id, pacienteAnimal.especieId))
+        .leftJoin(propietario, eq(propietario.id, pacienteAnimal.propietarioId))
         .innerJoin(insurer, eq(insurer.id, order.insurerId))
         .where(whereExpr)
         .orderBy(desc(order.orderDate))
@@ -512,19 +544,31 @@ export class OrdersService {
       this.db
         .select({ n: sql<number>`count(*)::int` })
         .from(order)
-        .innerJoin(patient, and(eq(patient.id, order.patientId), eq(patient.labId, labId)))
+        .leftJoin(patient, eq(patient.id, order.patientId))
+        .leftJoin(pacienteAnimal, eq(pacienteAnimal.id, order.animalPatientId))
         .innerJoin(insurer, eq(insurer.id, order.insurerId))
         .where(whereExpr),
     ]);
 
     const data = rows.map((r) => ({
       ...r.order,
-      patient: {
-        id: r.patientId,
-        firstName: r.patientFirstName,
-        lastName: r.patientLastName,
-        dni: r.patientDni,
-      },
+      patient: r.patientId
+        ? {
+            id: r.patientId,
+            firstName: r.patientFirstName!,
+            lastName: r.patientLastName!,
+            dni: r.patientDni!,
+          }
+        : null,
+      animalPatient: r.animalNombre
+        ? {
+            id: r.order.animalPatientId!,
+            nombre: r.animalNombre,
+            especie: r.especieNombre ?? '—',
+            raza: null as string | null,
+            propietario: r.propietarioNombre ?? '—',
+          }
+        : null,
       insurer: { id: r.insurerId, code: r.insurerCode, name: r.insurerName },
     }));
 
@@ -539,24 +583,41 @@ export class OrdersService {
         patientFirstName: patient.firstName,
         patientLastName: patient.lastName,
         patientDni: patient.dni,
+        animalNombre: pacienteAnimal.nombre,
+        especieNombre: especie.nombre,
+        propietarioNombre: propietario.lastName,
         insurerId: insurer.id,
         insurerCode: insurer.code,
         insurerName: insurer.name,
       })
       .from(order)
-      .innerJoin(patient, and(eq(patient.id, order.patientId), eq(patient.labId, labId)))
+      .leftJoin(patient, eq(patient.id, order.patientId))
+      .leftJoin(pacienteAnimal, eq(pacienteAnimal.id, order.animalPatientId))
+      .leftJoin(especie, eq(especie.id, pacienteAnimal.especieId))
+      .leftJoin(propietario, eq(propietario.id, pacienteAnimal.propietarioId))
       .innerJoin(insurer, eq(insurer.id, order.insurerId))
       .where(and(eq(order.id, id), eq(order.labId, labId)))
       .limit(1);
     if (!row) throw new NotFoundException('Orden no encontrada');
     return {
       ...row.order,
-      patient: {
-        id: row.patientId,
-        firstName: row.patientFirstName,
-        lastName: row.patientLastName,
-        dni: row.patientDni,
-      },
+      patient: row.patientId
+        ? {
+            id: row.patientId,
+            firstName: row.patientFirstName!,
+            lastName: row.patientLastName!,
+            dni: row.patientDni!,
+          }
+        : null,
+      animalPatient: row.animalNombre
+        ? {
+            id: row.order.animalPatientId!,
+            nombre: row.animalNombre,
+            especie: row.especieNombre ?? '—',
+            raza: null as string | null,
+            propietario: row.propietarioNombre ?? '—',
+          }
+        : null,
       insurer: { id: row.insurerId, code: row.insurerCode, name: row.insurerName },
     };
   }

@@ -134,6 +134,13 @@
       "when": 1782323636212,
       "tag": "0018_resync_drift",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1782394715995,
+      "tag": "0019_bouncy_shard",
+      "breakpoints": true
     }
   ]
 }

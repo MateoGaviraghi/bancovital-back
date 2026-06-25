@@ -15,42 +15,58 @@ export class PacientesAnimalesService {
     query: string,
     limit = 50,
     propietarioId?: number,
-  ): Promise<PacienteAnimal[]> {
-    const baseWhere = and(
+  ) {
+    const conds = [
       eq(pacienteAnimal.labId, labId),
       isNull(pacienteAnimal.deletedAt),
       ...(propietarioId ? [eq(pacienteAnimal.propietarioId, propietarioId)] : []),
-    );
-    if (!query) {
-      return this.db
-        .select()
-        .from(pacienteAnimal)
-        .where(baseWhere)
-        .orderBy(desc(pacienteAnimal.createdAt))
-        .limit(limit);
-    }
-    const like = `%${query}%`;
-    return this.db
-      .select()
+      ...(query ? [ilike(pacienteAnimal.nombre, `%${query}%`)] : []),
+    ];
+
+    const rows = await this.db
+      .select({
+        animal: pacienteAnimal,
+        especie,
+        raza,
+        propietario,
+      })
       .from(pacienteAnimal)
-      .where(
-        and(
-          baseWhere,
-          ilike(pacienteAnimal.nombre, like),
-        ),
-      )
+      .leftJoin(especie, eq(especie.id, pacienteAnimal.especieId))
+      .leftJoin(raza, eq(raza.id, pacienteAnimal.razaId))
+      .leftJoin(propietario, eq(propietario.id, pacienteAnimal.propietarioId))
+      .where(and(...conds))
       .orderBy(desc(pacienteAnimal.createdAt))
       .limit(limit);
+
+    return rows.map((r) => ({
+      ...r.animal,
+      especie: r.especie ?? undefined,
+      raza: r.raza ?? undefined,
+      propietario: r.propietario ?? undefined,
+    }));
   }
 
-  async byId(labId: number, id: number): Promise<PacienteAnimal> {
+  async byId(labId: number, id: number) {
     const [row] = await this.db
-      .select()
+      .select({
+        animal: pacienteAnimal,
+        especie,
+        raza,
+        propietario,
+      })
       .from(pacienteAnimal)
+      .leftJoin(especie, eq(especie.id, pacienteAnimal.especieId))
+      .leftJoin(raza, eq(raza.id, pacienteAnimal.razaId))
+      .leftJoin(propietario, eq(propietario.id, pacienteAnimal.propietarioId))
       .where(and(eq(pacienteAnimal.id, id), eq(pacienteAnimal.labId, labId), isNull(pacienteAnimal.deletedAt)))
       .limit(1);
     if (!row) throw new NotFoundException('Paciente animal no encontrado');
-    return row;
+    return {
+      ...row.animal,
+      especie: row.especie ?? undefined,
+      raza: row.raza ?? undefined,
+      propietario: row.propietario ?? undefined,
+    };
   }
 
   async create(dto: CreatePacienteAnimalDto, labId: number, createdBy: string): Promise<PacienteAnimal> {
