@@ -779,9 +779,13 @@ export function InformeTemplate({ data }: { data: InformeData }) {
                   {r.unidades && r.unidades.length > 0 ? (
                     <View style={{ marginTop: (r.range || r.referenceValue) ? 3 : 0 }}>
                       {r.unidades.map((u, i) => {
-                        const uRef = (u.rangeLow || u.rangeHigh)
+                        const hasRange = u.rangeLow || u.rangeHigh;
+                        const rangeStr = hasRange
                           ? `${u.rangeLow ? fmtNum(u.rangeLow) : '—'} – ${u.rangeHigh ? fmtNum(u.rangeHigh) : '—'}`
-                          : (u.referenceText ?? null);
+                          : null;
+                        const uRef = rangeStr && u.referenceText
+                          ? `${rangeStr}. ${u.referenceText}`
+                          : rangeStr ?? u.referenceText ?? null;
                         if (!uRef) return null;
                         return (
                           <Text key={`ref-${u.nombre}-${i}`} style={{ fontSize: 7, color: C.muted, marginTop: 1 }}>
