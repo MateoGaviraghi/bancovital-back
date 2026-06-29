@@ -55,8 +55,6 @@ export const movimientoTipoEnum = pgEnum('movimiento_tipo', ['cargo', 'pago']);
 
 export const anuncioTipoEnum = pgEnum('anuncio_tipo', ['info', 'advertencia', 'mantenimiento']);
 
-export const orderTypeEnum = pgEnum('order_type', ['humana', 'veterinaria']);
-
 export const animalSexEnum = pgEnum('animal_sex', ['macho', 'hembra', 'indeterminado']);
 
 export const reproductiveStatusEnum = pgEnum('reproductive_status', [

@@ -8,6 +8,7 @@ import {
   timestamp,
 } from 'drizzle-orm/pg-core';
 import { laboratorio } from './laboratorio';
+import { servicio } from './servicio';
 
 /**
  * Formatos de impresión PDF por laboratorio.
@@ -48,11 +49,15 @@ export const preferenciaPdf = pgTable(
     marginRight: integer('margin_right').notNull().default(20),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    servicioId: bigint('servicio_id', { mode: 'number' }).references(() => servicio.id, {
+      onDelete: 'set null',
+    }),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
   },
   (t) => ({
     labIdx: index('idx_preferencia_pdf_lab').on(t.labId),
     labTipoIdx: index('idx_preferencia_pdf_lab_tipo').on(t.labId, t.tipo),
+    labServicioIdx: index('idx_preferencia_pdf_servicio').on(t.labId, t.servicioId),
   }),
 );
 

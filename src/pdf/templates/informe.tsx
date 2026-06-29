@@ -62,6 +62,26 @@ export interface InformeData {
     propietario: string;
     propietarioDni: string;
   } | null;
+  solicitanteAgua?: {
+    nombreApellido: string;
+    razonSocial: string | null;
+    cuit: string | null;
+    domicilio: string | null;
+    localidad: string | null;
+    telefono: string | null;
+  } | null;
+  muestraAgua?: {
+    tipoMuestra: string;
+    fechaToma: string;
+    fechaRecepcion: string;
+    lugarToma: string | null;
+    descripcionPunto: string | null;
+    direccionPunto: string | null;
+    motivoAnalisis: string;
+    analisisFisicoquimico: boolean;
+    analisisMicrobiologico: boolean;
+    observaciones: string | null;
+  } | null;
   insurer: {
     name: string;
     affiliateNumber: string | null;
@@ -669,10 +689,20 @@ export function InformeTemplate({ data }: { data: InformeData }) {
           </>
         )}
 
-        {/* Patient/Animal + coverage cards */}
+        {/* Info cards: Paciente/Animal/Solicitante + Cobertura/Vet/Muestra */}
         <View style={styles.infoGrid}>
           <View style={[styles.infoCard, { borderColor: cardBorder, backgroundColor: cardBg }]}>
-            {data.animalPatient ? (
+            {data.solicitanteAgua ? (
+              <>
+                <Text style={[styles.cardTitle, { color: cardTitle }]}>SOLICITANTE</Text>
+                <InfoRow label="Nombre" value={data.solicitanteAgua.nombreApellido} />
+                {data.solicitanteAgua.razonSocial ? <InfoRow label="Razón social" value={data.solicitanteAgua.razonSocial} /> : null}
+                {data.solicitanteAgua.cuit ? <InfoRow label="CUIT" value={data.solicitanteAgua.cuit} /> : null}
+                {data.solicitanteAgua.domicilio ? <InfoRow label="Domicilio" value={data.solicitanteAgua.domicilio} /> : null}
+                {data.solicitanteAgua.localidad ? <InfoRow label="Localidad" value={data.solicitanteAgua.localidad} /> : null}
+                {data.solicitanteAgua.telefono ? <InfoRow label="Teléfono" value={data.solicitanteAgua.telefono} /> : null}
+              </>
+            ) : data.animalPatient ? (
               <>
                 <Text style={[styles.cardTitle, { color: cardTitle }]}>PACIENTE ANIMAL</Text>
                 <InfoRow label="Nombre" value={data.animalPatient.nombre} />
@@ -700,26 +730,42 @@ export function InformeTemplate({ data }: { data: InformeData }) {
           </View>
 
           <View style={[styles.infoCard, { borderColor: cardBorder, backgroundColor: cardBg }]}>
-            <Text style={[styles.cardTitle, { color: cardTitle }]}>
-              {data.animalPatient ? 'VETERINARIO' : 'COBERTURA Y MÉDICO'}
-            </Text>
-            {!data.animalPatient ? (
-              <InfoRow
-                label="Obra social"
-                value={`${data.insurer.name}${
-                  data.insurer.affiliateNumber ? ` · ${data.insurer.affiliateNumber}` : ''
-                }`}
-              />
-            ) : null}
-            <InfoRow
-              label={data.animalPatient ? 'Veterinario' : 'Médico'}
-              value={`${data.doctor.name ?? '—'}${
-                data.doctor.mp ? ` · M.P. ${data.doctor.mp}` : ''
-              }`}
-            />
-            {data.doctor.diagnosis ? (
-              <InfoRow label="Diagnóstico" value={data.doctor.diagnosis} />
-            ) : null}
+            {data.muestraAgua ? (
+              <>
+                <Text style={[styles.cardTitle, { color: cardTitle }]}>DATOS DE LA MUESTRA</Text>
+                <InfoRow label="Tipo" value={data.muestraAgua.tipoMuestra} />
+                <InfoRow label="Fecha toma" value={data.muestraAgua.fechaToma} />
+                <InfoRow label="Fecha recepción" value={data.muestraAgua.fechaRecepcion} />
+                {data.muestraAgua.lugarToma ? <InfoRow label="Lugar toma" value={data.muestraAgua.lugarToma} /> : null}
+                {data.muestraAgua.descripcionPunto ? <InfoRow label="Punto" value={data.muestraAgua.descripcionPunto} /> : null}
+                {data.muestraAgua.direccionPunto ? <InfoRow label="Dirección" value={data.muestraAgua.direccionPunto} /> : null}
+                <InfoRow label="Motivo" value={data.muestraAgua.motivoAnalisis} />
+                {data.muestraAgua.observaciones ? <InfoRow label="Obs." value={data.muestraAgua.observaciones} /> : null}
+              </>
+            ) : (
+              <>
+                <Text style={[styles.cardTitle, { color: cardTitle }]}>
+                  {data.animalPatient ? 'VETERINARIO' : 'COBERTURA Y MÉDICO'}
+                </Text>
+                {!data.animalPatient ? (
+                  <InfoRow
+                    label="Obra social"
+                    value={`${data.insurer.name}${
+                      data.insurer.affiliateNumber ? ` · ${data.insurer.affiliateNumber}` : ''
+                    }`}
+                  />
+                ) : null}
+                <InfoRow
+                  label={data.animalPatient ? 'Veterinario' : 'Médico'}
+                  value={`${data.doctor.name ?? '—'}${
+                    data.doctor.mp ? ` · M.P. ${data.doctor.mp}` : ''
+                  }`}
+                />
+                {data.doctor.diagnosis ? (
+                  <InfoRow label="Diagnóstico" value={data.doctor.diagnosis} />
+                ) : null}
+              </>
+            )}
           </View>
         </View>
 

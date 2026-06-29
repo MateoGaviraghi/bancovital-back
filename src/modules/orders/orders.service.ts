@@ -11,9 +11,10 @@ import {
   practice,
   propietario,
   result,
+  servicio,
   ubValue,
 } from '@/db/schema';
-import type { NewOrder, NewOrderPractice, Order, OrderPractice } from '@/db/schema';
+import type { NewOrder, NewOrderPractice, Order, OrderPractice, Servicio } from '@/db/schema';
 import {
   type PriceablePractice,
   type PricedLine,
@@ -79,32 +80,48 @@ export class OrdersService {
     dto: CreateOrderDto,
     createdBy: string,
   ): Promise<{ order: Order; lines: OrderPractice[] }> {
-    const orderType = dto.orderType ?? 'humana';
+    const svc = await this.resolveServicio(labId, dto.servicioId);
 
     let patientId: number | null = null;
     let animalPatientId: number | null = null;
     let veterinarioId: number | null = null;
 
-    if (orderType === 'humana') {
+    if (svc.usaPacienteHumano) {
       if (!dto.patientId) {
-        throw new UnprocessableEntityException('patientId es requerido para ordenes humanas');
+        throw new UnprocessableEntityException('patientId es requerido para este servicio');
       }
       const pat = await this.resolvePatient(labId, dto.patientId);
       patientId = pat.id;
-    } else {
+    }
+    if (svc.usaPacienteAnimal) {
       if (!dto.animalPatientId) {
-        throw new UnprocessableEntityException(
-          'animalPatientId es requerido para ordenes veterinarias',
-        );
+        throw new UnprocessableEntityException('animalPatientId es requerido para este servicio');
       }
       animalPatientId = dto.animalPatientId;
+    }
+    if (svc.usaVeterinario) {
       veterinarioId = dto.veterinarioId ?? null;
+    }
+
+    let solicitanteAguaId: number | null = null;
+    let muestraAguaId: number | null = null;
+    if (svc.usaSolicitanteAgua) {
+      if (!dto.solicitanteAguaId) {
+        throw new UnprocessableEntityException('solicitanteAguaId es requerido para este servicio');
+      }
+      solicitanteAguaId = dto.solicitanteAguaId;
+    }
+    if (svc.usaMuestraAgua) {
+      if (!dto.muestraAguaId) {
+        throw new UnprocessableEntityException('muestraAguaId es requerido para este servicio');
+      }
+      muestraAguaId = dto.muestraAguaId;
     }
 
     let insurerId = dto.insurerId && dto.insurerId > 0 ? dto.insurerId : undefined;
     if (!insurerId) {
-      if (orderType === 'humana') {
-        throw new UnprocessableEntityException('insurerId es requerido para ordenes humanas');
+      if (svc.usaPacienteHumano) {
+        throw new UnprocessableEntityException('insurerId es requerido para este servicio');
       }
       const [particularRow] = await this.db
         .select({ id: insurer.id })
@@ -159,7 +176,7 @@ export class OrdersService {
 
       const orderValues: NewOrder = {
         labId,
-        orderType,
+        servicioId: svc.id,
         patientId,
         animalPatientId,
         veterinarioId,
@@ -179,6 +196,9 @@ export class OrdersService {
         ubValueUsed: pricing.ubValueUsed,
         createdBy,
         esExcedente,
+        customData: dto.customData ?? null,
+        solicitanteAguaId,
+        muestraAguaId,
       };
       const [insertedOrder] = await tx.insert(order).values(orderValues).returning();
 
@@ -492,6 +512,9 @@ export class OrdersService {
     }
     if (filters.insurerId) {
       conds.push(eq(order.insurerId, filters.insurerId));
+    }
+    if (filters.servicioId) {
+      conds.push(eq(order.servicioId, filters.servicioId));
     }
     if (filters.dateFrom) {
       conds.push(gte(order.orderDate, new Date(filters.dateFrom)));
@@ -939,5 +962,15 @@ export class OrdersService {
       name: dto.referringDoctorName ?? null,
       mp: dto.referringDoctorMp ?? null,
     };
+  }
+
+  private async resolveServicio(labId: number, servicioId: number): Promise<Servicio> {
+    const [row] = await this.db
+      .select()
+      .from(servicio)
+      .where(and(eq(servicio.id, servicioId), eq(servicio.labId, labId), eq(servicio.activo, true)))
+      .limit(1);
+    if (!row) throw new NotFoundException(`Servicio ${servicioId} no encontrado o inactivo`);
+    return row;
   }
 }
