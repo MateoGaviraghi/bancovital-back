@@ -3,12 +3,14 @@ import { DATABASE } from '@/db/database.module';
 import {
   type OrderPracticeUnidadValue,
   type PracticeUnidad,
+  type PracticeUnidadRefEspecie,
   type UnidadMedida,
   order,
   orderPractice,
   orderPracticeUnidadValue,
   practice,
   practiceUnidad,
+  practiceUnidadRefEspecie,
   unidadMedida,
 } from '@/db/schema';
 import {
@@ -478,6 +480,82 @@ export class UnidadesMedidaService {
           eq(orderPracticeUnidadValue.unidadId, unidadId),
         ),
       );
+  }
+
+  // ──────────────── Ref. por especie en practice_unidad ────────────────
+
+  async listRefEspecie(
+    labId: number,
+    practiceId: number,
+    unidadId: number,
+  ): Promise<PracticeUnidadRefEspecie[]> {
+    const pu = await this.requireAssociation(labId, practiceId, unidadId);
+    return this.db
+      .select()
+      .from(practiceUnidadRefEspecie)
+      .where(eq(practiceUnidadRefEspecie.practiceUnidadId, pu.id))
+      .orderBy(asc(practiceUnidadRefEspecie.especieId));
+  }
+
+  async upsertRefEspecie(
+    labId: number,
+    practiceId: number,
+    unidadId: number,
+    especieId: number,
+    dto: { rangeLow?: string | null; rangeHigh?: string | null; referenceText?: string | null },
+  ): Promise<PracticeUnidadRefEspecie> {
+    const pu = await this.requireAssociation(labId, practiceId, unidadId);
+    const values = {
+      practiceUnidadId: pu.id,
+      especieId,
+      rangeLow: dto.rangeLow ?? null,
+      rangeHigh: dto.rangeHigh ?? null,
+      referenceText: dto.referenceText ?? null,
+    };
+    const [row] = await this.db
+      .insert(practiceUnidadRefEspecie)
+      .values(values)
+      .onConflictDoUpdate({
+        target: [practiceUnidadRefEspecie.practiceUnidadId, practiceUnidadRefEspecie.especieId],
+        set: { ...values, updatedAt: new Date() },
+      })
+      .returning();
+    return row;
+  }
+
+  async deleteRefEspecie(
+    labId: number,
+    practiceId: number,
+    unidadId: number,
+    especieId: number,
+  ): Promise<void> {
+    const pu = await this.requireAssociation(labId, practiceId, unidadId);
+    const [row] = await this.db
+      .delete(practiceUnidadRefEspecie)
+      .where(
+        and(
+          eq(practiceUnidadRefEspecie.practiceUnidadId, pu.id),
+          eq(practiceUnidadRefEspecie.especieId, especieId),
+        ),
+      )
+      .returning();
+    if (!row) throw new NotFoundException('Referencia por especie no encontrada');
+  }
+
+  private async requireAssociation(labId: number, practiceId: number, unidadId: number) {
+    const [row] = await this.db
+      .select()
+      .from(practiceUnidad)
+      .where(
+        and(
+          eq(practiceUnidad.labId, labId),
+          eq(practiceUnidad.practiceId, practiceId),
+          eq(practiceUnidad.unidadId, unidadId),
+        ),
+      )
+      .limit(1);
+    if (!row) throw new NotFoundException('Asociación práctica-unidad no encontrada');
+    return row;
   }
 
   // ───────────────────────────── helpers ─────────────────────────────
