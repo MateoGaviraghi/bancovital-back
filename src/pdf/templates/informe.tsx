@@ -521,7 +521,7 @@ function WatermarkInforme({ data }: { data: InformeData }) {
       >
         <Image
           src={data.fondoSrc!}
-          style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
+          style={{ position: 'absolute', top: 0, left: 0, width: 595.28, height: 841.89 }}
           fixed
         />
 
@@ -636,7 +636,7 @@ export function InformeTemplate({ data }: { data: InformeData }) {
         {data.fondoSrc ? (
           <Image
             src={data.fondoSrc}
-            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
+            style={{ position: 'absolute', top: 0, left: 0, width: 595.28, height: 841.89 }}
             fixed
           />
         ) : null}
@@ -772,12 +772,13 @@ export function InformeTemplate({ data }: { data: InformeData }) {
                 <View style={styles.colRange}>
                   {r.range ? (
                     <Text style={styles.rangeText}>{r.range}</Text>
-                  ) : null}
-                  {r.referenceValue ? (
-                    <Text style={{ fontSize: 7.5, color: C.muted, marginTop: r.range ? 2 : 0 }}>{r.referenceValue}</Text>
-                  ) : null}
+                  ) : r.referenceValue ? (
+                    <Text style={{ fontSize: 7.5, color: C.muted }}>{r.referenceValue}</Text>
+                  ) : (
+                    <Text style={styles.rangeText}>—</Text>
+                  )}
                   {r.unidades && r.unidades.length > 0 ? (
-                    <View style={{ marginTop: (r.range || r.referenceValue) ? 3 : 0 }}>
+                    <View style={styles.unidadesBlock}>
                       {r.unidades.map((u, i) => {
                         const hasRange = u.rangeLow || u.rangeHigh;
                         const rangeStr = hasRange
@@ -786,11 +787,12 @@ export function InformeTemplate({ data }: { data: InformeData }) {
                         const uRef = rangeStr && u.referenceText
                           ? `${rangeStr}. ${u.referenceText}`
                           : rangeStr ?? u.referenceText ?? null;
-                        if (!uRef) return null;
                         return (
-                          <Text key={`ref-${u.nombre}-${i}`} style={{ fontSize: 7, color: C.muted, marginTop: 1 }}>
-                            {uRef}
-                          </Text>
+                          <View key={`ref-${u.nombre}-${i}`} style={styles.unidadRow} wrap={false}>
+                            <Text style={{ fontSize: 7, color: C.muted }}>
+                              {uRef ?? '—'}
+                            </Text>
+                          </View>
                         );
                       })}
                     </View>

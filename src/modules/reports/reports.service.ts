@@ -14,6 +14,7 @@ import {
   practice,
   practiceReferenciaEspecie,
   practiceUnidad,
+  practiceUnidadRefEspecie,
   preferenciaPdf,
   propietario,
   result,
@@ -537,6 +538,33 @@ export class ReportsService {
             rangeHigh: ref.rangeHigh,
             unit: ref.unit,
           });
+        }
+
+        const puIds = await this.db
+          .select({ id: practiceUnidad.id, practiceId: practiceUnidad.practiceId, unidadId: practiceUnidad.unidadId })
+          .from(practiceUnidad)
+          .where(and(eq(practiceUnidad.labId, ord.labId), inArray(practiceUnidad.practiceId, practiceIds)));
+        if (puIds.length > 0) {
+          const speciesUnitRefs = await this.db
+            .select()
+            .from(practiceUnidadRefEspecie)
+            .where(
+              and(
+                inArray(practiceUnidadRefEspecie.practiceUnidadId, puIds.map((p) => p.id)),
+                eq(practiceUnidadRefEspecie.especieId, animal.especieId),
+              ),
+            );
+          const puById = new Map(puIds.map((p) => [p.id, p]));
+          for (const sr of speciesUnitRefs) {
+            const pu = puById.get(sr.practiceUnidadId);
+            if (pu) {
+              unidadRefsByKey.set(`${pu.practiceId}:${pu.unidadId}`, {
+                rangeLow: sr.rangeLow,
+                rangeHigh: sr.rangeHigh,
+                referenceText: sr.referenceText,
+              });
+            }
+          }
         }
       }
     }
