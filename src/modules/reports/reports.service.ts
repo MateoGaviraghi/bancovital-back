@@ -6,6 +6,7 @@ import {
   especie,
   insurer,
   laboratorio,
+  muestraAgua,
   order,
   orderPractice,
   orderPracticeUnidadValue,
@@ -19,6 +20,7 @@ import {
   propietario,
   result,
   sede,
+  solicitanteAgua,
   veterinario,
 } from '@/db/schema';
 import type { Order, OrderPracticeUnidadValue, Result } from '@/db/schema';
@@ -355,18 +357,35 @@ export class ReportsService {
       );
     }
 
-    const [pref] = await this.db
+    // Buscar formato PDF específico del servicio; fallback al genérico (servicioId IS NULL)
+    let [pref] = await this.db
       .select()
       .from(preferenciaPdf)
       .where(
         and(
           eq(preferenciaPdf.labId, ord.labId),
+          eq(preferenciaPdf.servicioId, ord.servicioId),
           eq(preferenciaPdf.tipo, 'informe'),
           isNull(preferenciaPdf.deletedAt),
         ),
       )
       .orderBy(desc(preferenciaPdf.updatedAt))
       .limit(1);
+    if (!pref) {
+      [pref] = await this.db
+        .select()
+        .from(preferenciaPdf)
+        .where(
+          and(
+            eq(preferenciaPdf.labId, ord.labId),
+            isNull(preferenciaPdf.servicioId),
+            eq(preferenciaPdf.tipo, 'informe'),
+            isNull(preferenciaPdf.deletedAt),
+          ),
+        )
+        .orderBy(desc(preferenciaPdf.updatedAt))
+        .limit(1);
+    }
 
     let pat: typeof patient.$inferSelect | null = null;
     let animalData: {
@@ -417,6 +436,66 @@ export class ReportsService {
           .where(eq(veterinario.id, ord.veterinarioId))
           .limit(1);
         if (vet) vetData = { name: `${vet.lastName}, ${vet.firstName}`, matricula: vet.matricula };
+      }
+    }
+
+    let solicitanteData: {
+      nombreApellido: string;
+      razonSocial: string | null;
+      cuit: string | null;
+      domicilio: string | null;
+      localidad: string | null;
+      telefono: string | null;
+    } | null = null;
+    let muestraData: {
+      tipoMuestra: string;
+      fechaToma: string;
+      fechaRecepcion: string;
+      lugarToma: string | null;
+      descripcionPunto: string | null;
+      direccionPunto: string | null;
+      motivoAnalisis: string;
+      analisisFisicoquimico: boolean;
+      analisisMicrobiologico: boolean;
+      observaciones: string | null;
+    } | null = null;
+
+    if (ord.solicitanteAguaId) {
+      const [row] = await this.db
+        .select()
+        .from(solicitanteAgua)
+        .where(eq(solicitanteAgua.id, ord.solicitanteAguaId))
+        .limit(1);
+      if (row) {
+        solicitanteData = {
+          nombreApellido: row.nombreApellido,
+          razonSocial: row.razonSocial,
+          cuit: row.cuit,
+          domicilio: row.domicilio,
+          localidad: row.localidad,
+          telefono: row.telefono,
+        };
+      }
+    }
+    if (ord.muestraAguaId) {
+      const [row] = await this.db
+        .select()
+        .from(muestraAgua)
+        .where(eq(muestraAgua.id, ord.muestraAguaId))
+        .limit(1);
+      if (row) {
+        muestraData = {
+          tipoMuestra: row.tipoMuestra,
+          fechaToma: row.fechaToma.toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Cordoba' }),
+          fechaRecepcion: row.fechaRecepcion.toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Cordoba' }),
+          lugarToma: row.lugarToma,
+          descripcionPunto: row.descripcionPunto,
+          direccionPunto: row.direccionPunto,
+          motivoAnalisis: row.motivoAnalisis,
+          analisisFisicoquimico: row.analisisFisicoquimico,
+          analisisMicrobiologico: row.analisisMicrobiologico,
+          observaciones: row.observaciones,
+        };
       }
     }
 
@@ -590,6 +669,8 @@ export class ReportsService {
       patient: pat ?? undefined,
       animalPatient: animalData ?? undefined,
       veterinario: vetData ?? undefined,
+      solicitanteAgua: solicitanteData ?? undefined,
+      muestraAgua: muestraData ?? undefined,
       insurer: ins,
       lines,
       resultsByLineId,

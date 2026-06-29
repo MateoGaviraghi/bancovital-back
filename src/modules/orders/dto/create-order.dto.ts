@@ -7,6 +7,7 @@ import {
   IsBoolean,
   IsIn,
   IsInt,
+  IsObject,
   IsOptional,
   IsString,
   MaxLength,
@@ -39,10 +40,10 @@ export class OrderPracticeInputDto {
 }
 
 export class CreateOrderDto {
-  @ApiProperty({ enum: ['humana', 'veterinaria'], default: 'humana', required: false })
-  @IsOptional()
-  @IsIn(['humana', 'veterinaria'])
-  orderType?: 'humana' | 'veterinaria';
+  @ApiProperty({ description: 'ID del servicio (reemplaza orderType)' })
+  @IsInt()
+  @Min(1)
+  servicioId!: number;
 
   @ApiProperty({ required: false, description: 'Requerido para ordenes humanas' })
   @IsOptional()
@@ -125,4 +126,21 @@ export class CreateOrderDto {
   @ValidateNested({ each: true })
   @Type(() => OrderPracticeInputDto)
   practices!: OrderPracticeInputDto[];
+
+  @ApiProperty({ required: false, description: 'Datos custom del formulario dinámico del servicio' })
+  @IsOptional()
+  @IsObject()
+  customData?: Record<string, unknown>;
+
+  @ApiProperty({ required: false, description: 'Solicitante de agua (solo agua y efluentes)' })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  solicitanteAguaId?: number;
+
+  @ApiProperty({ required: false, description: 'Muestra de agua (solo agua y efluentes)' })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  muestraAguaId?: number;
 }

@@ -84,6 +84,26 @@ export interface RenderInformeInput {
     propietarioDni: string;
   };
   veterinario?: { name: string; matricula: string };
+  solicitanteAgua?: {
+    nombreApellido: string;
+    razonSocial: string | null;
+    cuit: string | null;
+    domicilio: string | null;
+    localidad: string | null;
+    telefono: string | null;
+  };
+  muestraAgua?: {
+    tipoMuestra: string;
+    fechaToma: string;
+    fechaRecepcion: string;
+    lugarToma: string | null;
+    descripcionPunto: string | null;
+    direccionPunto: string | null;
+    motivoAnalisis: string;
+    analisisFisicoquimico: boolean;
+    analisisMicrobiologico: boolean;
+    observaciones: string | null;
+  };
   insurer: { name: string };
   lines: OrderPractice[];
   resultsByLineId: Map<number, Result>;
@@ -312,6 +332,8 @@ export function buildInformeData(input: RenderInformeInput): InformeData {
           }
         : { fullName: '—', dni: '—', sex: null, age: '—', birthDate: '—', streetAddress: null, city: null, phone: null },
     animalPatient: input.animalPatient ?? null,
+    solicitanteAgua: input.solicitanteAgua ?? null,
+    muestraAgua: input.muestraAgua ?? null,
     insurer: {
       name: insurer.name,
       affiliateNumber: order.insuranceAffiliateNumber,

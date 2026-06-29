@@ -20,6 +20,7 @@ import {
   patient,
   practice,
   result,
+  servicio,
   ubValue,
   user,
 } from '@/db/schema';
@@ -432,6 +433,14 @@ async function main() {
   if (!lab) throw new Error(`No existe laboratorio con slug '${LAB_SLUG}'`);
   const labId = lab.id;
 
+  const [svcHumana] = await db
+    .select({ id: servicio.id })
+    .from(servicio)
+    .where(and(eq(servicio.labId, labId), eq(servicio.slug, 'humana')))
+    .limit(1);
+  if (!svcHumana) throw new Error(`No existe servicio 'humana' para lab '${LAB_SLUG}'. Ejecutá la migración 0020 primero.`);
+  const servicioHumanaId = svcHumana.id;
+
   // Idempotencia: verificar si ya hay pacientes
   const [{ count: patientCount }] = await db
     .select({ count: sql<number>`count(*)::int` })
@@ -680,6 +689,7 @@ async function main() {
       .insert(order)
       .values({
         labId,
+        servicioId: servicioHumanaId,
         patientId,
         insurerId,
         referringDoctorId: doctorId,

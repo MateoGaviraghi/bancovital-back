@@ -17,6 +17,7 @@ import { ImpersonationModule } from './modules/impersonation/impersonation.modul
 import { InsurersModule } from './modules/insurers/insurers.module';
 import { LabConfigModule } from './modules/lab-config/lab-config.module';
 import { MeModule } from './modules/me/me.module';
+import { MuestrasAguaModule } from './modules/muestras-agua/muestras-agua.module';
 import { OrdersModule } from './modules/orders/orders.module';
 import { PacientesAnimalesModule } from './modules/pacientes-animales/pacientes-animales.module';
 import { PatientsModule } from './modules/patients/patients.module';
@@ -29,6 +30,8 @@ import { ReportsModule } from './modules/reports/reports.module';
 import { ResultsModule } from './modules/results/results.module';
 import { ReunionesModule } from './modules/reuniones/reuniones.module';
 import { SedesModule } from './modules/sedes/sedes.module';
+import { ServiciosModule } from './modules/servicios/servicios.module';
+import { SolicitantesAguaModule } from './modules/solicitantes-agua/solicitantes-agua.module';
 import { SuperModule } from './modules/super/super.module';
 import { UnidadesMedidaModule } from './modules/unidades-medida/unidades-medida.module';
 import { UsersModule } from './modules/users/users.module';
@@ -69,6 +72,9 @@ import { VeterinariosModule } from './modules/veterinarios/veterinarios.module';
     VeterinariosModule,
     PropietariosModule,
     PacientesAnimalesModule,
+    ServiciosModule,
+    SolicitantesAguaModule,
+    MuestrasAguaModule,
   ],
   providers: [
     AppConfig,
