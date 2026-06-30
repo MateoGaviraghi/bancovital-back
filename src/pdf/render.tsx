@@ -398,14 +398,24 @@ export function buildInformeData(input: RenderInformeInput): InformeData {
     },
     fondoSrc,
     layoutConfig,
-    margins: pref
-      ? {
-          top: pref.marginTop,
-          bottom: pref.marginBottom,
+    margins: (() => {
+      // Cuando hay imagen de fondo, aplicamos mínimos seguros para que el contenido
+      // nunca pise el header ni el footer del membrete en ninguna página.
+      const MIN_TOP = fondoSrc ? 130 : 0;
+      const MIN_BOTTOM = fondoSrc ? 120 : 0;
+      if (pref) {
+        return {
+          top: Math.max(pref.marginTop, MIN_TOP),
+          bottom: Math.max(pref.marginBottom, MIN_BOTTOM),
           left: pref.marginLeft,
           right: pref.marginRight,
-        }
-      : undefined,
+        };
+      }
+      if (fondoSrc) {
+        return { top: MIN_TOP, bottom: MIN_BOTTOM, left: 44, right: 44 };
+      }
+      return undefined;
+    })(),
     accent,
     accentSoft,
     sede: sedeForTemplate(input.sede),
