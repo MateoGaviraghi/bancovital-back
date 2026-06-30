@@ -127,6 +127,8 @@ export class PracticesService {
           isSpecialAct: dto.isSpecialAct ?? false,
           active: dto.active ?? true,
           referenceValue: dto.referenceValue ?? null,
+          methodology: dto.methodology?.trim() || null,
+          defaultUnit: dto.defaultUnit?.trim() || null,
           isElaborated: dto.isElaborated ?? false,
         })
         .returning();
