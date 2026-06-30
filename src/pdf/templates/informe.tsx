@@ -661,10 +661,8 @@ export function InformeTemplate({ data }: { data: InformeData }) {
           />
         ) : null}
 
-        {/* Header + rule: si hay fondo se dejan 80pt de espacio; si no, header completo */}
-        {data.fondoSrc ? (
-          <View style={{ height: 80 }} />
-        ) : (
+        {/* Header: si hay fondo el paddingTop de la página ya deja el espacio necesario */}
+        {data.fondoSrc ? null : (
           <>
             <View style={styles.header}>
               {data.lab.logoSrc ? <Image src={data.lab.logoSrc} style={styles.logo} /> : null}
