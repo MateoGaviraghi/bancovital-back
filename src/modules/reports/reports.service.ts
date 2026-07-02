@@ -21,6 +21,7 @@ import {
   result,
   sede,
   solicitanteAgua,
+  unidadMedida,
   veterinario,
 } from '@/db/schema';
 import type { Order, OrderPracticeUnidadValue, Result } from '@/db/schema';
@@ -589,23 +590,30 @@ export class ReportsService {
     }
 
     const unidadRefsByKey = new Map<string, { rangeLow: string | null; rangeHigh: string | null; referenceText: string | null }>();
+    const practiceUnidadsByPracticeId = new Map<number, Array<{ unidadId: number; simbolo: string | null; rangeLow: string | null; rangeHigh: string | null; referenceText: string | null }>>();
     if (practiceIds.length > 0) {
       const puRows = await this.db
         .select({
           practiceId: practiceUnidad.practiceId,
           unidadId: practiceUnidad.unidadId,
+          simbolo: unidadMedida.simbolo,
           rangeLow: practiceUnidad.rangeLow,
           rangeHigh: practiceUnidad.rangeHigh,
           referenceText: practiceUnidad.referenceText,
         })
         .from(practiceUnidad)
-        .where(and(eq(practiceUnidad.labId, ord.labId), inArray(practiceUnidad.practiceId, practiceIds)));
+        .leftJoin(unidadMedida, eq(unidadMedida.id, practiceUnidad.unidadId))
+        .where(and(eq(practiceUnidad.labId, ord.labId), inArray(practiceUnidad.practiceId, practiceIds)))
+        .orderBy(asc(practiceUnidad.sortOrder));
       for (const pu of puRows) {
         unidadRefsByKey.set(`${pu.practiceId}:${pu.unidadId}`, {
           rangeLow: pu.rangeLow,
           rangeHigh: pu.rangeHigh,
           referenceText: pu.referenceText,
         });
+        const list = practiceUnidadsByPracticeId.get(pu.practiceId) ?? [];
+        list.push({ unidadId: pu.unidadId, simbolo: pu.simbolo, rangeLow: pu.rangeLow, rangeHigh: pu.rangeHigh, referenceText: pu.referenceText });
+        practiceUnidadsByPracticeId.set(pu.practiceId, list);
       }
     }
 
@@ -692,6 +700,7 @@ export class ReportsService {
       unidadValuesByLineId,
       practiceDataById,
       unidadRefsByKey,
+      practiceUnidadsByPracticeId,
       especieRefsByPractice,
       lab,
       logoDataUri,

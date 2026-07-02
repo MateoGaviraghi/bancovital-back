@@ -111,6 +111,8 @@ export interface RenderInformeInput {
   unidadValuesByLineId?: Map<number, OrderPracticeUnidadValue[]>;
   /** Rangos de referencia por unidad asociada: key = "practiceId:unidadId" */
   unidadRefsByKey?: Map<string, { rangeLow: string | null; rangeHigh: string | null; referenceText: string | null }>;
+  /** Unidades configuradas por práctica (fallback de unidad/referencia cuando no hay sub-valores cargados). */
+  practiceUnidadsByPracticeId?: Map<number, Array<{ unidadId: number; simbolo: string | null; rangeLow: string | null; rangeHigh: string | null; referenceText: string | null }>>;
   /** Metodologia y valor de referencia por practiceId (para mostrar en PDF cuando no hay resultado). */
   practiceDataById?: Map<number, { methodology: string | null; referenceValue: string | null; defaultUnit: string | null }>;
   /** Rangos de referencia por especie (veterinaria): key = practiceId */
@@ -365,24 +367,46 @@ export function buildInformeData(input: RenderInformeInput): InformeData {
           };
         });
         const practiceData = l.practiceId ? (practiceDataById?.get(l.practiceId) ?? null) : null;
+        const puList = l.practiceId ? (input.practiceUnidadsByPracticeId?.get(l.practiceId) ?? []) : [];
+        const hasUnidadValues = rawUnidades.length > 0;
+
+        // Unidad: resultado > defaultUnit del catálogo > primera unidad configurada (si no hay sub-valores)
+        let unit = r?.unit || practiceData?.defaultUnit || null;
+        if (!unit && !hasUnidadValues && puList.length > 0) {
+          unit = puList[0].simbolo ?? null;
+        }
+
+        // Referencia: especie > rango del resultado > referencia de practiceUnidad (fallback cuando no hay sub-valores)
+        let range: string | null = (() => {
+          const eRef = l.practiceId ? input.especieRefsByPractice?.get(l.practiceId) : null;
+          if (eRef && (eRef.rangeLow || eRef.rangeHigh)) {
+            return formatRange(eRef.rangeLow, eRef.rangeHigh, eRef.unit || unit);
+          }
+          if (r && (r.referenceRangeLow || r.referenceRangeHigh)) {
+            return formatRange(r.referenceRangeLow, r.referenceRangeHigh, unit);
+          }
+          return null;
+        })();
+        let referenceValue = practiceData?.referenceValue ?? null;
+        if (!range && !referenceValue && !hasUnidadValues && puList.length > 0) {
+          const firstPu = puList[0];
+          if (firstPu.rangeLow || firstPu.rangeHigh) {
+            const baseRange = formatRange(firstPu.rangeLow, firstPu.rangeHigh, unit);
+            range = firstPu.referenceText ? `${baseRange}. ${firstPu.referenceText}` : baseRange;
+          } else if (firstPu.referenceText) {
+            referenceValue = firstPu.referenceText;
+          }
+        }
+
         return {
           nbuCode: l.nbuCodeSnapshot,
           name: l.nameSnapshot,
           value,
-          unit: r?.unit || practiceData?.defaultUnit || null,
-          range: (() => {
-            const eRef = l.practiceId ? input.especieRefsByPractice?.get(l.practiceId) : null;
-            if (eRef && (eRef.rangeLow || eRef.rangeHigh)) {
-              return formatRange(eRef.rangeLow, eRef.rangeHigh, eRef.unit || r?.unit || practiceData?.defaultUnit || null);
-            }
-            if (r && (r.referenceRangeLow || r.referenceRangeHigh)) {
-              return formatRange(r.referenceRangeLow, r.referenceRangeHigh, r?.unit || practiceData?.defaultUnit || null);
-            }
-            return null;
-          })(),
+          unit,
+          range,
           flag: r?.flag ?? null,
           methodology: r?.methodology || practiceData?.methodology || null,
-          referenceValue: practiceData?.referenceValue ?? null,
+          referenceValue,
           notes: r?.notes ?? null,
           unidades: unidades.length > 0 ? unidades : undefined,
         };
