@@ -2,7 +2,7 @@ import type { Db } from '@/db/client';
 import { DATABASE } from '@/db/database.module';
 import { cicloConsumo, laboratorio, plan, suscripcion } from '@/db/schema';
 import { Inject, Injectable } from '@nestjs/common';
-import { and, eq, isNull, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 
 export interface RegistrarOrdenResult {
   esExcedente: boolean;
@@ -261,32 +261,57 @@ export class ConsumoService {
 
   /**
    * Resumen de consumo de TODOS los labs activos (para super admin).
+   *
+   * Batcheado para evitar N+1: una query para suscripciones activas, una para
+   * planes y una para ciclos del período actual, todas con inArray sobre los
+   * labIds. Los ciclos faltantes (labs sin ciclo creado todavía este período)
+   * se crean on-demand fuera del loop principal, uno por uno (getOrCreateCiclo
+   * ya maneja su propia carrera de creación), pero solo para esos labs.
    */
   async getConsumoResumen(): Promise<ConsumoResumenItem[]> {
     const periodo = this.periodoActual();
 
     const labs = await this.db.select().from(laboratorio).where(eq(laboratorio.estado, 'activo'));
+    if (labs.length === 0) return [];
 
-    const result: ConsumoResumenItem[] = [];
+    const labIds = labs.map((l) => l.id);
 
-    for (const lab of labs) {
-      const ciclo = await this.getOrCreateCiclo(lab.id);
-
-      const [sus] = await this.db
-        .select({ planId: suscripcion.planId })
+    const [suscripciones, ciclos] = await Promise.all([
+      this.db
+        .select({ labId: suscripcion.labId, planId: suscripcion.planId })
         .from(suscripcion)
-        .where(and(eq(suscripcion.labId, lab.id), eq(suscripcion.estado, 'activa')))
-        .limit(1);
+        .where(and(inArray(suscripcion.labId, labIds), eq(suscripcion.estado, 'activa'))),
+      this.db
+        .select()
+        .from(cicloConsumo)
+        .where(and(inArray(cicloConsumo.labId, labIds), eq(cicloConsumo.periodo, periodo))),
+    ]);
 
-      let planResumen: { id: number; nombre: string } | null = null;
-      if (sus) {
-        const [planRow] = await this.db
+    const planIds = [...new Set(suscripciones.map((s) => s.planId))];
+    const planes = planIds.length
+      ? await this.db
           .select({ id: plan.id, nombre: plan.nombre })
           .from(plan)
-          .where(and(eq(plan.id, sus.planId), isNull(plan.deletedAt)))
-          .limit(1);
-        if (planRow) planResumen = planRow;
-      }
+          .where(and(inArray(plan.id, planIds), isNull(plan.deletedAt)))
+      : [];
+
+    const planById = new Map(planes.map((p) => [p.id, p]));
+    const planIdByLabId = new Map(suscripciones.map((s) => [s.labId, s.planId]));
+    const cicloByLabId = new Map(ciclos.map((c) => [c.labId, c]));
+
+    // Labs sin ciclo del período actual todavía: crearlos on-demand, fuera del
+    // batch principal (no evitable sin duplicar la lógica de rollover).
+    const labsSinCiclo = labs.filter((lab) => !cicloByLabId.has(lab.id));
+    for (const lab of labsSinCiclo) {
+      const ciclo = await this.getOrCreateCiclo(lab.id);
+      cicloByLabId.set(lab.id, ciclo);
+    }
+
+    const result: ConsumoResumenItem[] = [];
+    for (const lab of labs) {
+      const ciclo = cicloByLabId.get(lab.id)!;
+      const planId = planIdByLabId.get(lab.id);
+      const planResumen = planId !== undefined ? (planById.get(planId) ?? null) : null;
 
       const cupoEfectivo = ciclo.cupoBase !== null ? ciclo.cupoBase + ciclo.rollover : null;
       const porcentaje =

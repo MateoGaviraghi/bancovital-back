@@ -19,7 +19,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { and, desc, eq, isNull, lt, ne } from 'drizzle-orm';
+import { and, desc, eq, isNull, lt, ne, sql } from 'drizzle-orm';
 import type { CreateContractDto, DatosFacturacionDto } from './dto/contracts.dto';
 
 export const CONTRACTS_BUCKET = 'contracts';
@@ -474,31 +474,25 @@ export class ContractsService {
       throw new BadRequestException('No hay OTP activo. Solicite uno primero.');
     }
 
-    if (row.otpIntentos >= OTP_MAX_ATTEMPTS) {
+    // Incremento atómico condicionado: si ya alcanzó el máximo, no incrementa y
+    // devuelve 0 filas → 429. Evita el bypass por TOCTOU con requests concurrentes.
+    const [bumped] = await this.db
+      .update(contrato)
+      .set({ otpIntentos: sql`${contrato.otpIntentos} + 1`, updatedAt: new Date() })
+      .where(and(eq(contrato.id, row.id), lt(contrato.otpIntentos, OTP_MAX_ATTEMPTS)))
+      .returning({ otpIntentos: contrato.otpIntentos });
+    if (!bumped) {
       throw new HttpException(
         'Demasiados intentos. Solicite un nuevo OTP.',
         HttpStatus.TOO_MANY_REQUESTS,
       );
     }
 
-    // Incrementar intentos
-    await this.db
-      .update(contrato)
-      .set({ otpIntentos: row.otpIntentos + 1, updatedAt: new Date() })
-      .where(eq(contrato.id, row.id));
-
     if (row.otpExpiraAt < new Date()) {
       throw new BadRequestException('El OTP expiró. Solicite uno nuevo.');
     }
 
     if (sha256(codigo) !== row.otpHash) {
-      const newIntentos = row.otpIntentos + 1;
-      if (newIntentos >= OTP_MAX_ATTEMPTS) {
-        throw new HttpException(
-          'Demasiados intentos. Solicite un nuevo OTP.',
-          HttpStatus.TOO_MANY_REQUESTS,
-        );
-      }
       throw new BadRequestException('Código incorrecto');
     }
 
@@ -571,6 +565,18 @@ export class ContractsService {
     let contratoActualizado: typeof contrato.$inferSelect;
 
     await this.db.transaction(async (tx) => {
+      // Claim atómico: solo la primera transacción pasa el contrato de 'enviado'
+      // a 'firmado'. Una firma concurrente encuentra estado != 'enviado' → 0 filas
+      // → aborta, evitando crear dos laboratorios para el mismo contrato.
+      const [claimed] = await tx
+        .update(contrato)
+        .set({ estado: 'firmado', updatedAt: new Date() })
+        .where(and(eq(contrato.id, row.id), eq(contrato.estado, 'enviado')))
+        .returning({ id: contrato.id });
+      if (!claimed) {
+        throw new ConflictException('Este contrato ya fue firmado');
+      }
+
       // Crear laboratorio
       const [lab] = await tx
         .insert(laboratorio)
@@ -593,11 +599,10 @@ export class ContractsService {
         desde: new Date(),
       });
 
-      // Update contrato
+      // Completar el contrato con los datos que dependen del lab recién creado.
       const [updated] = await tx
         .update(contrato)
         .set({
-          estado: 'firmado',
           planElegidoId: dto.planId,
           labCreadoId: lab.id,
           firmadoAt,

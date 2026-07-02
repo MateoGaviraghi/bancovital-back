@@ -53,6 +53,7 @@ export const practice = pgTable(
     nbuCodeIdx: uniqueIndex('idx_practice_nbucode').on(t.nbuCode),
     sectionActiveIdx: index('idx_practice_active_section').on(t.active, t.section),
     nameTrgmIdx: index('idx_practice_name_trgm').using('gin', sql`name gin_trgm_ops`),
+    parentIdx: index('idx_practice_parent').on(t.parentId),
   }),
 );
 
