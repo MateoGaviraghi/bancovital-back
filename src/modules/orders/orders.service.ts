@@ -4,6 +4,7 @@ import {
   doctor,
   especie,
   insurer,
+  muestraAgua,
   order,
   orderPractice,
   pacienteAnimal,
@@ -12,7 +13,9 @@ import {
   propietario,
   result,
   servicio,
+  solicitanteAgua,
   ubValue,
+  veterinario,
 } from '@/db/schema';
 import type { NewOrder, NewOrderPractice, Order, OrderPractice, Servicio } from '@/db/schema';
 import {
@@ -97,10 +100,12 @@ export class OrdersService {
       if (!dto.animalPatientId) {
         throw new UnprocessableEntityException('animalPatientId es requerido para este servicio');
       }
+      await this.assertAnimalPatient(labId, dto.animalPatientId);
       animalPatientId = dto.animalPatientId;
     }
-    if (svc.usaVeterinario) {
-      veterinarioId = dto.veterinarioId ?? null;
+    if (svc.usaVeterinario && dto.veterinarioId) {
+      await this.assertVeterinario(labId, dto.veterinarioId);
+      veterinarioId = dto.veterinarioId;
     }
 
     let solicitanteAguaId: number | null = null;
@@ -109,12 +114,14 @@ export class OrdersService {
       if (!dto.solicitanteAguaId) {
         throw new UnprocessableEntityException('solicitanteAguaId es requerido para este servicio');
       }
+      await this.assertSolicitanteAgua(labId, dto.solicitanteAguaId);
       solicitanteAguaId = dto.solicitanteAguaId;
     }
     if (svc.usaMuestraAgua) {
       if (!dto.muestraAguaId) {
         throw new UnprocessableEntityException('muestraAguaId es requerido para este servicio');
       }
+      await this.assertMuestraAgua(labId, dto.muestraAguaId);
       muestraAguaId = dto.muestraAguaId;
     }
 
@@ -853,6 +860,43 @@ export class OrdersService {
       .limit(1);
     if (!row) throw new NotFoundException(`Paciente ${id} no encontrado`);
     return row;
+  }
+
+  // Defensa anti-IDOR cross-lab: cada FK del body debe pertenecer al lab de la sesion.
+  private async assertAnimalPatient(labId: number, id: number): Promise<void> {
+    const [row] = await this.db
+      .select({ id: pacienteAnimal.id })
+      .from(pacienteAnimal)
+      .where(and(eq(pacienteAnimal.id, id), eq(pacienteAnimal.labId, labId)))
+      .limit(1);
+    if (!row) throw new NotFoundException(`Paciente animal ${id} no encontrado`);
+  }
+
+  private async assertVeterinario(labId: number, id: number): Promise<void> {
+    const [row] = await this.db
+      .select({ id: veterinario.id })
+      .from(veterinario)
+      .where(and(eq(veterinario.id, id), eq(veterinario.labId, labId)))
+      .limit(1);
+    if (!row) throw new NotFoundException(`Veterinario ${id} no encontrado`);
+  }
+
+  private async assertSolicitanteAgua(labId: number, id: number): Promise<void> {
+    const [row] = await this.db
+      .select({ id: solicitanteAgua.id })
+      .from(solicitanteAgua)
+      .where(and(eq(solicitanteAgua.id, id), eq(solicitanteAgua.labId, labId)))
+      .limit(1);
+    if (!row) throw new NotFoundException(`Solicitante de agua ${id} no encontrado`);
+  }
+
+  private async assertMuestraAgua(labId: number, id: number): Promise<void> {
+    const [row] = await this.db
+      .select({ id: muestraAgua.id })
+      .from(muestraAgua)
+      .where(and(eq(muestraAgua.id, id), eq(muestraAgua.labId, labId)))
+      .limit(1);
+    if (!row) throw new NotFoundException(`Muestra de agua ${id} no encontrada`);
   }
 
   private async resolveInsurer(id: number) {

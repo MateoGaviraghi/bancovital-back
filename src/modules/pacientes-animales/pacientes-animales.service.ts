@@ -69,7 +69,17 @@ export class PacientesAnimalesService {
     };
   }
 
+  private async assertPropietario(labId: number, propietarioId: number): Promise<void> {
+    const [row] = await this.db
+      .select({ id: propietario.id })
+      .from(propietario)
+      .where(and(eq(propietario.id, propietarioId), eq(propietario.labId, labId)))
+      .limit(1);
+    if (!row) throw new NotFoundException('Propietario no encontrado');
+  }
+
   async create(dto: CreatePacienteAnimalDto, labId: number, createdBy: string): Promise<PacienteAnimal> {
+    await this.assertPropietario(labId, dto.propietarioId);
     const values: NewPacienteAnimal = {
       labId,
       propietarioId: dto.propietarioId,
@@ -92,6 +102,7 @@ export class PacientesAnimalesService {
 
   async update(labId: number, id: number, dto: UpdatePacienteAnimalDto): Promise<PacienteAnimal> {
     await this.byId(labId, id);
+    if (dto.propietarioId !== undefined) await this.assertPropietario(labId, dto.propietarioId);
 
     const patch: Partial<NewPacienteAnimal> = {
       ...(dto.propietarioId !== undefined && { propietarioId: dto.propietarioId }),
