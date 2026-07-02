@@ -24,7 +24,7 @@ export class MuestrasAguaService {
       })
       .from(muestraAgua)
       .innerJoin(solicitanteAgua, eq(solicitanteAgua.id, muestraAgua.solicitanteId))
-      .where(eq(muestraAgua.labId, labId))
+      .where(and(eq(muestraAgua.labId, labId), eq(solicitanteAgua.labId, labId)))
       .orderBy(desc(muestraAgua.createdAt));
 
     return rows.map((r) => ({
@@ -47,7 +47,17 @@ export class MuestrasAguaService {
     return row;
   }
 
+  private async assertSolicitante(labId: number, solicitanteId: number): Promise<void> {
+    const [row] = await this.db
+      .select({ id: solicitanteAgua.id })
+      .from(solicitanteAgua)
+      .where(and(eq(solicitanteAgua.id, solicitanteId), eq(solicitanteAgua.labId, labId)))
+      .limit(1);
+    if (!row) throw new NotFoundException('Solicitante de agua no encontrado');
+  }
+
   async create(labId: number, dto: CreateMuestraAguaDto): Promise<MuestraAgua> {
+    await this.assertSolicitante(labId, dto.solicitanteId);
     const [row] = await this.db
       .insert(muestraAgua)
       .values({
@@ -78,6 +88,7 @@ export class MuestrasAguaService {
 
   async update(labId: number, id: number, dto: UpdateMuestraAguaDto): Promise<MuestraAgua> {
     await this.findById(labId, id);
+    if (dto.solicitanteId !== undefined) await this.assertSolicitante(labId, dto.solicitanteId);
     const [row] = await this.db
       .update(muestraAgua)
       .set({
