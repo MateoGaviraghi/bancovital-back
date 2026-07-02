@@ -25,7 +25,8 @@ export class MuestrasAguaService {
       .from(muestraAgua)
       .innerJoin(solicitanteAgua, eq(solicitanteAgua.id, muestraAgua.solicitanteId))
       .where(and(eq(muestraAgua.labId, labId), eq(solicitanteAgua.labId, labId)))
-      .orderBy(desc(muestraAgua.createdAt));
+      .orderBy(desc(muestraAgua.createdAt))
+      .limit(500);
 
     return rows.map((r) => ({
       ...r.muestra,

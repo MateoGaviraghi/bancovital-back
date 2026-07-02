@@ -671,20 +671,20 @@ export class OrdersService {
     if (lineCount === 0) {
       throw new UnprocessableEntityException('La orden no tiene practicas, no se puede confirmar');
     }
-    return this.applyStatus(id, 'confirmada');
+    return this.applyStatus(id, labId, current.status, 'confirmada');
   }
 
   async start(labId: number, id: number): Promise<Order> {
     const current = await this.requireOrder(labId, id);
     this.assertTransition(current.status, 'en_proceso');
-    return this.applyStatus(id, 'en_proceso');
+    return this.applyStatus(id, labId, current.status, 'en_proceso');
   }
 
   async finalize(labId: number, id: number): Promise<Order> {
     const current = await this.requireOrder(labId, id);
     this.assertTransition(current.status, 'resultados_cargados');
     await this.assertHasReportableResults(id);
-    return this.applyStatus(id, 'resultados_cargados');
+    return this.applyStatus(id, labId, current.status, 'resultados_cargados');
   }
 
   async cancel(labId: number, id: number, dto: CancelOrderDto): Promise<Order> {
@@ -697,8 +697,11 @@ export class OrdersService {
         cancellationReason: dto.reason ?? null,
         updatedAt: new Date(),
       })
-      .where(and(eq(order.id, id), eq(order.labId, labId)))
+      .where(and(eq(order.id, id), eq(order.labId, labId), eq(order.status, current.status)))
       .returning();
+    if (!row) {
+      throw new ConflictException('El estado de la orden cambió. Recargá e intentá de nuevo.');
+    }
     // El informe emitido ya no es válido para una orden anulada: borrar el blob.
     await this.removeReportBlobBestEffort(current.pdfReportPath);
     return row;
@@ -722,8 +725,11 @@ export class OrdersService {
         pdfReportSignedBy: signedBy,
         updatedAt: new Date(),
       })
-      .where(and(eq(order.id, id), eq(order.labId, labId)))
+      .where(and(eq(order.id, id), eq(order.labId, labId), eq(order.status, current.status)))
       .returning();
+    if (!row) {
+      throw new ConflictException('El estado de la orden cambió. Recargá e intentá de nuevo.');
+    }
     return row;
   }
 
@@ -740,7 +746,7 @@ export class OrdersService {
   async markDelivered(labId: number, id: number): Promise<Order> {
     const current = await this.requireOrder(labId, id);
     this.assertTransition(current.status, 'entregada');
-    return this.applyStatus(id, 'entregada');
+    return this.applyStatus(id, labId, current.status, 'entregada');
   }
 
   async revertToBorrador(labId: number, id: number): Promise<Order> {
@@ -767,8 +773,11 @@ export class OrdersService {
         pdfReportSignedBy: null,
         updatedAt: new Date(),
       })
-      .where(and(eq(order.id, id), eq(order.labId, labId)))
+      .where(and(eq(order.id, id), eq(order.labId, labId), eq(order.status, current.status)))
       .returning();
+    if (!row) {
+      throw new ConflictException('El estado de la orden cambió. Recargá e intentá de nuevo.');
+    }
     // El PDF emitido ya no corresponde tras volver a borrador: borrar el blob.
     await this.removeReportBlobBestEffort(previousPdfPath);
     return row;
@@ -823,12 +832,24 @@ export class OrdersService {
     }
   }
 
-  private async applyStatus(id: number, status: OrderStatus): Promise<Order> {
+  // Transición atómica: el UPDATE exige el estado de origen esperado, así dos
+  // requests concurrentes (doble-click) no aplican la transición dos veces.
+  private async applyStatus(
+    id: number,
+    labId: number,
+    from: OrderStatus,
+    to: OrderStatus,
+  ): Promise<Order> {
     const [row] = await this.db
       .update(order)
-      .set({ status, updatedAt: new Date() })
-      .where(eq(order.id, id))
+      .set({ status: to, updatedAt: new Date() })
+      .where(and(eq(order.id, id), eq(order.labId, labId), eq(order.status, from)))
       .returning();
+    if (!row) {
+      throw new ConflictException(
+        `El estado de la orden cambió (se esperaba "${from}"). Recargá e intentá de nuevo.`,
+      );
+    }
     return row;
   }
 
