@@ -315,32 +315,9 @@ export class ResultsService {
       }
     }
 
-    const [existing] = await this.db
-      .select()
-      .from(result)
-      .where(eq(result.orderPracticeId, dto.orderPracticeId))
-      .limit(1);
-
-    if (existing) {
-      const [row] = await this.db
-        .update(result)
-        .set({
-          valueNumeric: dto.valueNumeric ?? null,
-          valueText: dto.valueText ?? null,
-          unit: dto.unit ?? null,
-          methodology: dto.methodology ?? null,
-          notes: dto.notes ?? null,
-          flag,
-          referenceRangeLow,
-          referenceRangeHigh,
-          enteredBy,
-          enteredAt: new Date(),
-        })
-        .where(eq(result.orderPracticeId, dto.orderPracticeId))
-        .returning();
-      return row;
-    }
-
+    // Upsert real (result.orderPracticeId tiene unique constraint): evita el
+    // race de check-then-insert donde dos requests concurrentes leen "no existe"
+    // y ambas intentan INSERT, disparando una unique violation.
     const [row] = await this.db
       .insert(result)
       .values({
@@ -354,6 +331,21 @@ export class ResultsService {
         referenceRangeLow,
         referenceRangeHigh,
         enteredBy,
+      })
+      .onConflictDoUpdate({
+        target: result.orderPracticeId,
+        set: {
+          valueNumeric: dto.valueNumeric ?? null,
+          valueText: dto.valueText ?? null,
+          unit: dto.unit ?? null,
+          methodology: dto.methodology ?? null,
+          notes: dto.notes ?? null,
+          flag,
+          referenceRangeLow,
+          referenceRangeHigh,
+          enteredBy,
+          enteredAt: new Date(),
+        },
       })
       .returning();
     return row;

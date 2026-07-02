@@ -34,6 +34,7 @@ import {
 const ALLOWED_FONDO_MIME = ['image/png', 'image/jpeg'] as const;
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 
+import { sniffImageMime } from '@/modules/lab-config/asset-storage';
 import { CreatePreferenciaPdfDto } from './dto/create-preferencia-pdf.dto';
 import { UpdatePreferenciaPdfDto } from './dto/update-preferencia-pdf.dto';
 import { PreferenciaPdfService } from './preferencia-pdf.service';
@@ -44,14 +45,18 @@ interface UploadedImage {
   size: number;
 }
 
-function validateImage(file: UploadedImage | undefined): void {
+function validateImage(file: UploadedImage | undefined): UploadedImage {
   if (!file) throw new BadRequestException('Falta el archivo (campo "file").');
-  if (!ALLOWED_FONDO_MIME.includes(file.mimetype as (typeof ALLOWED_FONDO_MIME)[number])) {
-    throw new BadRequestException(`Formato no permitido: ${file.mimetype}. Use PNG o JPG.`);
-  }
   if (file.size > MAX_IMAGE_BYTES) {
     throw new BadRequestException('La imagen supera el máximo de 10 MB.');
   }
+  // Sniffear magic bytes en vez de confiar en el Content-Type del cliente.
+  const detected = sniffImageMime(file.buffer);
+  if (!detected || !ALLOWED_FONDO_MIME.includes(detected as (typeof ALLOWED_FONDO_MIME)[number])) {
+    throw new BadRequestException('Formato no permitido. Use PNG o JPG.');
+  }
+  // Descartar el mimetype declarado: usar el tipo real detectado aguas abajo.
+  return { ...file, mimetype: detected };
 }
 
 @ApiTags('preferencia-pdf')
@@ -133,8 +138,8 @@ export class PreferenciaPdfController {
     @Param('id', ParseIntPipe) id: number,
     @UploadedFile() file: UploadedImage,
   ) {
-    validateImage(file);
-    return this.service.uploadFondo(requireLabId(user), id, file);
+    const validated = validateImage(file);
+    return this.service.uploadFondo(requireLabId(user), id, validated);
   }
 
   @Delete(':id/fondo')

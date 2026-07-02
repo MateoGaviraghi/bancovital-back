@@ -179,18 +179,33 @@ export class ReportsService {
 
     const failures: Array<{ orderId: number; error: string }> = [];
     let regenerated = 0;
-    for (const ord of ords) {
-      try {
-        const path = await this.renderAndUpload(ord);
-        await this.orders.setPdfPath(labId, ord.id, path);
-        regenerated++;
-      } catch (err) {
-        failures.push({
-          orderId: ord.id,
-          error: err instanceof Error ? err.message : String(err),
-        });
+
+    // Paraleliza en lotes chicos para no serializar render+upload+update orden
+    // por orden. La escritura de pdfPath sigue siendo incremental (por orden,
+    // apenas se resuelve su render), no se espera a que termine todo el lote.
+    const CHUNK_SIZE = 8;
+    for (let i = 0; i < ords.length; i += CHUNK_SIZE) {
+      const chunk = ords.slice(i, i + CHUNK_SIZE);
+      const settled = await Promise.allSettled(
+        chunk.map(async (ord) => {
+          const path = await this.renderAndUpload(ord);
+          await this.orders.setPdfPath(labId, ord.id, path);
+          return ord.id;
+        }),
+      );
+      for (let j = 0; j < settled.length; j++) {
+        const outcome = settled[j];
+        if (outcome.status === 'fulfilled') {
+          regenerated++;
+        } else {
+          failures.push({
+            orderId: chunk[j].id,
+            error: outcome.reason instanceof Error ? outcome.reason.message : String(outcome.reason),
+          });
+        }
       }
     }
+
     return { total: ords.length, regenerated, failures };
   }
 
