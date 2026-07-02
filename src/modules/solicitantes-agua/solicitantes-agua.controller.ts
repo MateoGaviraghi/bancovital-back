@@ -38,6 +38,7 @@ export class SolicitantesAguaController {
   }
 
   @Post()
+  @Roles('admin', 'recepcion', 'bioquimico')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Crear solicitante' })
   create(@CurrentUser() user: Session, @Body() dto: CreateSolicitanteAguaDto) {
@@ -45,12 +46,14 @@ export class SolicitantesAguaController {
   }
 
   @Patch(':id')
+  @Roles('admin', 'recepcion', 'bioquimico')
   @ApiOperation({ summary: 'Actualizar solicitante' })
   update(@CurrentUser() user: Session, @Param('id', ParseIntPipe) id: number, @Body() dto: UpdateSolicitanteAguaDto) {
     return this.svc.update(requireLabId(user), id, dto);
   }
 
   @Delete(':id')
+  @Roles('admin')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Eliminar solicitante (soft)' })
   remove(@CurrentUser() user: Session, @Param('id', ParseIntPipe) id: number) {

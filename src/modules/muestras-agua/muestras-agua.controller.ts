@@ -1,5 +1,6 @@
 import { type Session, requireLabId } from '@/auth/session';
 import { CurrentUser } from '@/common/decorators/current-user.decorator';
+import { Roles } from '@/common/decorators/roles.decorator';
 import {
   Body,
   Controller,
@@ -36,6 +37,7 @@ export class MuestrasAguaController {
   }
 
   @Post()
+  @Roles('admin', 'recepcion', 'bioquimico')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Crear muestra' })
   create(@CurrentUser() user: Session, @Body() dto: CreateMuestraAguaDto) {
@@ -43,12 +45,14 @@ export class MuestrasAguaController {
   }
 
   @Patch(':id')
+  @Roles('admin', 'recepcion', 'bioquimico')
   @ApiOperation({ summary: 'Actualizar muestra' })
   update(@CurrentUser() user: Session, @Param('id', ParseIntPipe) id: number, @Body() dto: UpdateMuestraAguaDto) {
     return this.svc.update(requireLabId(user), id, dto);
   }
 
   @Delete(':id')
+  @Roles('admin')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Eliminar muestra' })
   remove(@CurrentUser() user: Session, @Param('id', ParseIntPipe) id: number) {

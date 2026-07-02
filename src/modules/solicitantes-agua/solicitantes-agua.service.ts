@@ -27,7 +27,8 @@ export class SolicitantesAguaService {
       .select()
       .from(solicitanteAgua)
       .where(and(...conds))
-      .orderBy(desc(solicitanteAgua.createdAt));
+      .orderBy(desc(solicitanteAgua.createdAt))
+      .limit(500);
   }
 
   async findById(labId: number, id: number): Promise<SolicitanteAgua> {
