@@ -1,7 +1,7 @@
 import { AuditService } from '@/common/audit/audit.service';
 import type { Db } from '@/db/client';
 import { DATABASE, SUPABASE_ADMIN } from '@/db/database.module';
-import { laboratorio, order, patient } from '@/db/schema';
+import { laboratorio, order, pacienteAnimal, patient, propietario } from '@/db/schema';
 import { ASSETS_BUCKET } from '@/modules/lab-config/asset-storage';
 import { HttpException, HttpStatus, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -109,14 +109,26 @@ export class PublicReportsService {
       );
     }
 
-    const [pat] = await this.db
-      .select({ dni: patient.dni })
-      .from(patient)
-      .where(eq(patient.id, ord.patientId!))
-      .limit(1);
-    if (!pat) throw new NotFoundException('Informe no encontrado');
+    let patDni: string | null = null;
+    if (ord.patientId) {
+      const [pat] = await this.db
+        .select({ dni: patient.dni })
+        .from(patient)
+        .where(eq(patient.id, ord.patientId))
+        .limit(1);
+      patDni = pat?.dni ?? null;
+    } else if (ord.animalPatientId) {
+      const [row] = await this.db
+        .select({ dni: propietario.dni })
+        .from(pacienteAnimal)
+        .innerJoin(propietario, eq(propietario.id, pacienteAnimal.propietarioId))
+        .where(eq(pacienteAnimal.id, ord.animalPatientId))
+        .limit(1);
+      patDni = row?.dni ?? null;
+    }
+    if (!patDni) throw new NotFoundException('Informe no encontrado');
 
-    const matches = normalizeDni(pat.dni) === normalizeDni(dniRaw) && normalizeDni(dniRaw) !== '';
+    const matches = normalizeDni(patDni) === normalizeDni(dniRaw) && normalizeDni(dniRaw) !== '';
 
     if (!matches) {
       const attempts = ord.publicAccessAttempts + 1;

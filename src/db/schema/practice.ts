@@ -41,6 +41,8 @@ export const practice = pgTable(
     referenceValue: text('reference_value'),
     /** Metodologia por defecto para esta practica (se muestra en el PDF). */
     methodology: text('methodology'),
+    /** Unidad de medida por defecto (ej: mg/dL, %, U/L). Se presetea en la carga de resultados. */
+    defaultUnit: text('default_unit'),
     /** true = el laboratorio la elabora; false = se deriva a otro laboratorio. */
     isElaborated: boolean('is_elaborated').notNull().default(false),
     condicionVisibilidad: jsonb('condicion_visibilidad').$type<CondicionVisibilidad>(),
@@ -51,6 +53,7 @@ export const practice = pgTable(
     nbuCodeIdx: uniqueIndex('idx_practice_nbucode').on(t.nbuCode),
     sectionActiveIdx: index('idx_practice_active_section').on(t.active, t.section),
     nameTrgmIdx: index('idx_practice_name_trgm').using('gin', sql`name gin_trgm_ops`),
+    parentIdx: index('idx_practice_parent').on(t.parentId),
   }),
 );
 

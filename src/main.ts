@@ -1,15 +1,20 @@
 import './tz'; // Debe ir PRIMERO: ancla la TZ a Argentina antes de cualquier parseo de fechas.
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import compression from 'compression';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, {
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     logger: ['error', 'warn', 'log'],
   });
+
+  // Detrás del proxy de Railway: confiar en 1 hop para que X-Forwarded-For
+  // dé la IP real del cliente y el rate-limit por IP funcione de verdad.
+  app.set('trust proxy', 1);
 
   app.use(helmet());
   app.use(compression());

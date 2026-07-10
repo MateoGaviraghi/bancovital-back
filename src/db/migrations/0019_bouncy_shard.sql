@@ -1,0 +1,1 @@
+ALTER TABLE "practice" ADD COLUMN "default_unit" text;

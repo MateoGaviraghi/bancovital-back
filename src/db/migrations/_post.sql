@@ -88,3 +88,15 @@ ALTER TABLE public."reunion" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public."anuncio" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public."lab_movimiento" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public."sede" ENABLE ROW LEVEL SECURITY;
+-- Tablas veterinaria/agua/servicios + catálogos globales agregadas despues (estaban expuestas al anon key):
+ALTER TABLE public."paciente_animal" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."propietario" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."veterinario" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."muestra_agua" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."solicitante_agua" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."servicio" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."lab_practice_config" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."especie" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."raza" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."practice_referencia_especie" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."practice_unidad_ref_especie" ENABLE ROW LEVEL SECURITY;

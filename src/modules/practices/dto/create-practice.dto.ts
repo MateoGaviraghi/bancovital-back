@@ -85,6 +85,15 @@ export class CreatePracticeDto {
   methodology?: string | null;
 
   @ApiPropertyOptional({
+    description: 'Unidad de medida por defecto (ej: mg/dL, %, U/L). Se presetea en la carga de resultados.',
+    nullable: true,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  defaultUnit?: string | null;
+
+  @ApiPropertyOptional({
     default: false,
     description: 'true = el laboratorio la elabora; false = se deriva',
   })

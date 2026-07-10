@@ -24,6 +24,8 @@ export const laboratorio = pgTable('laboratorio', {
   estado: estadoLabEnum('estado').notNull().default('activo'),
   /** Marcado manual por el super: lab moroso (deuda impaga). Solo informativo. */
   moroso: boolean('moroso').notNull().default(false),
+  /** Opt-in del super: habilita el área veterinaria para este lab (sidebar, rutas, toggle de orden). */
+  veterinariaHabilitada: boolean('veterinaria_habilitada').notNull().default(false),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });

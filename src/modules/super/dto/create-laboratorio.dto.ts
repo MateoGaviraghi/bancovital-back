@@ -1,4 +1,4 @@
-import { IsIn, IsOptional, IsString, Matches, MaxLength } from 'class-validator';
+import { IsBoolean, IsIn, IsOptional, IsString, Matches, MaxLength } from 'class-validator';
 
 export class CreateLaboratorioDto {
   @IsString()
@@ -49,6 +49,10 @@ export class CreateLaboratorioDto {
   @IsOptional()
   @IsString()
   signingProfessionalMp?: string | null;
+
+  @IsOptional()
+  @IsBoolean()
+  veterinariaHabilitada?: boolean;
 }
 
 export class UpdateLaboratorioDto {
@@ -118,4 +122,8 @@ export class UpdateLaboratorioDto {
   @IsString()
   @MaxLength(120, { message: 'tagline no puede superar 120 caracteres' })
   tagline?: string | null;
+
+  @IsOptional()
+  @IsBoolean()
+  veterinariaHabilitada?: boolean;
 }

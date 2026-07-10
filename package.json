@@ -31,6 +31,7 @@
     "db:reset": "ts-node -r tsconfig-paths/register src/db/reset.ts",
     "db:inspect": "ts-node -r tsconfig-paths/register src/db/inspect.ts",
     "db:import-nbu": "ts-node -r tsconfig-paths/register src/db/import-nbu.ts",
+    "check:rls": "node scripts/check-rls-coverage.mjs",
     "verify-nbu": "python practicas-migration/verify.py",
     "smoke": "ts-node -r tsconfig-paths/register src/dev/smoke.ts"
   },

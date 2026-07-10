@@ -10,10 +10,13 @@ import {
   HttpStatus,
   Param,
   ParseIntPipe,
+  Patch,
   Post,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiNoContentResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AssociateUnidadDto } from './dto/associate-unidad.dto';
+import { UpdateAssociationDto } from './dto/update-association.dto';
+import { UpsertUnidadRefEspecieDto } from './dto/upsert-unidad-ref-especie.dto';
 import { UnidadesMedidaService } from './unidades-medida.service';
 
 @ApiTags('unidades-medida')
@@ -40,6 +43,18 @@ export class PracticeUnidadesController {
     return this.unidades.associate(requireLabId(user), practiceId, dto);
   }
 
+  @Patch(':unidadId')
+  @Roles('admin')
+  @ApiOperation({ summary: 'Actualizar rangos de referencia de una unidad asociada' })
+  updateRef(
+    @CurrentUser() user: Session,
+    @Param('practiceId', ParseIntPipe) practiceId: number,
+    @Param('unidadId', ParseIntPipe) unidadId: number,
+    @Body() dto: UpdateAssociationDto,
+  ) {
+    return this.unidades.updateAssociation(requireLabId(user), practiceId, unidadId, dto);
+  }
+
   @Delete(':unidadId')
   @Roles('admin')
   @HttpCode(HttpStatus.NO_CONTENT)
@@ -52,5 +67,43 @@ export class PracticeUnidadesController {
     @Param('unidadId', ParseIntPipe) unidadId: number,
   ): Promise<void> {
     await this.unidades.dissociate(requireLabId(user), practiceId, unidadId);
+  }
+
+  // ── Valores de referencia por especie para la unidad ──────────────
+
+  @Get(':unidadId/ref-especie')
+  @ApiOperation({ summary: 'Refs por especie para esta unidad en la práctica' })
+  listRefEspecie(
+    @CurrentUser() user: Session,
+    @Param('practiceId', ParseIntPipe) practiceId: number,
+    @Param('unidadId', ParseIntPipe) unidadId: number,
+  ) {
+    return this.unidades.listRefEspecie(requireLabId(user), practiceId, unidadId);
+  }
+
+  @Post(':unidadId/ref-especie')
+  @Roles('admin')
+  @ApiOperation({ summary: 'Crear o actualizar ref por especie para esta unidad' })
+  upsertRefEspecie(
+    @CurrentUser() user: Session,
+    @Param('practiceId', ParseIntPipe) practiceId: number,
+    @Param('unidadId', ParseIntPipe) unidadId: number,
+    @Body() dto: UpsertUnidadRefEspecieDto,
+  ) {
+    return this.unidades.upsertRefEspecie(requireLabId(user), practiceId, unidadId, dto.especieId, dto);
+  }
+
+  @Delete(':unidadId/ref-especie/:especieId')
+  @Roles('admin')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiNoContentResponse({ description: 'Referencia por especie eliminada' })
+  @ApiOperation({ summary: 'Eliminar ref por especie para esta unidad' })
+  async deleteRefEspecie(
+    @CurrentUser() user: Session,
+    @Param('practiceId', ParseIntPipe) practiceId: number,
+    @Param('unidadId', ParseIntPipe) unidadId: number,
+    @Param('especieId', ParseIntPipe) especieId: number,
+  ) {
+    await this.unidades.deleteRefEspecie(requireLabId(user), practiceId, unidadId, especieId);
   }
 }

@@ -22,6 +22,8 @@ export interface MeResponse {
   primaryColor: string | null;
   /** Color de acento de marca en hex (#rrggbb), o null si no configurado. */
   accentColor: string | null;
+  /** Opt-in del super: el lab tiene habilitada el área veterinaria. */
+  veterinariaHabilitada: boolean;
 }
 
 const LOGO_TTL_SECONDS = 3600;
@@ -46,6 +48,7 @@ export class MeService {
         logoUrl: null,
         primaryColor: null,
         accentColor: null,
+        veterinariaHabilitada: false,
       };
     }
 
@@ -59,6 +62,7 @@ export class MeService {
         logoPath: laboratorio.logoPath,
         primaryColor: laboratorio.primaryColor,
         accentColor: laboratorio.accentColor,
+        veterinariaHabilitada: laboratorio.veterinariaHabilitada,
       })
       .from(laboratorio)
       .where(eq(laboratorio.id, session.labId))
@@ -82,6 +86,7 @@ export class MeService {
       logoUrl,
       primaryColor: row?.primaryColor ?? null,
       accentColor: row?.accentColor ?? null,
+      veterinariaHabilitada: row?.veterinariaHabilitada ?? false,
     };
   }
 }

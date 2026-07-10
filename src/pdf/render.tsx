@@ -1,3 +1,4 @@
+
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import type {
@@ -63,20 +64,59 @@ function ensureFontsRegistered(): void {
     Font.register({ family: 'SourceSerif4Bold', src: 'Times-Bold', fontWeight: 'normal' });
   }
 
-  Font.registerHyphenationCallback((word) => [word]);
+  const helveticaSrc = existsSync(publicSansRegularPath) ? publicSansRegularPath : 'Helvetica';
+  Font.register({ family: 'Helvetica', src: helveticaSrc, fontWeight: 'normal' });
+
+  Font.registerHyphenationCallback((word) =>
+    word.length > 15 ? word.split('') : [word],
+  );
   fontsRegistered = true;
 }
 
 export interface RenderInformeInput {
   order: Order;
-  patient: Patient;
+  patient?: Patient;
+  animalPatient?: {
+    nombre: string;
+    especie: string;
+    raza: string | null;
+    propietario: string;
+    propietarioDni: string;
+  };
+  veterinario?: { name: string; matricula: string };
+  solicitanteAgua?: {
+    nombreApellido: string;
+    razonSocial: string | null;
+    cuit: string | null;
+    domicilio: string | null;
+    localidad: string | null;
+    telefono: string | null;
+  };
+  muestraAgua?: {
+    tipoMuestra: string;
+    fechaToma: string;
+    fechaRecepcion: string;
+    lugarToma: string | null;
+    descripcionPunto: string | null;
+    direccionPunto: string | null;
+    motivoAnalisis: string;
+    analisisFisicoquimico: boolean;
+    analisisMicrobiologico: boolean;
+    observaciones: string | null;
+  };
   insurer: { name: string };
   lines: OrderPractice[];
   resultsByLineId: Map<number, Result>;
   /** Valores de unidades cargados, agrupados por orderPracticeId (sort ya aplicado). */
   unidadValuesByLineId?: Map<number, OrderPracticeUnidadValue[]>;
+  /** Rangos de referencia por unidad asociada: key = "practiceId:unidadId" */
+  unidadRefsByKey?: Map<string, { rangeLow: string | null; rangeHigh: string | null; referenceText: string | null }>;
+  /** Unidades configuradas por práctica (fallback de unidad/referencia cuando no hay sub-valores cargados). */
+  practiceUnidadsByPracticeId?: Map<number, Array<{ unidadId: number; simbolo: string | null; rangeLow: string | null; rangeHigh: string | null; referenceText: string | null }>>;
   /** Metodologia y valor de referencia por practiceId (para mostrar en PDF cuando no hay resultado). */
-  practiceDataById?: Map<number, { methodology: string | null; referenceValue: string | null }>;
+  practiceDataById?: Map<number, { methodology: string | null; referenceValue: string | null; defaultUnit: string | null }>;
+  /** Rangos de referencia por especie (veterinaria): key = practiceId */
+  especieRefsByPractice?: Map<number, { rangeLow: string | null; rangeHigh: string | null; unit: string | null }>;
   lab: Laboratorio;
   logoDataUri?: string | null;
   signatureDataUri?: string | null;
@@ -161,7 +201,7 @@ export async function renderInformePdf(input: RenderInformeInput): Promise<Buffe
 
 export interface RenderFichaInput {
   order: Order;
-  patient: Patient;
+  patient?: Patient | null;
   insurer: { name: string };
   lines: Array<{
     nbuCodeSnapshot: string;
@@ -195,13 +235,15 @@ export async function renderFichaPdf(input: RenderFichaInput): Promise<Buffer> {
       orderDate: formatDate(order.orderDate),
       isUrgent: order.isUrgent,
     },
-    patient: {
-      fullName: `${patient.lastName}, ${patient.firstName}`,
-      dni: patient.dni,
-      sex: patient.sex,
-      age: patient.birthDate ? ageString(patient.birthDate) : '—',
-      birthDate: patient.birthDate ? formatDate(patient.birthDate) : '—',
-    },
+    patient: patient
+      ? {
+          fullName: `${patient.lastName}, ${patient.firstName}`,
+          dni: patient.dni,
+          sex: patient.sex,
+          age: patient.birthDate ? ageString(patient.birthDate) : '—',
+          birthDate: patient.birthDate ? formatDate(patient.birthDate) : '—',
+        }
+      : { fullName: '—', dni: '—', sex: null, age: '—', birthDate: '—' },
     insurer: {
       name: insurer.name,
       affiliateNumber: order.insuranceAffiliateNumber,
@@ -268,25 +310,39 @@ export function buildInformeData(input: RenderInformeInput): InformeData {
       orderDate: formatDate(order.orderDate),
       issuedAt: formatDateTime(order.pdfReportIssuedAt ?? new Date()),
     },
-    patient: {
-      fullName: `${patient.lastName}, ${patient.firstName}`,
-      dni: patient.dni,
-      sex: patient.sex,
-      age: patient.birthDate ? ageString(patient.birthDate) : '—',
-      birthDate: patient.birthDate ? formatDate(patient.birthDate) : '—',
-      streetAddress: patient.streetAddress,
-      city: patient.city,
-      phone: patient.phone,
-    },
+    patient: patient
+      ? {
+          fullName: `${patient.lastName}, ${patient.firstName}`,
+          dni: patient.dni,
+          sex: patient.sex,
+          age: patient.birthDate ? ageString(patient.birthDate) : '—',
+          birthDate: patient.birthDate ? formatDate(patient.birthDate) : '—',
+          streetAddress: patient.streetAddress,
+          city: patient.city,
+          phone: patient.phone,
+        }
+      : input.animalPatient
+        ? {
+            fullName: input.animalPatient.nombre,
+            dni: input.animalPatient.propietarioDni,
+            sex: null,
+            age: '—',
+            birthDate: '—',
+            streetAddress: null,
+            city: null,
+            phone: null,
+          }
+        : { fullName: '—', dni: '—', sex: null, age: '—', birthDate: '—', streetAddress: null, city: null, phone: null },
+    animalPatient: input.animalPatient ?? null,
+    solicitanteAgua: input.solicitanteAgua ?? null,
+    muestraAgua: input.muestraAgua ?? null,
     insurer: {
       name: insurer.name,
       affiliateNumber: order.insuranceAffiliateNumber,
     },
-    doctor: {
-      name: order.referringDoctorName,
-      mp: order.referringDoctorMp,
-      diagnosis: order.diagnosis,
-    },
+    doctor: input.veterinario
+      ? { name: input.veterinario.name, mp: input.veterinario.matricula, diagnosis: order.diagnosis }
+      : { name: order.referringDoctorName, mp: order.referringDoctorMp, diagnosis: order.diagnosis },
     order: {
       origin: order.origin,
       isUrgent: order.isUrgent,
@@ -298,21 +354,59 @@ export function buildInformeData(input: RenderInformeInput): InformeData {
         const r = resultsByLineId.get(l.id);
         const value = r?.valueNumeric ? cleanNumber(r.valueNumeric) : (r?.valueText ?? '');
         const rawUnidades = unidadValuesByLineId?.get(l.id) ?? [];
-        const unidades: InformeUnidadRow[] = rawUnidades.map((u) => ({
-          nombre: u.unidadNombreSnapshot,
-          simbolo: u.unidadSimboloSnapshot,
-          value: u.valueNumeric ? cleanNumber(u.valueNumeric) : (u.valueText ?? ''),
-        }));
+        const unidades: InformeUnidadRow[] = rawUnidades.map((u) => {
+          const refKey = l.practiceId ? `${l.practiceId}:${u.unidadId}` : '';
+          const ref = refKey ? (input.unidadRefsByKey?.get(refKey) ?? null) : null;
+          return {
+            nombre: u.unidadNombreSnapshot,
+            simbolo: u.unidadSimboloSnapshot,
+            value: u.valueNumeric ? cleanNumber(u.valueNumeric) : (u.valueText ?? ''),
+            rangeLow: ref?.rangeLow ?? null,
+            rangeHigh: ref?.rangeHigh ?? null,
+            referenceText: ref?.referenceText ?? null,
+          };
+        });
         const practiceData = l.practiceId ? (practiceDataById?.get(l.practiceId) ?? null) : null;
+        const puList = l.practiceId ? (input.practiceUnidadsByPracticeId?.get(l.practiceId) ?? []) : [];
+        const hasUnidadValues = rawUnidades.length > 0;
+
+        // Unidad: resultado > defaultUnit del catálogo > primera unidad configurada (si no hay sub-valores)
+        let unit = r?.unit || practiceData?.defaultUnit || null;
+        if (!unit && !hasUnidadValues && puList.length > 0) {
+          unit = puList[0].simbolo ?? null;
+        }
+
+        // Referencia: especie > rango del resultado > referencia de practiceUnidad (fallback cuando no hay sub-valores)
+        let range: string | null = (() => {
+          const eRef = l.practiceId ? input.especieRefsByPractice?.get(l.practiceId) : null;
+          if (eRef && (eRef.rangeLow || eRef.rangeHigh)) {
+            return formatRange(eRef.rangeLow, eRef.rangeHigh, eRef.unit || unit);
+          }
+          if (r && (r.referenceRangeLow || r.referenceRangeHigh)) {
+            return formatRange(r.referenceRangeLow, r.referenceRangeHigh, unit);
+          }
+          return null;
+        })();
+        let referenceValue = practiceData?.referenceValue ?? null;
+        if (!range && !referenceValue && !hasUnidadValues && puList.length > 0) {
+          const firstPu = puList[0];
+          if (firstPu.rangeLow || firstPu.rangeHigh) {
+            const baseRange = formatRange(firstPu.rangeLow, firstPu.rangeHigh, unit);
+            range = firstPu.referenceText ? `${baseRange}. ${firstPu.referenceText}` : baseRange;
+          } else if (firstPu.referenceText) {
+            referenceValue = firstPu.referenceText;
+          }
+        }
+
         return {
           nbuCode: l.nbuCodeSnapshot,
           name: l.nameSnapshot,
           value,
-          unit: r?.unit ?? null,
-          range: r ? formatRange(r.referenceRangeLow, r.referenceRangeHigh, r.unit) : null,
+          unit,
+          range,
           flag: r?.flag ?? null,
           methodology: r?.methodology || practiceData?.methodology || null,
-          referenceValue: practiceData?.referenceValue ?? null,
+          referenceValue,
           notes: r?.notes ?? null,
           unidades: unidades.length > 0 ? unidades : undefined,
         };
@@ -328,14 +422,24 @@ export function buildInformeData(input: RenderInformeInput): InformeData {
     },
     fondoSrc,
     layoutConfig,
-    margins: pref
-      ? {
-          top: pref.marginTop,
-          bottom: pref.marginBottom,
+    margins: (() => {
+      // Cuando hay imagen de fondo, aplicamos mínimos seguros para que el contenido
+      // nunca pise el header ni el footer del membrete en ninguna página.
+      const MIN_TOP = fondoSrc ? 130 : 0;
+      const MIN_BOTTOM = fondoSrc ? 120 : 0;
+      if (pref) {
+        return {
+          top: Math.max(pref.marginTop, MIN_TOP),
+          bottom: Math.max(pref.marginBottom, MIN_BOTTOM),
           left: pref.marginLeft,
           right: pref.marginRight,
-        }
-      : undefined,
+        };
+      }
+      if (fondoSrc) {
+        return { top: MIN_TOP, bottom: MIN_BOTTOM, left: 44, right: 44 };
+      }
+      return undefined;
+    })(),
     accent,
     accentSoft,
     sede: sedeForTemplate(input.sede),
@@ -476,11 +580,13 @@ function ageString(birth: Date | string): string {
   return `${years} años`;
 }
 
+const AR_NUM = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 6, useGrouping: true });
+
 function cleanNumber(s: string): string {
-  if (!/^-?\d+(\.\d+)?$/.test(s)) return s;
-  const [int, dec = ''] = s.split('.');
-  const trimmed = dec.replace(/0+$/, '');
-  return trimmed ? `${int},${trimmed}` : int;
+  const normalized = s.replace(',', '.').trim();
+  const n = Number(normalized);
+  if (Number.isNaN(n)) return s;
+  return AR_NUM.format(n);
 }
 
 function formatRange(low: string | null, high: string | null, unit: string | null): string | null {

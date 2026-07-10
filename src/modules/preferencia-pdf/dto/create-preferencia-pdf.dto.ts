@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsIn, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsIn, IsInt, IsOptional, IsString, MaxLength, Min, MinLength } from 'class-validator';
 
 export const TIPOS_PDF = ['informe', 'orden'] as const;
 export type TipoPdf = (typeof TIPOS_PDF)[number];
@@ -24,4 +24,10 @@ export class CreatePreferenciaPdfDto {
   @IsOptional()
   @IsIn(TIPOS_PDF)
   tipo?: TipoPdf;
+
+  @ApiProperty({ required: false, description: 'ID del servicio al que aplica este formato' })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  servicioId?: number;
 }

@@ -1,4 +1,4 @@
-import { bigint, index, integer, pgTable, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
+import { bigint, index, integer, numeric, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
 import { laboratorio } from './laboratorio';
 import { practice } from './practice';
 import { unidadMedida } from './unidad-medida';
@@ -29,6 +29,9 @@ export const practiceUnidad = pgTable(
       .notNull()
       .references(() => unidadMedida.id, { onDelete: 'restrict' }),
     sortOrder: integer('sort_order').notNull().default(0),
+    rangeLow: numeric('range_low', { precision: 12, scale: 4 }),
+    rangeHigh: numeric('range_high', { precision: 12, scale: 4 }),
+    referenceText: text('reference_text'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({

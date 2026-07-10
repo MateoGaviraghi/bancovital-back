@@ -25,6 +25,7 @@ export class MeController {
         logoUrl: { type: 'string', nullable: true },
         primaryColor: { type: 'string', nullable: true, example: '#7c3aed' },
         accentColor: { type: 'string', nullable: true, example: '#0ea5e9' },
+        veterinariaHabilitada: { type: 'boolean' },
       },
     },
   })

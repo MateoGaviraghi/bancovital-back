@@ -41,6 +41,7 @@ export const orderPractice = pgTable(
   },
   (t) => ({
     orderIdx: index('idx_order_practice_order').on(t.orderId),
+    practiceIdx: index('idx_order_practice_practice').on(t.practiceId),
   }),
 );
 

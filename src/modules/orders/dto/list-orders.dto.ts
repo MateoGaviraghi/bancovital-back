@@ -43,6 +43,13 @@ export class ListOrdersDto {
   @Min(1)
   insurerId?: number;
 
+  @ApiPropertyOptional({ description: 'Filtrar por servicio' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  servicioId?: number;
+
   @ApiPropertyOptional({ format: 'date' })
   @IsOptional()
   @IsDateString()
@@ -65,4 +72,11 @@ export class ListOrdersDto {
   @IsInt()
   @Min(1)
   limit?: number;
+
+  @ApiPropertyOptional({ default: 1 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number;
 }

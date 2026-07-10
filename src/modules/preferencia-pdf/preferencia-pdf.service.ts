@@ -45,6 +45,7 @@ export class PreferenciaPdfService {
         labId,
         nombre: dto.nombre,
         tipo: dto.tipo ?? 'informe',
+        servicioId: dto.servicioId ?? null,
       })
       .returning();
     return row;

@@ -3,17 +3,26 @@ import { AppConfig } from '@/config';
 import type { Db } from '@/db/client';
 import { DATABASE, SUPABASE_ADMIN } from '@/db/database.module';
 import {
+  especie,
   insurer,
   laboratorio,
+  muestraAgua,
   order,
   orderPractice,
   orderPracticeUnidadValue,
+  pacienteAnimal,
   patient,
   practice,
+  practiceReferenciaEspecie,
   practiceUnidad,
+  practiceUnidadRefEspecie,
   preferenciaPdf,
+  propietario,
   result,
   sede,
+  solicitanteAgua,
+  unidadMedida,
+  veterinario,
 } from '@/db/schema';
 import type { Order, OrderPracticeUnidadValue, Result } from '@/db/schema';
 import { resolveAssetDataUri } from '@/modules/lab-config/asset-storage';
@@ -171,35 +180,44 @@ export class ReportsService {
 
     const failures: Array<{ orderId: number; error: string }> = [];
     let regenerated = 0;
-    for (const ord of ords) {
-      try {
-        const path = await this.renderAndUpload(ord);
-        await this.orders.setPdfPath(labId, ord.id, path);
-        regenerated++;
-      } catch (err) {
-        failures.push({
-          orderId: ord.id,
-          error: err instanceof Error ? err.message : String(err),
-        });
+
+    // Paraleliza en lotes chicos para no serializar render+upload+update orden
+    // por orden. La escritura de pdfPath sigue siendo incremental (por orden,
+    // apenas se resuelve su render), no se espera a que termine todo el lote.
+    const CHUNK_SIZE = 8;
+    for (let i = 0; i < ords.length; i += CHUNK_SIZE) {
+      const chunk = ords.slice(i, i + CHUNK_SIZE);
+      const settled = await Promise.allSettled(
+        chunk.map(async (ord) => {
+          const path = await this.renderAndUpload(ord);
+          await this.orders.setPdfPath(labId, ord.id, path);
+          return ord.id;
+        }),
+      );
+      for (let j = 0; j < settled.length; j++) {
+        const outcome = settled[j];
+        if (outcome.status === 'fulfilled') {
+          regenerated++;
+        } else {
+          failures.push({
+            orderId: chunk[j].id,
+            error: outcome.reason instanceof Error ? outcome.reason.message : String(outcome.reason),
+          });
+        }
       }
     }
+
     return { total: ords.length, regenerated, failures };
   }
 
   async ficha(labId: number, orderId: number): Promise<Buffer> {
     const ord = await this.requireOrder(labId, orderId);
 
-    const [lab, pat, ins, lines] = await Promise.all([
+    const [lab, ins, lines] = await Promise.all([
       this.db
         .select()
         .from(laboratorio)
         .where(eq(laboratorio.id, labId))
-        .limit(1)
-        .then((r) => r[0]),
-      this.db
-        .select()
-        .from(patient)
-        .where(eq(patient.id, ord.patientId!))
         .limit(1)
         .then((r) => r[0]),
       this.db
@@ -216,8 +234,13 @@ export class ReportsService {
     ]);
 
     if (!lab) throw new InternalServerErrorException('Laboratorio no configurado');
-    if (!pat) throw new NotFoundException('Paciente no encontrado');
     if (!ins) throw new NotFoundException('Obra social no encontrada');
+
+    let pat: typeof patient.$inferSelect | null = null;
+    if (ord.patientId) {
+      const [row] = await this.db.select().from(patient).where(eq(patient.id, ord.patientId)).limit(1);
+      pat = row ?? null;
+    }
 
     // Enrich each line with section and isElaborated from the practice catalog
     const practiceIds = lines.map((l) => l.practiceId).filter((id): id is number => id !== null);
@@ -350,25 +373,147 @@ export class ReportsService {
       );
     }
 
-    const [pref] = await this.db
+    // Buscar formato PDF específico del servicio; fallback al genérico (servicioId IS NULL)
+    let [pref] = await this.db
       .select()
       .from(preferenciaPdf)
       .where(
         and(
           eq(preferenciaPdf.labId, ord.labId),
+          eq(preferenciaPdf.servicioId, ord.servicioId),
           eq(preferenciaPdf.tipo, 'informe'),
           isNull(preferenciaPdf.deletedAt),
         ),
       )
       .orderBy(desc(preferenciaPdf.updatedAt))
       .limit(1);
+    if (!pref) {
+      [pref] = await this.db
+        .select()
+        .from(preferenciaPdf)
+        .where(
+          and(
+            eq(preferenciaPdf.labId, ord.labId),
+            isNull(preferenciaPdf.servicioId),
+            eq(preferenciaPdf.tipo, 'informe'),
+            isNull(preferenciaPdf.deletedAt),
+          ),
+        )
+        .orderBy(desc(preferenciaPdf.updatedAt))
+        .limit(1);
+    }
 
-    const [pat] = await this.db
-      .select()
-      .from(patient)
-      .where(eq(patient.id, ord.patientId!))
-      .limit(1);
-    if (!pat) throw new NotFoundException('Paciente de la orden no encontrado');
+    let pat: typeof patient.$inferSelect | null = null;
+    let animalData: {
+      nombre: string;
+      especie: string;
+      raza: string | null;
+      propietario: string;
+      propietarioDni: string;
+    } | null = null;
+    let vetData: { name: string; matricula: string } | null = null;
+
+    if (ord.patientId) {
+      const [row] = await this.db
+        .select()
+        .from(patient)
+        .where(eq(patient.id, ord.patientId))
+        .limit(1);
+      if (!row) throw new NotFoundException('Paciente de la orden no encontrado');
+      pat = row;
+    } else if (ord.animalPatientId) {
+      const [row] = await this.db
+        .select({
+          nombre: pacienteAnimal.nombre,
+          especieNombre: especie.nombre,
+          razaNombre: pacienteAnimal.nombre,
+          propNombre: propietario.firstName,
+          propApellido: propietario.lastName,
+          propDni: propietario.dni,
+        })
+        .from(pacienteAnimal)
+        .leftJoin(especie, eq(especie.id, pacienteAnimal.especieId))
+        .leftJoin(propietario, eq(propietario.id, pacienteAnimal.propietarioId))
+        .where(eq(pacienteAnimal.id, ord.animalPatientId))
+        .limit(1);
+      if (row) {
+        animalData = {
+          nombre: row.nombre,
+          especie: row.especieNombre ?? '—',
+          raza: null,
+          propietario: `${row.propApellido}, ${row.propNombre}`,
+          propietarioDni: row.propDni ?? '',
+        };
+      }
+      if (ord.veterinarioId) {
+        const [vet] = await this.db
+          .select({ firstName: veterinario.firstName, lastName: veterinario.lastName, matricula: veterinario.matricula })
+          .from(veterinario)
+          .where(eq(veterinario.id, ord.veterinarioId))
+          .limit(1);
+        if (vet) vetData = { name: `${vet.lastName}, ${vet.firstName}`, matricula: vet.matricula };
+      }
+    }
+
+    let solicitanteData: {
+      nombreApellido: string;
+      razonSocial: string | null;
+      cuit: string | null;
+      domicilio: string | null;
+      localidad: string | null;
+      telefono: string | null;
+    } | null = null;
+    let muestraData: {
+      tipoMuestra: string;
+      fechaToma: string;
+      fechaRecepcion: string;
+      lugarToma: string | null;
+      descripcionPunto: string | null;
+      direccionPunto: string | null;
+      motivoAnalisis: string;
+      analisisFisicoquimico: boolean;
+      analisisMicrobiologico: boolean;
+      observaciones: string | null;
+    } | null = null;
+
+    if (ord.solicitanteAguaId) {
+      const [row] = await this.db
+        .select()
+        .from(solicitanteAgua)
+        .where(eq(solicitanteAgua.id, ord.solicitanteAguaId))
+        .limit(1);
+      if (row) {
+        solicitanteData = {
+          nombreApellido: row.nombreApellido,
+          razonSocial: row.razonSocial,
+          cuit: row.cuit,
+          domicilio: row.domicilio,
+          localidad: row.localidad,
+          telefono: row.telefono,
+        };
+      }
+    }
+    if (ord.muestraAguaId) {
+      const [row] = await this.db
+        .select()
+        .from(muestraAgua)
+        .where(eq(muestraAgua.id, ord.muestraAguaId))
+        .limit(1);
+      if (row) {
+        muestraData = {
+          tipoMuestra: row.tipoMuestra,
+          fechaToma: row.fechaToma.toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Cordoba' }),
+          fechaRecepcion: row.fechaRecepcion.toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Cordoba' }),
+          lugarToma: row.lugarToma,
+          descripcionPunto: row.descripcionPunto,
+          direccionPunto: row.direccionPunto,
+          motivoAnalisis: row.motivoAnalisis,
+          analisisFisicoquimico: row.analisisFisicoquimico,
+          analisisMicrobiologico: row.analisisMicrobiologico,
+          observaciones: row.observaciones,
+        };
+      }
+    }
 
     const [ins] = await this.db
       .select({ name: insurer.name })
@@ -386,7 +531,7 @@ export class ReportsService {
     const practiceIds = lines.map((l) => l.practiceId).filter((id): id is number => id !== null);
     const practiceDataById = new Map<
       number,
-      { methodology: string | null; referenceValue: string | null }
+      { methodology: string | null; referenceValue: string | null; defaultUnit: string | null }
     >();
     if (practiceIds.length > 0) {
       const practiceRows = await this.db
@@ -394,6 +539,7 @@ export class ReportsService {
           id: practice.id,
           methodology: practice.methodology,
           referenceValue: practice.referenceValue,
+          defaultUnit: practice.defaultUnit,
         })
         .from(practice)
         .where(inArray(practice.id, practiceIds));
@@ -401,6 +547,7 @@ export class ReportsService {
         practiceDataById.set(p.id, {
           methodology: p.methodology,
           referenceValue: p.referenceValue,
+          defaultUnit: p.defaultUnit,
         });
     }
 
@@ -442,6 +589,88 @@ export class ReportsService {
       }
     }
 
+    const unidadRefsByKey = new Map<string, { rangeLow: string | null; rangeHigh: string | null; referenceText: string | null }>();
+    const practiceUnidadsByPracticeId = new Map<number, Array<{ unidadId: number; simbolo: string | null; rangeLow: string | null; rangeHigh: string | null; referenceText: string | null }>>();
+    if (practiceIds.length > 0) {
+      const puRows = await this.db
+        .select({
+          practiceId: practiceUnidad.practiceId,
+          unidadId: practiceUnidad.unidadId,
+          simbolo: unidadMedida.simbolo,
+          rangeLow: practiceUnidad.rangeLow,
+          rangeHigh: practiceUnidad.rangeHigh,
+          referenceText: practiceUnidad.referenceText,
+        })
+        .from(practiceUnidad)
+        .leftJoin(unidadMedida, eq(unidadMedida.id, practiceUnidad.unidadId))
+        .where(and(eq(practiceUnidad.labId, ord.labId), inArray(practiceUnidad.practiceId, practiceIds)))
+        .orderBy(asc(practiceUnidad.sortOrder));
+      for (const pu of puRows) {
+        unidadRefsByKey.set(`${pu.practiceId}:${pu.unidadId}`, {
+          rangeLow: pu.rangeLow,
+          rangeHigh: pu.rangeHigh,
+          referenceText: pu.referenceText,
+        });
+        const list = practiceUnidadsByPracticeId.get(pu.practiceId) ?? [];
+        list.push({ unidadId: pu.unidadId, simbolo: pu.simbolo, rangeLow: pu.rangeLow, rangeHigh: pu.rangeHigh, referenceText: pu.referenceText });
+        practiceUnidadsByPracticeId.set(pu.practiceId, list);
+      }
+    }
+
+    const especieRefsByPractice = new Map<number, { rangeLow: string | null; rangeHigh: string | null; unit: string | null }>();
+    if (ord.animalPatientId && practiceIds.length > 0) {
+      const [animal] = await this.db
+        .select({ especieId: pacienteAnimal.especieId })
+        .from(pacienteAnimal)
+        .where(eq(pacienteAnimal.id, ord.animalPatientId))
+        .limit(1);
+      if (animal) {
+        const refs = await this.db
+          .select()
+          .from(practiceReferenciaEspecie)
+          .where(
+            and(
+              inArray(practiceReferenciaEspecie.practiceId, practiceIds),
+              eq(practiceReferenciaEspecie.especieId, animal.especieId),
+            ),
+          );
+        for (const ref of refs) {
+          especieRefsByPractice.set(ref.practiceId, {
+            rangeLow: ref.rangeLow,
+            rangeHigh: ref.rangeHigh,
+            unit: ref.unit,
+          });
+        }
+
+        const puIds = await this.db
+          .select({ id: practiceUnidad.id, practiceId: practiceUnidad.practiceId, unidadId: practiceUnidad.unidadId })
+          .from(practiceUnidad)
+          .where(and(eq(practiceUnidad.labId, ord.labId), inArray(practiceUnidad.practiceId, practiceIds)));
+        if (puIds.length > 0) {
+          const speciesUnitRefs = await this.db
+            .select()
+            .from(practiceUnidadRefEspecie)
+            .where(
+              and(
+                inArray(practiceUnidadRefEspecie.practiceUnidadId, puIds.map((p) => p.id)),
+                eq(practiceUnidadRefEspecie.especieId, animal.especieId),
+              ),
+            );
+          const puById = new Map(puIds.map((p) => [p.id, p]));
+          for (const sr of speciesUnitRefs) {
+            const pu = puById.get(sr.practiceUnidadId);
+            if (pu) {
+              unidadRefsByKey.set(`${pu.practiceId}:${pu.unidadId}`, {
+                rangeLow: sr.rangeLow,
+                rangeHigh: sr.rangeHigh,
+                referenceText: sr.referenceText,
+              });
+            }
+          }
+        }
+      }
+    }
+
     const [logoDataUri, signatureDataUri, fondoDataUri] = await Promise.all([
       resolveAssetDataUri(this.storage, lab.logoPath),
       resolveAssetDataUri(this.storage, lab.signingSignaturePath),
@@ -460,12 +689,19 @@ export class ReportsService {
 
     const buffer = await renderInformePdf({
       order: ord,
-      patient: pat,
+      patient: pat ?? undefined,
+      animalPatient: animalData ?? undefined,
+      veterinario: vetData ?? undefined,
+      solicitanteAgua: solicitanteData ?? undefined,
+      muestraAgua: muestraData ?? undefined,
       insurer: ins,
       lines,
       resultsByLineId,
       unidadValuesByLineId,
       practiceDataById,
+      unidadRefsByKey,
+      practiceUnidadsByPracticeId,
+      especieRefsByPractice,
       lab,
       logoDataUri,
       signatureDataUri,

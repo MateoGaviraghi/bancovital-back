@@ -2,15 +2,22 @@ import type { Db } from '@/db/client';
 import { DATABASE, SUPABASE_ADMIN } from '@/db/database.module';
 import {
   doctor,
+  especie,
   insurer,
+  muestraAgua,
   order,
   orderPractice,
+  pacienteAnimal,
   patient,
   practice,
+  propietario,
   result,
+  servicio,
+  solicitanteAgua,
   ubValue,
+  veterinario,
 } from '@/db/schema';
-import type { NewOrder, NewOrderPractice, Order, OrderPractice } from '@/db/schema';
+import type { NewOrder, NewOrderPractice, Order, OrderPractice, Servicio } from '@/db/schema';
 import {
   type PriceablePractice,
   type PricedLine,
@@ -51,6 +58,13 @@ const REPORTS_BUCKET = 'reports';
 
 export interface OrderSummary extends Order {
   patient: { id: number; firstName: string; lastName: string; dni: string } | null;
+  animalPatient: {
+    id: number;
+    nombre: string;
+    especie: string;
+    raza: string | null;
+    propietario: string;
+  } | null;
   insurer: { id: number; code: string; name: string } | null;
 }
 
@@ -69,29 +83,64 @@ export class OrdersService {
     dto: CreateOrderDto,
     createdBy: string,
   ): Promise<{ order: Order; lines: OrderPractice[] }> {
-    const orderType = dto.orderType ?? 'humana';
+    const svc = await this.resolveServicio(labId, dto.servicioId);
 
     let patientId: number | null = null;
     let animalPatientId: number | null = null;
     let veterinarioId: number | null = null;
 
-    if (orderType === 'humana') {
+    if (svc.usaPacienteHumano) {
       if (!dto.patientId) {
-        throw new UnprocessableEntityException('patientId es requerido para ordenes humanas');
+        throw new UnprocessableEntityException('patientId es requerido para este servicio');
       }
       const pat = await this.resolvePatient(labId, dto.patientId);
       patientId = pat.id;
-    } else {
+    }
+    if (svc.usaPacienteAnimal) {
       if (!dto.animalPatientId) {
-        throw new UnprocessableEntityException(
-          'animalPatientId es requerido para ordenes veterinarias',
-        );
+        throw new UnprocessableEntityException('animalPatientId es requerido para este servicio');
       }
+      await this.assertAnimalPatient(labId, dto.animalPatientId);
       animalPatientId = dto.animalPatientId;
-      veterinarioId = dto.veterinarioId ?? null;
+    }
+    if (svc.usaVeterinario && dto.veterinarioId) {
+      await this.assertVeterinario(labId, dto.veterinarioId);
+      veterinarioId = dto.veterinarioId;
     }
 
-    const ins = await this.resolveInsurer(dto.insurerId);
+    let solicitanteAguaId: number | null = null;
+    let muestraAguaId: number | null = null;
+    if (svc.usaSolicitanteAgua) {
+      if (!dto.solicitanteAguaId) {
+        throw new UnprocessableEntityException('solicitanteAguaId es requerido para este servicio');
+      }
+      await this.assertSolicitanteAgua(labId, dto.solicitanteAguaId);
+      solicitanteAguaId = dto.solicitanteAguaId;
+    }
+    if (svc.usaMuestraAgua) {
+      if (!dto.muestraAguaId) {
+        throw new UnprocessableEntityException('muestraAguaId es requerido para este servicio');
+      }
+      await this.assertMuestraAgua(labId, dto.muestraAguaId);
+      muestraAguaId = dto.muestraAguaId;
+    }
+
+    let insurerId = dto.insurerId && dto.insurerId > 0 ? dto.insurerId : undefined;
+    if (!insurerId) {
+      if (svc.usaPacienteHumano) {
+        throw new UnprocessableEntityException('insurerId es requerido para este servicio');
+      }
+      const [particularRow] = await this.db
+        .select({ id: insurer.id })
+        .from(insurer)
+        .where(eq(insurer.code, PARTICULAR_CODE))
+        .limit(1);
+      if (!particularRow) {
+        throw new ConflictException('No existe la obra social PARTICULAR en el sistema');
+      }
+      insurerId = particularRow.id;
+    }
+    const ins = await this.resolveInsurer(insurerId);
     const effectivePractices = await this.expandWithChildren(dto.practices);
     const practices = await this.resolvePractices(effectivePractices);
     const ubInsurer = await this.resolveCurrentUb(ins.id, ins.code);
@@ -134,7 +183,7 @@ export class OrdersService {
 
       const orderValues: NewOrder = {
         labId,
-        orderType,
+        servicioId: svc.id,
         patientId,
         animalPatientId,
         veterinarioId,
@@ -154,6 +203,9 @@ export class OrdersService {
         ubValueUsed: pricing.ubValueUsed,
         createdBy,
         esExcedente,
+        customData: dto.customData ?? null,
+        solicitanteAguaId,
+        muestraAguaId,
       };
       const [insertedOrder] = await tx.insert(order).values(orderValues).returning();
 
@@ -453,8 +505,13 @@ export class OrdersService {
     return { order: updatedOrder, lines };
   }
 
-  async list(labId: number, filters: ListOrdersDto): Promise<OrderSummary[]> {
-    const limit = Math.min(Math.max(filters.limit ?? 50, 1), 200);
+  async list(
+    labId: number,
+    filters: ListOrdersDto,
+  ): Promise<{ data: OrderSummary[]; total: number; page: number; pageSize: number }> {
+    const pageSize = Math.min(Math.max(filters.limit ?? 50, 1), 200);
+    const page = Math.max(filters.page ?? 1, 1);
+    const offset = (page - 1) * pageSize;
 
     const conds = [eq(order.labId, labId)];
     if (filters.status && filters.status.length > 0) {
@@ -462,6 +519,9 @@ export class OrdersService {
     }
     if (filters.insurerId) {
       conds.push(eq(order.insurerId, filters.insurerId));
+    }
+    if (filters.servicioId) {
+      conds.push(eq(order.servicioId, filters.servicioId));
     }
     if (filters.dateFrom) {
       conds.push(gte(order.orderDate, new Date(filters.dateFrom)));
@@ -478,39 +538,71 @@ export class OrdersService {
         ilike(patient.lastName, like),
         ilike(patient.firstName, like),
         ilike(patient.dni, like),
+        ilike(pacienteAnimal.nombre, like),
         ...(protoSearch ? [protoSearch] : []),
       );
       if (searchExpr) conds.push(searchExpr);
     }
 
-    const rows = await this.db
-      .select({
-        order: order,
-        patientId: patient.id,
-        patientFirstName: patient.firstName,
-        patientLastName: patient.lastName,
-        patientDni: patient.dni,
-        insurerId: insurer.id,
-        insurerCode: insurer.code,
-        insurerName: insurer.name,
-      })
-      .from(order)
-      .innerJoin(patient, and(eq(patient.id, order.patientId), eq(patient.labId, labId)))
-      .innerJoin(insurer, eq(insurer.id, order.insurerId))
-      .where(and(...conds))
-      .orderBy(desc(order.orderDate))
-      .limit(limit);
+    const whereExpr = and(...conds);
 
-    return rows.map((r) => ({
+    const [rows, countResult] = await Promise.all([
+      this.db
+        .select({
+          order: order,
+          patientId: patient.id,
+          patientFirstName: patient.firstName,
+          patientLastName: patient.lastName,
+          patientDni: patient.dni,
+          animalNombre: pacienteAnimal.nombre,
+          especieNombre: especie.nombre,
+          propietarioNombre: propietario.lastName,
+          insurerId: insurer.id,
+          insurerCode: insurer.code,
+          insurerName: insurer.name,
+        })
+        .from(order)
+        .leftJoin(patient, eq(patient.id, order.patientId))
+        .leftJoin(pacienteAnimal, eq(pacienteAnimal.id, order.animalPatientId))
+        .leftJoin(especie, eq(especie.id, pacienteAnimal.especieId))
+        .leftJoin(propietario, eq(propietario.id, pacienteAnimal.propietarioId))
+        .innerJoin(insurer, eq(insurer.id, order.insurerId))
+        .where(whereExpr)
+        .orderBy(desc(order.orderDate))
+        .limit(pageSize)
+        .offset(offset),
+      this.db
+        .select({ n: sql<number>`count(*)::int` })
+        .from(order)
+        .leftJoin(patient, eq(patient.id, order.patientId))
+        .leftJoin(pacienteAnimal, eq(pacienteAnimal.id, order.animalPatientId))
+        .innerJoin(insurer, eq(insurer.id, order.insurerId))
+        .where(whereExpr),
+    ]);
+
+    const data = rows.map((r) => ({
       ...r.order,
-      patient: {
-        id: r.patientId,
-        firstName: r.patientFirstName,
-        lastName: r.patientLastName,
-        dni: r.patientDni,
-      },
+      patient: r.patientId
+        ? {
+            id: r.patientId,
+            firstName: r.patientFirstName!,
+            lastName: r.patientLastName!,
+            dni: r.patientDni!,
+          }
+        : null,
+      animalPatient: r.animalNombre
+        ? {
+            id: r.order.animalPatientId!,
+            nombre: r.animalNombre,
+            especie: r.especieNombre ?? '—',
+            raza: null as string | null,
+            propietario: r.propietarioNombre ?? '—',
+          }
+        : null,
       insurer: { id: r.insurerId, code: r.insurerCode, name: r.insurerName },
     }));
+
+    return { data, total: countResult[0]?.n ?? 0, page, pageSize };
   }
 
   async byId(labId: number, id: number): Promise<OrderSummary> {
@@ -521,24 +613,41 @@ export class OrdersService {
         patientFirstName: patient.firstName,
         patientLastName: patient.lastName,
         patientDni: patient.dni,
+        animalNombre: pacienteAnimal.nombre,
+        especieNombre: especie.nombre,
+        propietarioNombre: propietario.lastName,
         insurerId: insurer.id,
         insurerCode: insurer.code,
         insurerName: insurer.name,
       })
       .from(order)
-      .innerJoin(patient, and(eq(patient.id, order.patientId), eq(patient.labId, labId)))
+      .leftJoin(patient, eq(patient.id, order.patientId))
+      .leftJoin(pacienteAnimal, eq(pacienteAnimal.id, order.animalPatientId))
+      .leftJoin(especie, eq(especie.id, pacienteAnimal.especieId))
+      .leftJoin(propietario, eq(propietario.id, pacienteAnimal.propietarioId))
       .innerJoin(insurer, eq(insurer.id, order.insurerId))
       .where(and(eq(order.id, id), eq(order.labId, labId)))
       .limit(1);
     if (!row) throw new NotFoundException('Orden no encontrada');
     return {
       ...row.order,
-      patient: {
-        id: row.patientId,
-        firstName: row.patientFirstName,
-        lastName: row.patientLastName,
-        dni: row.patientDni,
-      },
+      patient: row.patientId
+        ? {
+            id: row.patientId,
+            firstName: row.patientFirstName!,
+            lastName: row.patientLastName!,
+            dni: row.patientDni!,
+          }
+        : null,
+      animalPatient: row.animalNombre
+        ? {
+            id: row.order.animalPatientId!,
+            nombre: row.animalNombre,
+            especie: row.especieNombre ?? '—',
+            raza: null as string | null,
+            propietario: row.propietarioNombre ?? '—',
+          }
+        : null,
       insurer: { id: row.insurerId, code: row.insurerCode, name: row.insurerName },
     };
   }
@@ -562,20 +671,20 @@ export class OrdersService {
     if (lineCount === 0) {
       throw new UnprocessableEntityException('La orden no tiene practicas, no se puede confirmar');
     }
-    return this.applyStatus(id, 'confirmada');
+    return this.applyStatus(id, labId, current.status, 'confirmada');
   }
 
   async start(labId: number, id: number): Promise<Order> {
     const current = await this.requireOrder(labId, id);
     this.assertTransition(current.status, 'en_proceso');
-    return this.applyStatus(id, 'en_proceso');
+    return this.applyStatus(id, labId, current.status, 'en_proceso');
   }
 
   async finalize(labId: number, id: number): Promise<Order> {
     const current = await this.requireOrder(labId, id);
     this.assertTransition(current.status, 'resultados_cargados');
     await this.assertHasReportableResults(id);
-    return this.applyStatus(id, 'resultados_cargados');
+    return this.applyStatus(id, labId, current.status, 'resultados_cargados');
   }
 
   async cancel(labId: number, id: number, dto: CancelOrderDto): Promise<Order> {
@@ -588,8 +697,11 @@ export class OrdersService {
         cancellationReason: dto.reason ?? null,
         updatedAt: new Date(),
       })
-      .where(and(eq(order.id, id), eq(order.labId, labId)))
+      .where(and(eq(order.id, id), eq(order.labId, labId), eq(order.status, current.status)))
       .returning();
+    if (!row) {
+      throw new ConflictException('El estado de la orden cambió. Recargá e intentá de nuevo.');
+    }
     // El informe emitido ya no es válido para una orden anulada: borrar el blob.
     await this.removeReportBlobBestEffort(current.pdfReportPath);
     return row;
@@ -613,8 +725,11 @@ export class OrdersService {
         pdfReportSignedBy: signedBy,
         updatedAt: new Date(),
       })
-      .where(and(eq(order.id, id), eq(order.labId, labId)))
+      .where(and(eq(order.id, id), eq(order.labId, labId), eq(order.status, current.status)))
       .returning();
+    if (!row) {
+      throw new ConflictException('El estado de la orden cambió. Recargá e intentá de nuevo.');
+    }
     return row;
   }
 
@@ -631,7 +746,7 @@ export class OrdersService {
   async markDelivered(labId: number, id: number): Promise<Order> {
     const current = await this.requireOrder(labId, id);
     this.assertTransition(current.status, 'entregada');
-    return this.applyStatus(id, 'entregada');
+    return this.applyStatus(id, labId, current.status, 'entregada');
   }
 
   async revertToBorrador(labId: number, id: number): Promise<Order> {
@@ -658,8 +773,11 @@ export class OrdersService {
         pdfReportSignedBy: null,
         updatedAt: new Date(),
       })
-      .where(and(eq(order.id, id), eq(order.labId, labId)))
+      .where(and(eq(order.id, id), eq(order.labId, labId), eq(order.status, current.status)))
       .returning();
+    if (!row) {
+      throw new ConflictException('El estado de la orden cambió. Recargá e intentá de nuevo.');
+    }
     // El PDF emitido ya no corresponde tras volver a borrador: borrar el blob.
     await this.removeReportBlobBestEffort(previousPdfPath);
     return row;
@@ -714,12 +832,24 @@ export class OrdersService {
     }
   }
 
-  private async applyStatus(id: number, status: OrderStatus): Promise<Order> {
+  // Transición atómica: el UPDATE exige el estado de origen esperado, así dos
+  // requests concurrentes (doble-click) no aplican la transición dos veces.
+  private async applyStatus(
+    id: number,
+    labId: number,
+    from: OrderStatus,
+    to: OrderStatus,
+  ): Promise<Order> {
     const [row] = await this.db
       .update(order)
-      .set({ status, updatedAt: new Date() })
-      .where(eq(order.id, id))
+      .set({ status: to, updatedAt: new Date() })
+      .where(and(eq(order.id, id), eq(order.labId, labId), eq(order.status, from)))
       .returning();
+    if (!row) {
+      throw new ConflictException(
+        `El estado de la orden cambió (se esperaba "${from}"). Recargá e intentá de nuevo.`,
+      );
+    }
     return row;
   }
 
@@ -751,6 +881,43 @@ export class OrdersService {
       .limit(1);
     if (!row) throw new NotFoundException(`Paciente ${id} no encontrado`);
     return row;
+  }
+
+  // Defensa anti-IDOR cross-lab: cada FK del body debe pertenecer al lab de la sesion.
+  private async assertAnimalPatient(labId: number, id: number): Promise<void> {
+    const [row] = await this.db
+      .select({ id: pacienteAnimal.id })
+      .from(pacienteAnimal)
+      .where(and(eq(pacienteAnimal.id, id), eq(pacienteAnimal.labId, labId)))
+      .limit(1);
+    if (!row) throw new NotFoundException(`Paciente animal ${id} no encontrado`);
+  }
+
+  private async assertVeterinario(labId: number, id: number): Promise<void> {
+    const [row] = await this.db
+      .select({ id: veterinario.id })
+      .from(veterinario)
+      .where(and(eq(veterinario.id, id), eq(veterinario.labId, labId)))
+      .limit(1);
+    if (!row) throw new NotFoundException(`Veterinario ${id} no encontrado`);
+  }
+
+  private async assertSolicitanteAgua(labId: number, id: number): Promise<void> {
+    const [row] = await this.db
+      .select({ id: solicitanteAgua.id })
+      .from(solicitanteAgua)
+      .where(and(eq(solicitanteAgua.id, id), eq(solicitanteAgua.labId, labId)))
+      .limit(1);
+    if (!row) throw new NotFoundException(`Solicitante de agua ${id} no encontrado`);
+  }
+
+  private async assertMuestraAgua(labId: number, id: number): Promise<void> {
+    const [row] = await this.db
+      .select({ id: muestraAgua.id })
+      .from(muestraAgua)
+      .where(and(eq(muestraAgua.id, id), eq(muestraAgua.labId, labId)))
+      .limit(1);
+    if (!row) throw new NotFoundException(`Muestra de agua ${id} no encontrada`);
   }
 
   private async resolveInsurer(id: number) {
@@ -860,5 +1027,15 @@ export class OrdersService {
       name: dto.referringDoctorName ?? null,
       mp: dto.referringDoctorMp ?? null,
     };
+  }
+
+  private async resolveServicio(labId: number, servicioId: number): Promise<Servicio> {
+    const [row] = await this.db
+      .select()
+      .from(servicio)
+      .where(and(eq(servicio.id, servicioId), eq(servicio.labId, labId), eq(servicio.activo, true)))
+      .limit(1);
+    if (!row) throw new NotFoundException(`Servicio ${servicioId} no encontrado o inactivo`);
+    return row;
   }
 }
