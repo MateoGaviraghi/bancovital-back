@@ -65,3 +65,13 @@ export const reproductiveStatusEnum = pgEnum('reproductive_status', [
   'lactante',
   'desconocido',
 ]);
+
+export const cotizacionEstadoEnum = pgEnum('cotizacion_estado', [
+  'borrador',
+  'enviada',
+  'aceptada',
+  'rechazada',
+  'expirada',
+]);
+
+export const cotizacionTipoEnum = pgEnum('cotizacion_tipo', ['paciente', 'empresa']);

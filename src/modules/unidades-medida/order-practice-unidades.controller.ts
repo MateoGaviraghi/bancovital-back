@@ -37,12 +37,9 @@ export class OrderPracticeUnidadesController {
       sortOrder: r.sortOrder,
       value: r.value,
       opcionesPredeterminadas: r.unidad.opcionesPredeterminadas ?? null,
-<<<<<<< HEAD
-=======
       rangeLow: r.rangeLow,
       rangeHigh: r.rangeHigh,
       referenceText: r.referenceText,
->>>>>>> da6c60d669211ce1f03bcada66dafd4dcaad91ca
     }));
   }
 

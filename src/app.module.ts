@@ -8,6 +8,7 @@ import { RolesGuard } from './common/guards/roles.guard';
 import { AppConfig } from './config';
 import { DatabaseModule } from './db/database.module';
 import { AnunciosModule } from './modules/anuncios/anuncios.module';
+import { CotizacionesModule } from './modules/cotizaciones/cotizaciones.module';
 import { ConsumoModule } from './modules/consumo/consumo.module';
 import { ContractsModule } from './modules/contracts/contracts.module';
 import { DoctorsModule } from './modules/doctors/doctors.module';
@@ -75,6 +76,7 @@ import { VeterinariosModule } from './modules/veterinarios/veterinarios.module';
     ServiciosModule,
     SolicitantesAguaModule,
     MuestrasAguaModule,
+    CotizacionesModule,
   ],
   providers: [
     AppConfig,
