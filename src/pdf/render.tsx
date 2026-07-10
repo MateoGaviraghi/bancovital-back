@@ -14,6 +14,8 @@ import type {
 import { Font, renderToBuffer } from '@react-pdf/renderer';
 import { ContratoFirmadoTemplate, ContratoTemplate } from './templates/contrato';
 import type { ContratoData, ContratoFirmadoData } from './templates/contrato';
+import { type CatalogoPdfData, CatalogoTemplate } from './templates/catalogo';
+import { type CotizacionPdfData, CotizacionTemplate } from './templates/cotizacion';
 import { type FichaData, FichaTemplate } from './templates/ficha';
 import { type InformeData, InformeTemplate, type InformeUnidadRow } from './templates/informe';
 
@@ -608,4 +610,18 @@ export async function renderContratoPdf(data: ContratoData): Promise<Buffer> {
 export async function renderContratoFirmadoPdf(data: ContratoFirmadoData): Promise<Buffer> {
   ensureFontsRegistered();
   return renderToBuffer(<ContratoFirmadoTemplate data={data} />);
+}
+
+// ── Cotización ─────────────────────────────────────────────────────────────────
+
+export async function renderCotizacionPdf(data: CotizacionPdfData): Promise<Buffer> {
+  ensureFontsRegistered();
+  return renderToBuffer(<CotizacionTemplate data={data} />);
+}
+
+// ── Catálogo de precios ────────────────────────────────────────────────────────
+
+export async function renderCatalogoPdf(data: CatalogoPdfData): Promise<Buffer> {
+  ensureFontsRegistered();
+  return renderToBuffer(<CatalogoTemplate data={data} />);
 }

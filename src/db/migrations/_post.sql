@@ -100,3 +100,7 @@ ALTER TABLE public."especie" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public."raza" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public."practice_referencia_especie" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public."practice_unidad_ref_especie" ENABLE ROW LEVEL SECURITY;
+
+-- cotizaciones (2025-07)
+ALTER TABLE public."cotizacion" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."cotizacion_precio" ENABLE ROW LEVEL SECURITY;
