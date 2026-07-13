@@ -408,8 +408,8 @@ export class ReportsService {
       nombre: string;
       especie: string;
       raza: string | null;
-      propietario: string;
-      propietarioDni: string;
+      propietario?: string | null;
+      propietarioDni?: string | null;
     } | null = null;
     let vetData: { name: string; matricula: string } | null = null;
 
@@ -441,8 +441,11 @@ export class ReportsService {
           nombre: row.nombre,
           especie: row.especieNombre ?? '—',
           raza: null,
-          propietario: `${row.propApellido}, ${row.propNombre}`,
-          propietarioDni: row.propDni ?? '',
+          propietario:
+            row.propApellido || row.propNombre
+              ? `${row.propApellido ?? ''}, ${row.propNombre ?? ''}`.replace(/^,\s*|,\s*$/, '').trim() || null
+              : null,
+          propietarioDni: row.propDni || null,
         };
       }
       if (ord.veterinarioId) {

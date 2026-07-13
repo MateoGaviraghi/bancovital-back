@@ -59,8 +59,8 @@ export interface InformeData {
     nombre: string;
     especie: string;
     raza: string | null;
-    propietario: string;
-    propietarioDni: string;
+    propietario?: string | null;
+    propietarioDni?: string | null;
   } | null;
   solicitanteAgua?: {
     nombreApellido: string;
@@ -454,44 +454,94 @@ const DEFAULT_TABLE_COLORS: TableColors = {
 };
 
 function OverlayResultsTable({ results, colors }: { results: InformeResultRow[]; colors: TableColors }) {
+  const lbg = colors.headerBg;
+  const lcolor = colors.headerColor;
+  const bColor = colors.borderColor;
+  const labelCell = { width: '26%', backgroundColor: lbg, paddingVertical: 6, paddingHorizontal: 8 };
+  const labelText = { fontFamily: 'PublicSansSemiBold', fontSize: 7.5, color: lcolor, letterSpacing: 0.4 };
+  const valueCell = { flex: 1, paddingVertical: 6, paddingHorizontal: 8 };
+  const divider = { borderTopWidth: 0.5, borderTopColor: bColor };
   return (
-    <View style={{ borderWidth: 0.5, borderColor: colors.borderColor, borderRadius: 3, overflow: 'hidden' }}>
-      <View style={{ flexDirection: 'row', backgroundColor: colors.headerBg, paddingVertical: 5, paddingHorizontal: 8 }}>
-        <Text style={{ width: '30%', fontFamily: 'PublicSansSemiBold', fontSize: 7, color: colors.headerColor, letterSpacing: 0.3 }}>PRÁCTICA</Text>
-        <Text style={{ width: '25%', fontFamily: 'PublicSansSemiBold', fontSize: 7, color: colors.headerColor, letterSpacing: 0.3 }}>RESULTADO</Text>
-        <Text style={{ width: '12%', fontFamily: 'PublicSansSemiBold', fontSize: 7, color: colors.headerColor, letterSpacing: 0.3 }}>UNIDAD</Text>
-        <Text style={{ width: '18%', fontFamily: 'PublicSansSemiBold', fontSize: 7, color: colors.headerColor, letterSpacing: 0.3 }}>REFERENCIA</Text>
-        <Text style={{ width: '15%', fontFamily: 'PublicSansSemiBold', fontSize: 7, color: colors.headerColor, letterSpacing: 0.3 }}>ESTADO</Text>
-      </View>
+    <View style={{ gap: 8 }}>
       {results.map((r) => {
-        let flagColor = colors.rowColor;
-        if (r.flag === 'normal') flagColor = C.success;
-        else if (r.flag === 'low' || r.flag === 'high') flagColor = C.warning;
-        else if (r.flag === 'critical_low' || r.flag === 'critical_high') flagColor = C.danger;
+        const bStyle = badgeStyle(r.flag);
+        const hasUnidades = r.unidades && r.unidades.length > 0;
         return (
-          <View key={r.nbuCode} style={{ flexDirection: 'row', paddingVertical: 5, paddingHorizontal: 8, borderTopWidth: 0.25, borderTopColor: colors.borderColor }} wrap={false}>
-            <View style={{ width: '30%', paddingRight: 4 }}>
-              <Text style={{ fontFamily: 'PublicSansSemiBold', fontSize: 8, color: colors.rowColor }}>{r.name}</Text>
-              <Text style={{ fontSize: 6.5, color: colors.borderColor, marginTop: 1 }}>NBU {r.nbuCode}</Text>
-              {r.methodology ? (
-                <Text style={{ fontSize: 6.5, color: colors.rowColor, marginTop: 1 }}>Método: {r.methodology}</Text>
-              ) : null}
-              {r.referenceValue ? (
-                <Text style={{ fontSize: 6.5, color: colors.rowColor, marginTop: 1 }}>Ref.: {r.referenceValue}</Text>
-              ) : null}
+          <View key={r.nbuCode} style={{ borderWidth: 0.5, borderColor: bColor, borderRadius: 3, overflow: 'hidden' }}>
+            <View style={{ flexDirection: 'row' }}>
+              <View style={labelCell}><Text style={labelText}>PRÁCTICA</Text></View>
+              <View style={valueCell}>
+                <Text style={{ fontFamily: 'PublicSansSemiBold', fontSize: 9, color: colors.rowColor }}>{r.name}</Text>
+                <Text style={{ fontSize: 6.5, color: bColor, marginTop: 1 }}>NBU {r.nbuCode}</Text>
+                {r.methodology ? <Text style={{ fontSize: 6.5, color: colors.rowColor, marginTop: 1 }}>Método: {r.methodology}</Text> : null}
+              </View>
             </View>
-            <View style={{ width: '25%', paddingRight: 4 }}>
-              <Text style={{ fontFamily: 'PublicSansSemiBold', fontSize: 9, color: colors.rowColor }}>{r.value || '—'}</Text>
+            <View style={[{ flexDirection: 'row' }, divider]}>
+              <View style={labelCell}><Text style={labelText}>RESULTADO</Text></View>
+              <View style={valueCell}>
+                {hasUnidades ? (
+                  <View>
+                    {r.unidades!.map((u, i) => (
+                      <View key={`${u.nombre}-${i}`} style={styles.unidadRow} wrap={false}>
+                        <Text style={styles.unidadNombre}>{u.nombre}</Text>
+                        <Text style={styles.unidadValue}>{u.value || '—'}</Text>
+                        {u.simbolo ? <Text style={styles.unidadSimbolo}>{u.simbolo}</Text> : null}
+                      </View>
+                    ))}
+                  </View>
+                ) : (
+                  <Text style={{ fontFamily: 'PublicSansSemiBold', fontSize: 9, color: colors.rowColor }}>{r.value || '—'}</Text>
+                )}
+              </View>
             </View>
-            <View style={{ width: '12%', paddingRight: 4 }}>
-              <Text style={{ fontSize: 7.5, color: colors.rowColor }}>{r.unit ?? '—'}</Text>
+            {!hasUnidades ? (
+              <View style={[{ flexDirection: 'row' }, divider]}>
+                <View style={labelCell}><Text style={labelText}>UNIDAD</Text></View>
+                <View style={valueCell}><Text style={{ fontSize: 8, color: colors.rowColor }}>{r.unit ?? '—'}</Text></View>
+              </View>
+            ) : null}
+            <View style={[{ flexDirection: 'row' }, divider]}>
+              <View style={labelCell}><Text style={labelText}>REFERENCIA</Text></View>
+              <View style={valueCell}>
+                {hasUnidades ? (
+                  <View>
+                    {r.unidades!.map((u, i) => {
+                      const hasRange = u.rangeLow || u.rangeHigh;
+                      const rangeStr = hasRange
+                        ? `${u.rangeLow ? fmtNum(u.rangeLow) : '—'} – ${u.rangeHigh ? fmtNum(u.rangeHigh) : '—'}`
+                        : null;
+                      const uRef = rangeStr && u.referenceText
+                        ? `${rangeStr}. ${u.referenceText}`
+                        : rangeStr ?? u.referenceText ?? null;
+                      return (
+                        <View key={`ref-${u.nombre}-${i}`} style={styles.unidadRow} wrap={false}>
+                          <Text style={styles.unidadNombre}>{u.nombre}</Text>
+                          <Text style={{ fontSize: 7.5, color: colors.rowColor }}>{uRef ?? '—'}</Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                ) : (
+                  <Text style={{ fontSize: 8, color: colors.rowColor }}>{r.range ?? r.referenceValue ?? '—'}</Text>
+                )}
+              </View>
             </View>
-            <View style={{ width: '18%', paddingRight: 4 }}>
-              <Text style={{ fontSize: 7.5, color: colors.rowColor }}>{r.range ?? '—'}</Text>
+            <View style={[{ flexDirection: 'row' }, divider]}>
+              <View style={labelCell}><Text style={labelText}>ESTADO</Text></View>
+              <View style={valueCell}>
+                {bStyle ? (
+                  <Text style={[styles.badge, bStyle]}>{flagLabel(r.flag)}</Text>
+                ) : (
+                  <Text style={{ fontSize: 8, color: colors.rowColor }}>—</Text>
+                )}
+              </View>
             </View>
-            <View style={{ width: '15%' }}>
-              <Text style={{ fontSize: 7, color: flagColor }}>{flagLabel(r.flag)}</Text>
-            </View>
+            {r.notes ? (
+              <View style={[{ flexDirection: 'row' }, divider]}>
+                <View style={labelCell}><Text style={labelText}>OBSERVACIONES</Text></View>
+                <View style={valueCell}><Text style={{ fontSize: 8, color: colors.rowColor, lineHeight: 1.35 }}>{r.notes}</Text></View>
+              </View>
+            ) : null}
           </View>
         );
       })}
@@ -706,7 +756,7 @@ export function InformeTemplate({ data }: { data: InformeData }) {
                 <InfoRow label="Nombre" value={data.animalPatient.nombre} />
                 <InfoRow label="Especie" value={data.animalPatient.especie} />
                 {data.animalPatient.raza ? <InfoRow label="Raza" value={data.animalPatient.raza} /> : null}
-                <InfoRow label="Propietario" value={data.animalPatient.propietario} />
+                {data.animalPatient.propietario ? <InfoRow label="Propietario" value={data.animalPatient.propietario} /> : null}
                 {data.animalPatient.propietarioDni ? <InfoRow label="DNI Propietario" value={data.animalPatient.propietarioDni} /> : null}
               </>
             ) : (
@@ -767,93 +817,114 @@ export function InformeTemplate({ data }: { data: InformeData }) {
           </View>
         </View>
 
-        {/* Results table */}
+        {/* Results blocks */}
         <Text style={[styles.resultsTitle, { color: accent }]}>Resultados</Text>
-        <View style={[styles.table, { borderColor: tBorder }]}>
-          <View style={[styles.tableHeader, { backgroundColor: tHeaderBg }]} fixed>
-            <Text style={[styles.th, styles.colName, { color: tHeaderColor }]}>PRÁCTICA</Text>
-            <Text style={[styles.th, styles.colValue, { color: tHeaderColor }]}>RESULTADO</Text>
-            <Text style={[styles.th, styles.colUnit, { color: tHeaderColor }]}>UNIDAD</Text>
-            <Text style={[styles.th, styles.colRange, { color: tHeaderColor }]}>REFERENCIA</Text>
-            <Text style={[styles.th, styles.colFlag, { color: tHeaderColor }]}>ESTADO</Text>
-          </View>
+        <View style={{ gap: 8 }}>
           {data.results.map((r) => {
             const bStyle = badgeStyle(r.flag);
-            const numeric = isNumericValue(r.value);
+            const hasUnidades = r.unidades && r.unidades.length > 0;
+            const labelCell = { width: '26%', backgroundColor: tHeaderBg, paddingVertical: 6, paddingHorizontal: 8 };
+            const labelText = { fontFamily: 'PublicSansSemiBold', fontSize: 7.5, color: tHeaderColor, letterSpacing: 0.4 };
+            const valueCell = { flex: 1, paddingVertical: 6, paddingHorizontal: 8 };
+            const divider = { borderTopWidth: 0.5, borderTopColor: tBorder };
             return (
               <View
                 key={r.nbuCode}
-                style={[styles.tableRow, { borderTopColor: tBorder, flexDirection: 'column' }]}
-                wrap={false}
+                style={{ borderWidth: 0.5, borderColor: tBorder, borderRadius: 3, overflow: 'hidden' }}
               >
-                <View style={{ flexDirection: 'row', width: '100%', alignItems: 'flex-start' }}>
-                <View style={styles.colName}>
-                  <Text style={[styles.practiceName, { color: tRowColor }]}>{r.name}</Text>
-                  <Text style={styles.nbuCode}>NBU {r.nbuCode}</Text>
-                  {r.methodology ? (
-                    <Text style={styles.metaText}>Método: {r.methodology}</Text>
-                  ) : null}
+                {/* PRÁCTICA */}
+                <View style={{ flexDirection: 'row' }} wrap={false}>
+                  <View style={labelCell}><Text style={labelText}>PRÁCTICA</Text></View>
+                  <View style={valueCell}>
+                    <Text style={[styles.practiceName, { color: tRowColor }]}>{r.name}</Text>
+                    <Text style={styles.nbuCode}>NBU {r.nbuCode}</Text>
+                    {r.methodology ? <Text style={styles.metaText}>Método: {r.methodology}</Text> : null}
+                  </View>
                 </View>
-                <View style={styles.colValue}>
-                  <Text style={numeric ? styles.valueNum : styles.valueProse}>
-                    {r.value || '—'}
-                  </Text>
-                  {r.unidades && r.unidades.length > 0 ? (
-                    <View style={styles.unidadesBlock}>
-                      {r.unidades.map((u, i) => (
-                        <View key={`${u.nombre}-${i}`} style={styles.unidadRow} wrap={false}>
-                          <Text style={styles.unidadNombre}>{u.nombre}</Text>
-                          <Text style={styles.unidadValue}>{u.value || '—'}</Text>
-                          {u.simbolo ? <Text style={styles.unidadSimbolo}>{u.simbolo}</Text> : null}
-                        </View>
-                      ))}
-                    </View>
-                  ) : null}
-                </View>
-                <View style={styles.colUnit}>
-                  <Text style={styles.unitText}>{r.unit ?? '—'}</Text>
-                </View>
-                <View style={styles.colRange}>
-                  {r.range ? (
-                    <Text style={styles.rangeText}>{r.range}</Text>
-                  ) : r.referenceValue ? (
-                    <Text style={{ fontSize: 7.5, color: C.muted }}>{r.referenceValue}</Text>
-                  ) : (
-                    <Text style={styles.rangeText}>—</Text>
-                  )}
-                  {r.unidades && r.unidades.length > 0 ? (
-                    <View style={styles.unidadesBlock}>
-                      {r.unidades.map((u, i) => {
-                        const hasRange = u.rangeLow || u.rangeHigh;
-                        const rangeStr = hasRange
-                          ? `${u.rangeLow ? fmtNum(u.rangeLow) : '—'} – ${u.rangeHigh ? fmtNum(u.rangeHigh) : '—'}`
-                          : null;
-                        const uRef = rangeStr && u.referenceText
-                          ? `${rangeStr}. ${u.referenceText}`
-                          : rangeStr ?? u.referenceText ?? null;
-                        return (
-                          <View key={`ref-${u.nombre}-${i}`} style={styles.unidadRow} wrap={false}>
-                            <Text style={{ fontSize: 7, color: C.muted }}>
-                              {uRef ?? '—'}
-                            </Text>
+
+                {/* RESULTADO */}
+                <View style={[{ flexDirection: 'row' }, divider]}>
+                  <View style={labelCell}><Text style={labelText}>RESULTADO</Text></View>
+                  <View style={valueCell}>
+                    {hasUnidades ? (
+                      <View>
+                        {r.unidades!.map((u, i) => (
+                          <View key={`${u.nombre}-${i}`} style={styles.unidadRow} wrap={false}>
+                            <Text style={styles.unidadNombre}>{u.nombre}</Text>
+                            <Text style={styles.unidadValue}>{u.value || '—'}</Text>
+                            {u.simbolo ? <Text style={styles.unidadSimbolo}>{u.simbolo}</Text> : null}
                           </View>
-                        );
-                      })}
-                    </View>
-                  ) : null}
+                        ))}
+                      </View>
+                    ) : (
+                      <Text style={isNumericValue(r.value) ? styles.valueNum : styles.valueProse}>
+                        {r.value || '—'}
+                      </Text>
+                    )}
+                  </View>
                 </View>
-                <View style={styles.colFlag}>
-                  {bStyle ? (
-                    <Text style={[styles.badge, bStyle]}>{flagLabel(r.flag)}</Text>
-                  ) : (
-                    <Text style={styles.rangeText}>—</Text>
-                  )}
+
+                {/* UNIDAD — solo si no tiene sub-unidades */}
+                {!hasUnidades ? (
+                  <View style={[{ flexDirection: 'row' }, divider]} wrap={false}>
+                    <View style={labelCell}><Text style={labelText}>UNIDAD</Text></View>
+                    <View style={valueCell}><Text style={styles.unitText}>{r.unit ?? '—'}</Text></View>
+                  </View>
+                ) : null}
+
+                {/* REFERENCIA */}
+                <View style={[{ flexDirection: 'row' }, divider]}>
+                  <View style={labelCell}><Text style={labelText}>REFERENCIA</Text></View>
+                  <View style={valueCell}>
+                    {hasUnidades ? (
+                      <View>
+                        {r.unidades!.map((u, i) => {
+                          const hasRange = u.rangeLow || u.rangeHigh;
+                          const rangeStr = hasRange
+                            ? `${u.rangeLow ? fmtNum(u.rangeLow) : '—'} – ${u.rangeHigh ? fmtNum(u.rangeHigh) : '—'}`
+                            : null;
+                          const uRef =
+                            rangeStr && u.referenceText
+                              ? `${rangeStr}. ${u.referenceText}`
+                              : rangeStr ?? u.referenceText ?? null;
+                          return (
+                            <View key={`ref-${u.nombre}-${i}`} style={styles.unidadRow} wrap={false}>
+                              <Text style={styles.unidadNombre}>{u.nombre}</Text>
+                              <Text style={{ fontSize: 7.5, color: C.muted }}>{uRef ?? '—'}</Text>
+                            </View>
+                          );
+                        })}
+                      </View>
+                    ) : r.range ? (
+                      <Text style={styles.rangeText}>{r.range}</Text>
+                    ) : r.referenceValue ? (
+                      <Text style={{ fontSize: 7.5, color: C.muted }}>{r.referenceValue}</Text>
+                    ) : (
+                      <Text style={styles.rangeText}>—</Text>
+                    )}
+                  </View>
                 </View>
+
+                {/* ESTADO */}
+                <View style={[{ flexDirection: 'row' }, divider]} wrap={false}>
+                  <View style={labelCell}><Text style={labelText}>ESTADO</Text></View>
+                  <View style={valueCell}>
+                    {bStyle ? (
+                      <Text style={[styles.badge, bStyle]}>{flagLabel(r.flag)}</Text>
+                    ) : (
+                      <Text style={styles.rangeText}>—</Text>
+                    )}
+                  </View>
                 </View>
+
+                {/* OBSERVACIONES */}
                 {r.notes ? (
-                  <Text style={[styles.metaText, { marginTop: 4, width: '100%' }]}>
-                    Obs.: {r.notes}
-                  </Text>
+                  <View style={[{ flexDirection: 'row' }, divider]}>
+                    <View style={labelCell}><Text style={labelText}>OBSERVACIONES</Text></View>
+                    <View style={valueCell}>
+                      <Text style={styles.metaText}>{r.notes}</Text>
+                    </View>
+                  </View>
                 ) : null}
               </View>
             );

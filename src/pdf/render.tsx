@@ -82,8 +82,8 @@ export interface RenderInformeInput {
     nombre: string;
     especie: string;
     raza: string | null;
-    propietario: string;
-    propietarioDni: string;
+    propietario?: string | null;
+    propietarioDni?: string | null;
   };
   veterinario?: { name: string; matricula: string };
   solicitanteAgua?: {
@@ -326,7 +326,7 @@ export function buildInformeData(input: RenderInformeInput): InformeData {
       : input.animalPatient
         ? {
             fullName: input.animalPatient.nombre,
-            dni: input.animalPatient.propietarioDni,
+            dni: input.animalPatient.propietarioDni ?? '—',
             sex: null,
             age: '—',
             birthDate: '—',
