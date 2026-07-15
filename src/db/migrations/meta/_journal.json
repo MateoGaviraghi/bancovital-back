@@ -183,6 +183,34 @@
       "when": 1752192000000,
       "tag": "0025_cotizaciones",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1752278400000,
+      "tag": "0026_unidades_global",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1752364800000,
+      "tag": "0027_practice_unidad_updated_at",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1752451200000,
+      "tag": "0028_cotizacion_ub_copago",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1752537600000,
+      "tag": "0029_practice_precio_particular",
+      "breakpoints": true
     }
   ]
 }

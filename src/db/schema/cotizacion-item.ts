@@ -15,6 +15,10 @@ export const cotizacionItem = pgTable('cotizacion_item', {
   }),
   /** Snapshot del nombre al momento de crear la cotización. */
   practicaNombre: text('practica_nombre').notNull(),
+  /** Snapshot de las UBs de la práctica al momento de crear la cotización. */
+  ubsSnapshot: numeric('ubs_snapshot', { precision: 8, scale: 2 }),
+  /** Snapshot del valor UB vigente de la obra social al momento de crear la cotización. */
+  ubValueSnapshot: numeric('ub_value_snapshot', { precision: 12, scale: 2 }),
   precioUnitario: numeric('precio_unitario', { precision: 12, scale: 2 }).notNull(),
   cantidad: integer('cantidad').notNull().default(1),
   subtotal: numeric('subtotal', { precision: 12, scale: 2 }).notNull(),

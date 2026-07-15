@@ -5,13 +5,26 @@ const AR_MONEY = new Intl.NumberFormat('es-AR', {
   maximumFractionDigits: 2,
   useGrouping: true,
 });
+const AR_NUM = new Intl.NumberFormat('es-AR', {
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 2,
+  useGrouping: true,
+});
+
 function fmtMoney(s: string): string {
   const n = Number(s.replace(',', '.').trim());
   return Number.isNaN(n) ? s : `$ ${AR_MONEY.format(n)}`;
 }
+function fmtNum(s: string | null | undefined): string {
+  if (!s) return '—';
+  const n = Number(s);
+  return Number.isNaN(n) ? s : AR_NUM.format(n);
+}
 
 export interface CotizacionPdfItem {
   practicaNombre: string;
+  ubsSnapshot: string | null;
+  ubValueSnapshot: string | null;
   precioUnitario: string;
   cantidad: number;
   subtotal: string;
@@ -23,7 +36,6 @@ export interface CotizacionPdfData {
   validezDias: number;
   estado: string;
   tipo: 'paciente' | 'empresa';
-  /** Nombre completo del receptor (paciente o empresa). */
   receptorNombre: string;
   receptorDni?: string | null;
   receptorCuit?: string | null;
@@ -31,6 +43,10 @@ export interface CotizacionPdfData {
   receptorTelefono?: string | null;
   receptorContacto?: string | null;
   obraSocialNombre?: string | null;
+  /** % copago a cargo del paciente, ej: "20.00" = 20%. NULL = OS cubre 100%. */
+  copagoPorc?: string | null;
+  totalCopago?: string | null;
+  totalOs?: string | null;
   items: CotizacionPdfItem[];
   totalMonto: string;
   observaciones?: string | null;
@@ -56,7 +72,6 @@ const styles = StyleSheet.create({
     paddingLeft: 44,
     paddingRight: 44,
   },
-  // Header
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -77,7 +92,6 @@ const styles = StyleSheet.create({
   cotNumber: { fontSize: 14, fontWeight: 'bold' },
   cotDate: { fontSize: 7, color: '#666', marginTop: 2 },
   rule: { height: 2, marginBottom: 12 },
-  // Info grid
   infoGrid: { flexDirection: 'row', gap: 8, marginBottom: 14 },
   infoCard: {
     flex: 1,
@@ -89,14 +103,15 @@ const styles = StyleSheet.create({
   infoRow: { flexDirection: 'row', marginBottom: 3 },
   infoLabel: { fontSize: 7.5, color: '#666', width: 80 },
   infoValue: { fontSize: 7.5, flex: 1, fontWeight: 'bold' },
-  // Items table
   tableTitle: { fontSize: 9, fontWeight: 'bold', marginBottom: 6 },
   table: { borderWidth: 1, borderRadius: 4, overflow: 'hidden' },
   tableHeader: { flexDirection: 'row', paddingVertical: 5, paddingHorizontal: 8 },
   thPractica: { flex: 1, fontSize: 7.5, fontWeight: 'bold', color: '#fff' },
-  thQty: { width: 32, fontSize: 7.5, fontWeight: 'bold', color: '#fff', textAlign: 'center' },
-  thPrecio: { width: 72, fontSize: 7.5, fontWeight: 'bold', color: '#fff', textAlign: 'right' },
-  thSubtotal: { width: 80, fontSize: 7.5, fontWeight: 'bold', color: '#fff', textAlign: 'right' },
+  thUbs: { width: 36, fontSize: 7.5, fontWeight: 'bold', color: '#fff', textAlign: 'center' },
+  thUbVal: { width: 60, fontSize: 7.5, fontWeight: 'bold', color: '#fff', textAlign: 'right' },
+  thQty: { width: 28, fontSize: 7.5, fontWeight: 'bold', color: '#fff', textAlign: 'center' },
+  thPrecio: { width: 68, fontSize: 7.5, fontWeight: 'bold', color: '#fff', textAlign: 'right' },
+  thSubtotal: { width: 72, fontSize: 7.5, fontWeight: 'bold', color: '#fff', textAlign: 'right' },
   tableRow: {
     flexDirection: 'row',
     paddingVertical: 5,
@@ -105,30 +120,45 @@ const styles = StyleSheet.create({
     borderTopColor: '#e5e7eb',
   },
   tdPractica: { flex: 1, fontSize: 8 },
-  tdQty: { width: 32, fontSize: 8, textAlign: 'center', color: '#555' },
-  tdPrecio: { width: 72, fontSize: 8, textAlign: 'right', color: '#555' },
-  tdSubtotal: { width: 80, fontSize: 8, textAlign: 'right', fontWeight: 'bold' },
-  // Total
+  tdUbs: { width: 36, fontSize: 8, textAlign: 'center', color: '#555' },
+  tdUbVal: { width: 60, fontSize: 8, textAlign: 'right', color: '#555' },
+  tdQty: { width: 28, fontSize: 8, textAlign: 'center', color: '#555' },
+  tdPrecio: { width: 68, fontSize: 8, textAlign: 'right', color: '#555' },
+  tdSubtotal: { width: 72, fontSize: 8, textAlign: 'right', fontWeight: 'bold' },
+  // Totals block
+  totalsBlock: {
+    marginTop: 6,
+    alignItems: 'flex-end',
+  },
+  totalLine: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginBottom: 2,
+  },
+  totalLineLabel: { fontSize: 8, color: '#555', width: 140, textAlign: 'right', marginRight: 12 },
+  totalLineValue: { fontSize: 8, color: '#555', width: 72, textAlign: 'right' },
   totalRow: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    marginTop: 6,
-    paddingTop: 6,
+    marginTop: 4,
+    paddingTop: 5,
     borderTopWidth: 1.5,
-    borderTopColor: '#d1d5db',
   },
-  totalLabel: { fontSize: 10, fontWeight: 'bold', marginRight: 16 },
-  totalValue: { fontSize: 10, fontWeight: 'bold', width: 80, textAlign: 'right' },
-  // Footer area
+  totalLabel: { fontSize: 10, fontWeight: 'bold', marginRight: 12, width: 140, textAlign: 'right' },
+  totalValue: { fontSize: 10, fontWeight: 'bold', width: 72, textAlign: 'right' },
   validez: { fontSize: 7.5, color: '#666', marginTop: 10 },
   obs: { fontSize: 7.5, color: '#444', marginTop: 6 },
   obsLabel: { fontWeight: 'bold' },
 });
 
+const hasUbInfo = (items: CotizacionPdfItem[]) =>
+  items.some((i) => i.ubsSnapshot != null || i.ubValueSnapshot != null);
+
 export function CotizacionTemplate({ data }: { data: CotizacionPdfData }) {
   const { accent, accentSoft } = data;
   const cardBorder = accentSoft;
   const cardBg = '#fafafa';
+  const showUb = hasUbInfo(data.items);
 
   return (
     <Document>
@@ -143,12 +173,8 @@ export function CotizacionTemplate({ data }: { data: CotizacionPdfData }) {
               <Text style={styles.legalName}>{data.lab.legalName}</Text>
               <Text style={styles.labLine}>{data.lab.address}</Text>
               <Text style={styles.labLine}>{data.lab.cityProvince}</Text>
-              {data.lab.phone ? (
-                <Text style={styles.labLine}>Tel: {data.lab.phone}</Text>
-              ) : null}
-              {data.lab.email ? (
-                <Text style={styles.labLine}>{data.lab.email}</Text>
-              ) : null}
+              {data.lab.phone ? <Text style={styles.labLine}>Tel: {data.lab.phone}</Text> : null}
+              {data.lab.email ? <Text style={styles.labLine}>{data.lab.email}</Text> : null}
             </View>
           </View>
           <View style={[styles.cotBadge, { backgroundColor: accentSoft }]}>
@@ -164,7 +190,6 @@ export function CotizacionTemplate({ data }: { data: CotizacionPdfData }) {
 
         {/* ── Info grid ── */}
         <View style={styles.infoGrid}>
-          {/* Receptor */}
           <View style={[styles.infoCard, { borderColor: cardBorder, backgroundColor: cardBg }]}>
             <Text style={[styles.cardTitle, { color: accent }]}>
               {data.tipo === 'empresa' ? 'EMPRESA' : 'PACIENTE'}
@@ -205,13 +230,18 @@ export function CotizacionTemplate({ data }: { data: CotizacionPdfData }) {
             ) : null}
           </View>
 
-          {/* Condiciones */}
           <View style={[styles.infoCard, { borderColor: cardBorder, backgroundColor: cardBg, maxWidth: 170 }]}>
             <Text style={[styles.cardTitle, { color: accent }]}>CONDICIONES</Text>
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Obra social</Text>
               <Text style={styles.infoValue}>{data.obraSocialNombre ?? 'Particular'}</Text>
             </View>
+            {data.copagoPorc ? (
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Copago paciente</Text>
+                <Text style={styles.infoValue}>{fmtNum(data.copagoPorc)}%</Text>
+              </View>
+            ) : null}
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Validez</Text>
               <Text style={styles.infoValue}>{data.validezDias} días</Text>
@@ -228,6 +258,8 @@ export function CotizacionTemplate({ data }: { data: CotizacionPdfData }) {
         <View style={styles.table}>
           <View style={[styles.tableHeader, { backgroundColor: accent }]}>
             <Text style={styles.thPractica}>Práctica</Text>
+            {showUb ? <Text style={styles.thUbs}>UBs</Text> : null}
+            {showUb ? <Text style={styles.thUbVal}>Valor UB</Text> : null}
             <Text style={styles.thQty}>Cant.</Text>
             <Text style={styles.thPrecio}>Precio unit.</Text>
             <Text style={styles.thSubtotal}>Subtotal</Text>
@@ -238,6 +270,12 @@ export function CotizacionTemplate({ data }: { data: CotizacionPdfData }) {
               style={[styles.tableRow, { backgroundColor: idx % 2 === 0 ? '#fff' : '#f9fafb' }]}
             >
               <Text style={styles.tdPractica}>{item.practicaNombre}</Text>
+              {showUb ? <Text style={styles.tdUbs}>{fmtNum(item.ubsSnapshot)}</Text> : null}
+              {showUb ? (
+                <Text style={styles.tdUbVal}>
+                  {item.ubValueSnapshot ? fmtMoney(item.ubValueSnapshot) : '—'}
+                </Text>
+              ) : null}
               <Text style={styles.tdQty}>{item.cantidad}</Text>
               <Text style={styles.tdPrecio}>{fmtMoney(item.precioUnitario)}</Text>
               <Text style={styles.tdSubtotal}>{fmtMoney(item.subtotal)}</Text>
@@ -245,10 +283,28 @@ export function CotizacionTemplate({ data }: { data: CotizacionPdfData }) {
           ))}
         </View>
 
-        {/* ── Total ── */}
-        <View style={[styles.totalRow, { borderTopColor: accent }]}>
-          <Text style={styles.totalLabel}>TOTAL</Text>
-          <Text style={[styles.totalValue, { color: accent }]}>{fmtMoney(data.totalMonto)}</Text>
+        {/* ── Totals ── */}
+        <View style={styles.totalsBlock}>
+          {data.copagoPorc && data.totalOs && data.totalCopago ? (
+            <>
+              <View style={styles.totalLine}>
+                <Text style={styles.totalLineLabel}>
+                  Cubre obra social ({(100 - Number(data.copagoPorc)).toFixed(0)}%)
+                </Text>
+                <Text style={styles.totalLineValue}>{fmtMoney(data.totalOs)}</Text>
+              </View>
+              <View style={styles.totalLine}>
+                <Text style={styles.totalLineLabel}>
+                  Copago paciente ({fmtNum(data.copagoPorc)}%)
+                </Text>
+                <Text style={styles.totalLineValue}>{fmtMoney(data.totalCopago)}</Text>
+              </View>
+            </>
+          ) : null}
+          <View style={[styles.totalRow, { borderTopColor: accent }]}>
+            <Text style={styles.totalLabel}>TOTAL</Text>
+            <Text style={[styles.totalValue, { color: accent }]}>{fmtMoney(data.totalMonto)}</Text>
+          </View>
         </View>
 
         {/* ── Pie ── */}

@@ -24,7 +24,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { and, asc, eq, inArray } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull, or } from 'drizzle-orm';
 import type { UpsertResultDto } from './dto/upsert-result.dto';
 
 const LOADABLE_STATUSES = new Set(['borrador', 'confirmada', 'en_proceso', 'resultados_cargados']);
@@ -127,7 +127,10 @@ export class ResultsService {
             .from(practiceUnidad)
             .innerJoin(unidadMedida, eq(unidadMedida.id, practiceUnidad.unidadId))
             .where(
-              and(eq(practiceUnidad.labId, labId), inArray(practiceUnidad.practiceId, practiceIds)),
+              and(
+                or(eq(practiceUnidad.labId, labId), isNull(practiceUnidad.labId)),
+                inArray(practiceUnidad.practiceId, practiceIds),
+              ),
             )
             .orderBy(asc(practiceUnidad.sortOrder), asc(practiceUnidad.id)),
       opIds.length === 0

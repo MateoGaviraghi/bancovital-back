@@ -39,11 +39,17 @@ export class CreatePracticeDto {
   @MaxLength(80)
   section?: string | null;
 
-  @ApiPropertyOptional({ description: 'Valor UB (ej: "2.50")', nullable: true })
+  @ApiPropertyOptional({ description: 'Unidades bioquímicas del nomenclador (ej: "2.50")', nullable: true })
   @IsOptional()
   @IsNumberString()
   @MaxLength(20)
   units?: string | null;
+
+  @ApiPropertyOptional({ description: 'Precio directo para Particular (sin obra social)', nullable: true })
+  @IsOptional()
+  @IsNumberString()
+  @MaxLength(20)
+  precioParticular?: string | null;
 
   @ApiPropertyOptional({ nullable: true })
   @IsOptional()

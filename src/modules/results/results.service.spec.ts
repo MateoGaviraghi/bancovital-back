@@ -58,6 +58,7 @@ function practiceFixture(template: ReferenceValueTemplate | null): Practice {
     isElaborated: false,
     condicionVisibilidad: null,
     defaultUnit: null,
+    precioParticular: null,
     createdAt: new Date(),
     updatedAt: new Date(),
   };

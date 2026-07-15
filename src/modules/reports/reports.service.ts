@@ -6,6 +6,7 @@ import {
   especie,
   insurer,
   laboratorio,
+  labPracticeConfig,
   muestraAgua,
   order,
   orderPractice,
@@ -37,7 +38,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { and, asc, desc, eq, inArray, isNull } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, isNull, max, or } from 'drizzle-orm';
 import QRCode from 'qrcode';
 
 export const REPORTS_BUCKET = 'reports';
@@ -307,7 +308,7 @@ export class ReportsService {
   }
 
   private async getConfigUpdatedAt(labId: number): Promise<Date> {
-    const [[lab], [pref]] = await Promise.all([
+    const [[lab], [pref], [pu], [um], [pr], [lpc]] = await Promise.all([
       this.db
         .select({ updatedAt: laboratorio.updatedAt })
         .from(laboratorio)
@@ -325,17 +326,40 @@ export class ReportsService {
         )
         .orderBy(desc(preferenciaPdf.updatedAt))
         .limit(1),
+      // Cambios en rangos/referencias de asociaciones globales
+      this.db
+        .select({ ts: max(practiceUnidad.updatedAt) })
+        .from(practiceUnidad)
+        .where(isNull(practiceUnidad.labId)),
+      // Cambios en símbolo/nombre de unidades globales
+      this.db
+        .select({ ts: max(unidadMedida.updatedAt) })
+        .from(unidadMedida)
+        .where(isNull(unidadMedida.labId)),
+      // Cambios en referenceValue/methodology de prácticas
+      this.db
+        .select({ ts: max(practice.updatedAt) })
+        .from(practice),
+      // Cambios en configuración por lab (referenceValue, methodology por lab)
+      this.db
+        .select({ ts: max(labPracticeConfig.updatedAt) })
+        .from(labPracticeConfig)
+        .where(eq(labPracticeConfig.labId, labId)),
     ]);
     const labTs = lab?.updatedAt?.getTime() ?? 0;
     const prefTs = pref?.updatedAt?.getTime() ?? 0;
-    return new Date(Math.max(labTs, prefTs));
+    const puTs = pu?.ts ? new Date(pu.ts).getTime() : 0;
+    const umTs = um?.ts ? new Date(um.ts).getTime() : 0;
+    const prTs = pr?.ts ? new Date(pr.ts).getTime() : 0;
+    const lpcTs = lpc?.ts ? new Date(lpc.ts).getTime() : 0;
+    return new Date(Math.max(labTs, prefTs, puTs, umTs, prTs, lpcTs));
   }
 
   private isStale(ord: Order, configUpdatedAt: Date): boolean {
     if (!ord.pdfReportPath) return false;
     const renderedAt = ord.pdfReportRenderedAt ?? ord.pdfReportIssuedAt;
     if (!renderedAt) return true;
-    return configUpdatedAt.getTime() > renderedAt.getTime();
+    return configUpdatedAt.getTime() >= renderedAt.getTime();
   }
 
   private async requireOrder(labId: number, orderId: number): Promise<Order> {
@@ -543,13 +567,19 @@ export class ReportsService {
           methodology: practice.methodology,
           referenceValue: practice.referenceValue,
           defaultUnit: practice.defaultUnit,
+          labMethodology: labPracticeConfig.methodology,
+          labReferenceValue: labPracticeConfig.referenceValue,
         })
         .from(practice)
+        .leftJoin(
+          labPracticeConfig,
+          and(eq(labPracticeConfig.practiceId, practice.id), eq(labPracticeConfig.labId, ord.labId)),
+        )
         .where(inArray(practice.id, practiceIds));
       for (const p of practiceRows)
         practiceDataById.set(p.id, {
-          methodology: p.methodology,
-          referenceValue: p.referenceValue,
+          methodology: p.labMethodology ?? p.methodology,
+          referenceValue: p.labReferenceValue ?? p.referenceValue,
           defaultUnit: p.defaultUnit,
         });
     }
@@ -578,7 +608,7 @@ export class ReportsService {
         .leftJoin(
           practiceUnidad,
           and(
-            eq(practiceUnidad.labId, ord.labId),
+            or(eq(practiceUnidad.labId, ord.labId), isNull(practiceUnidad.labId)),
             eq(practiceUnidad.practiceId, orderPractice.practiceId),
             eq(practiceUnidad.unidadId, orderPracticeUnidadValue.unidadId),
           ),
@@ -606,7 +636,7 @@ export class ReportsService {
         })
         .from(practiceUnidad)
         .leftJoin(unidadMedida, eq(unidadMedida.id, practiceUnidad.unidadId))
-        .where(and(eq(practiceUnidad.labId, ord.labId), inArray(practiceUnidad.practiceId, practiceIds)))
+        .where(and(or(eq(practiceUnidad.labId, ord.labId), isNull(practiceUnidad.labId)), inArray(practiceUnidad.practiceId, practiceIds)))
         .orderBy(asc(practiceUnidad.sortOrder));
       for (const pu of puRows) {
         unidadRefsByKey.set(`${pu.practiceId}:${pu.unidadId}`, {
@@ -648,7 +678,7 @@ export class ReportsService {
         const puIds = await this.db
           .select({ id: practiceUnidad.id, practiceId: practiceUnidad.practiceId, unidadId: practiceUnidad.unidadId })
           .from(practiceUnidad)
-          .where(and(eq(practiceUnidad.labId, ord.labId), inArray(practiceUnidad.practiceId, practiceIds)));
+          .where(and(or(eq(practiceUnidad.labId, ord.labId), isNull(practiceUnidad.labId)), inArray(practiceUnidad.practiceId, practiceIds)));
         if (puIds.length > 0) {
           const speciesUnitRefs = await this.db
             .select()
