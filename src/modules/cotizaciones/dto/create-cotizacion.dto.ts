@@ -4,10 +4,12 @@ import {
   IsIn,
   IsInt,
   IsNotEmpty,
+  IsNumber,
   IsNumberString,
   IsOptional,
   IsPositive,
   IsString,
+  Max,
   MaxLength,
   Min,
   ValidateNested,
@@ -76,6 +78,13 @@ export class CreateCotizacionDto {
   @IsInt()
   @Min(1)
   validezDias?: number;
+
+  /** Porcentaje de copago a cargo del paciente, ej: 20 = 20%. NULL = OS cubre 100%. */
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  copagoPorc?: number;
 
   @IsOptional()
   @IsString()

@@ -20,7 +20,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { type SQL, and, asc, eq, ilike, inArray, sql } from 'drizzle-orm';
+import { type SQL, and, asc, eq, ilike, inArray, isNull, or, sql } from 'drizzle-orm';
 import type { AssociateUnidadDto } from './dto/associate-unidad.dto';
 import type { CreateUnidadMedidaDto } from './dto/create-unidad-medida.dto';
 import type { ListUnidadesMedidaDto } from './dto/list-unidades-medida.dto';
@@ -62,7 +62,10 @@ export class UnidadesMedidaService {
   // ─────────────────────────────── Catálogo ───────────────────────────────
 
   async search(labId: number, q: string, limit: number): Promise<UnidadMedida[]> {
-    const filters: SQL[] = [eq(unidadMedida.labId, labId), eq(unidadMedida.active, true)];
+    const filters: SQL[] = [
+      or(eq(unidadMedida.labId, labId), isNull(unidadMedida.labId))!,
+      eq(unidadMedida.active, true),
+    ];
     if (q) filters.push(ilike(unidadMedida.nombre, `%${q}%`));
     return this.db
       .select()
@@ -77,7 +80,7 @@ export class UnidadesMedidaService {
     const pageSize = Math.min(Math.max(params.pageSize ?? 50, 1), 100);
     const status = params.status ?? 'active';
 
-    const filters: SQL[] = [eq(unidadMedida.labId, labId)];
+    const filters: SQL[] = [or(eq(unidadMedida.labId, labId), isNull(unidadMedida.labId))!];
     if (status === 'active') filters.push(eq(unidadMedida.active, true));
     else if (status === 'inactive') filters.push(eq(unidadMedida.active, false));
     if (params.q?.trim()) filters.push(ilike(unidadMedida.nombre, `%${params.q.trim()}%`));
@@ -102,7 +105,7 @@ export class UnidadesMedidaService {
     const [row] = await this.db
       .select()
       .from(unidadMedida)
-      .where(and(eq(unidadMedida.id, id), eq(unidadMedida.labId, labId)))
+      .where(and(eq(unidadMedida.id, id), or(eq(unidadMedida.labId, labId), isNull(unidadMedida.labId))))
       .limit(1);
     if (!row) throw new NotFoundException(`Unidad ${id} no encontrada`);
     return row;
@@ -120,7 +123,10 @@ export class UnidadesMedidaService {
       .select({ id: unidadMedida.id })
       .from(unidadMedida)
       .where(
-        and(eq(unidadMedida.labId, labId), sql`lower(${unidadMedida.nombre}) = lower(${nombre})`),
+        and(
+          or(eq(unidadMedida.labId, labId), isNull(unidadMedida.labId)),
+          sql`lower(${unidadMedida.nombre}) = lower(${nombre})`,
+        ),
       )
       .limit(1);
     if (dup) {
@@ -154,7 +160,10 @@ export class UnidadesMedidaService {
         .select({ id: unidadMedida.id })
         .from(unidadMedida)
         .where(
-          and(eq(unidadMedida.labId, labId), sql`lower(${unidadMedida.nombre}) = lower(${nombre})`),
+          and(
+            or(eq(unidadMedida.labId, labId), isNull(unidadMedida.labId)),
+            sql`lower(${unidadMedida.nombre}) = lower(${nombre})`,
+          ),
         )
         .limit(1);
       if (dup && dup.id !== id) {
@@ -174,7 +183,7 @@ export class UnidadesMedidaService {
     const [row] = await this.db
       .update(unidadMedida)
       .set(patch)
-      .where(and(eq(unidadMedida.id, id), eq(unidadMedida.labId, labId)))
+      .where(and(eq(unidadMedida.id, id), or(eq(unidadMedida.labId, labId), isNull(unidadMedida.labId))))
       .returning();
     return row;
   }
@@ -187,7 +196,10 @@ export class UnidadesMedidaService {
     const [assoc] = await this.db
       .select({ n: sql<number>`count(*)::int` })
       .from(practiceUnidad)
-      .where(and(eq(practiceUnidad.labId, labId), eq(practiceUnidad.unidadId, id)));
+      .where(and(
+        or(eq(practiceUnidad.labId, labId), isNull(practiceUnidad.labId)),
+        eq(practiceUnidad.unidadId, id),
+      ));
     if ((assoc?.n ?? 0) > 0) {
       throw new ConflictException(
         `No se puede desactivar: la unidad está asociada a ${assoc?.n} práctica(s). Desasocialas primero.`,
@@ -197,7 +209,7 @@ export class UnidadesMedidaService {
     const [row] = await this.db
       .update(unidadMedida)
       .set({ active: false, updatedAt: new Date() })
-      .where(and(eq(unidadMedida.id, id), eq(unidadMedida.labId, labId)))
+      .where(and(eq(unidadMedida.id, id), or(eq(unidadMedida.labId, labId), isNull(unidadMedida.labId))))
       .returning();
     return row;
   }
@@ -217,7 +229,10 @@ export class UnidadesMedidaService {
       })
       .from(practiceUnidad)
       .innerJoin(unidadMedida, eq(unidadMedida.id, practiceUnidad.unidadId))
-      .where(and(eq(practiceUnidad.labId, labId), eq(practiceUnidad.practiceId, practiceId)))
+      .where(and(
+        or(eq(practiceUnidad.labId, labId), isNull(practiceUnidad.labId)),
+        eq(practiceUnidad.practiceId, practiceId),
+      ))
       .orderBy(asc(practiceUnidad.sortOrder), asc(practiceUnidad.id));
     return rows;
   }
@@ -238,7 +253,7 @@ export class UnidadesMedidaService {
       .from(practiceUnidad)
       .where(
         and(
-          eq(practiceUnidad.labId, labId),
+          or(eq(practiceUnidad.labId, labId), isNull(practiceUnidad.labId)),
           eq(practiceUnidad.practiceId, practiceId),
           eq(practiceUnidad.unidadId, dto.unidadId),
         ),
@@ -276,13 +291,18 @@ export class UnidadesMedidaService {
     if (dto.sortOrder !== undefined) set.sortOrder = dto.sortOrder;
     if (Object.keys(set).length === 0) {
       const [row] = await this.db.select().from(practiceUnidad).where(
-        and(eq(practiceUnidad.labId, labId), eq(practiceUnidad.practiceId, practiceId), eq(practiceUnidad.unidadId, unidadId)),
+        and(or(eq(practiceUnidad.labId, labId), isNull(practiceUnidad.labId)), eq(practiceUnidad.practiceId, practiceId), eq(practiceUnidad.unidadId, unidadId)),
       ).limit(1);
       if (!row) throw new NotFoundException('Asociación no encontrada');
       return row;
     }
+    set.updatedAt = new Date();
     const [row] = await this.db.update(practiceUnidad).set(set).where(
-      and(eq(practiceUnidad.labId, labId), eq(practiceUnidad.practiceId, practiceId), eq(practiceUnidad.unidadId, unidadId)),
+      and(
+        or(eq(practiceUnidad.labId, labId), isNull(practiceUnidad.labId)),
+        eq(practiceUnidad.practiceId, practiceId),
+        eq(practiceUnidad.unidadId, unidadId),
+      ),
     ).returning();
     if (!row) throw new NotFoundException('Asociación no encontrada');
     return row;
@@ -294,7 +314,7 @@ export class UnidadesMedidaService {
       .from(practiceUnidad)
       .where(
         and(
-          eq(practiceUnidad.labId, labId),
+          or(eq(practiceUnidad.labId, labId), isNull(practiceUnidad.labId)),
           eq(practiceUnidad.practiceId, practiceId),
           eq(practiceUnidad.unidadId, unidadId),
         ),
@@ -348,7 +368,10 @@ export class UnidadesMedidaService {
       })
       .from(practiceUnidad)
       .innerJoin(unidadMedida, eq(unidadMedida.id, practiceUnidad.unidadId))
-      .where(and(eq(practiceUnidad.labId, labId), eq(practiceUnidad.practiceId, op.practiceId)))
+      .where(and(
+        or(eq(practiceUnidad.labId, labId), isNull(practiceUnidad.labId)),
+        eq(practiceUnidad.practiceId, op.practiceId),
+      ))
       .orderBy(asc(practiceUnidad.sortOrder), asc(practiceUnidad.id));
 
     if (associations.length === 0) return [];
@@ -405,7 +428,7 @@ export class UnidadesMedidaService {
       .innerJoin(unidadMedida, eq(unidadMedida.id, practiceUnidad.unidadId))
       .where(
         and(
-          eq(practiceUnidad.labId, labId),
+          or(eq(practiceUnidad.labId, labId), isNull(practiceUnidad.labId)),
           eq(practiceUnidad.practiceId, op.practiceId),
           eq(practiceUnidad.unidadId, dto.unidadId),
         ),
@@ -548,7 +571,7 @@ export class UnidadesMedidaService {
       .from(practiceUnidad)
       .where(
         and(
-          eq(practiceUnidad.labId, labId),
+          or(eq(practiceUnidad.labId, labId), isNull(practiceUnidad.labId)),
           eq(practiceUnidad.practiceId, practiceId),
           eq(practiceUnidad.unidadId, unidadId),
         ),

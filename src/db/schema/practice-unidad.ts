@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm';
 import { bigint, index, integer, numeric, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
 import { laboratorio } from './laboratorio';
 import { practice } from './practice';
@@ -19,9 +20,10 @@ export const practiceUnidad = pgTable(
     id: bigint('id', { mode: 'number' })
       .primaryKey()
       .generatedByDefaultAsIdentity({ name: 'practice_unidad_id_seq' }),
-    labId: bigint('lab_id', { mode: 'number' })
-      .notNull()
-      .references(() => laboratorio.id, { onDelete: 'restrict' }),
+    /** NULL = asociación global compartida por todos los labs. */
+    labId: bigint('lab_id', { mode: 'number' }).references(() => laboratorio.id, {
+      onDelete: 'restrict',
+    }),
     practiceId: bigint('practice_id', { mode: 'number' })
       .notNull()
       .references(() => practice.id, { onDelete: 'restrict' }),
@@ -33,13 +35,15 @@ export const practiceUnidad = pgTable(
     rangeHigh: numeric('range_high', { precision: 12, scale: 4 }),
     referenceText: text('reference_text'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({
-    uniqueLabPracticeUnidad: uniqueIndex('idx_practice_unidad_unique').on(
-      t.labId,
-      t.practiceId,
-      t.unidadId,
-    ),
+    globalUnique: uniqueIndex('idx_practice_unidad_global_unique')
+      .on(t.practiceId, t.unidadId)
+      .where(sql`lab_id IS NULL`),
+    labUnique: uniqueIndex('idx_practice_unidad_lab_unique')
+      .on(t.labId, t.practiceId, t.unidadId)
+      .where(sql`lab_id IS NOT NULL`),
     labPracticeIdx: index('idx_practice_unidad_lab_practice').on(t.labId, t.practiceId),
     unidadIdx: index('idx_practice_unidad_unidad').on(t.unidadId),
   }),

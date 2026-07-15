@@ -122,6 +122,7 @@ export class PracticesService {
           category: dto.category?.trim() || null,
           section: dto.section?.trim() || null,
           units: dto.units ?? null,
+          precioParticular: dto.precioParticular ?? null,
           notes: dto.notes?.trim() || null,
           requiresAuthorization: dto.requiresAuthorization ?? false,
           isSpecialAct: dto.isSpecialAct ?? false,
@@ -149,6 +150,7 @@ export class PracticesService {
     if (dto.category !== undefined) set.category = dto.category?.trim() || null;
     if (dto.section !== undefined) set.section = dto.section?.trim() || null;
     if (dto.units !== undefined) set.units = dto.units ?? null;
+    if (dto.precioParticular !== undefined) set.precioParticular = dto.precioParticular ?? null;
     if (dto.notes !== undefined) set.notes = dto.notes?.trim() || null;
     if (dto.requiresAuthorization !== undefined)
       set.requiresAuthorization = dto.requiresAuthorization;

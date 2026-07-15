@@ -30,6 +30,8 @@ export const practice = pgTable(
     category: text('category'),
     section: text('section'),
     units: numeric('units', { precision: 8, scale: 2 }),
+    /** Precio directo para pacientes Particulares (sin obra social). */
+    precioParticular: numeric('precio_particular', { precision: 12, scale: 2 }),
     notes: text('notes'),
     requiresAuthorization: boolean('requires_authorization').notNull().default(false),
     referenceValueTemplate: jsonb('reference_value_template').$type<ReferenceValueTemplate>(),

@@ -31,6 +31,8 @@ export const cotizacion = pgTable(
       onDelete: 'restrict',
     }),
     totalMonto: numeric('total_monto', { precision: 12, scale: 2 }).notNull().default('0'),
+    /** Porcentaje de copago a cargo del paciente. NULL = OS cubre 100%. */
+    copagoPorc: numeric('copago_porc', { precision: 5, scale: 2 }),
     validezDias: integer('validez_dias').notNull().default(30),
     observaciones: text('observaciones'),
     createdBy: uuid('created_by').references(() => user.id),

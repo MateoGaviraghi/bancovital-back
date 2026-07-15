@@ -3,8 +3,10 @@ import {
   IsEmail,
   IsIn,
   IsInt,
+  IsNumber,
   IsOptional,
   IsString,
+  Max,
   MaxLength,
   Min,
   ValidateNested,
@@ -56,6 +58,12 @@ export class UpdateCotizacionDto {
   @IsString()
   @MaxLength(150)
   empresaContacto?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  copagoPorc?: number;
 
   @IsOptional()
   @IsArray()

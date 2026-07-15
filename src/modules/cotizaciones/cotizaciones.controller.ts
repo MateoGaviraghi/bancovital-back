@@ -22,7 +22,6 @@ import { CotizacionesService } from './cotizaciones.service';
 import { CreateCotizacionDto } from './dto/create-cotizacion.dto';
 import { ListCotizacionesDto } from './dto/list-cotizaciones.dto';
 import { UpdateCotizacionDto } from './dto/update-cotizacion.dto';
-import { UpsertPrecioDto } from './dto/upsert-precio.dto';
 
 @ApiBearerAuth()
 @ApiTags('cotizaciones')
@@ -39,10 +38,10 @@ export class CotizacionesController {
     return this.svc.list(labId, dto);
   }
 
-  // ─── Catálogo de precios (rutas estáticas antes de :id) ─────────────────────
+  // ─── Catálogo de precios (PDF nomenclador UB × OS) ──────────────────────────
 
   @Get('precios/pdf')
-  @ApiOperation({ summary: 'Descargar catálogo de precios en PDF' })
+  @ApiOperation({ summary: 'Descargar catálogo de aranceles en PDF (UB × valor OS)' })
   async catalogoPdf(@CurrentUser() session: Session, @Res() res: Response) {
     const labId = requireLabId(session);
     const data = await this.svc.buildCatalogPdfData(labId);
@@ -55,46 +54,15 @@ export class CotizacionesController {
     res.end(buffer);
   }
 
-  @Get('precios/lista')
-  @ApiOperation({ summary: 'Listar precios configurados' })
-  async listPrecios(
-    @CurrentUser() session: Session,
-    @Query('insurerId') insurerId?: string,
-  ) {
-    const labId = requireLabId(session);
-    const insId = insurerId !== undefined ? Number(insurerId) : undefined;
-    return this.svc.listPrecios(labId, insId);
-  }
-
   @Get('precios/practica/:practiceId')
-  @ApiOperation({ summary: 'Precio de una práctica para la obra social indicada' })
+  @ApiOperation({ summary: 'Precio UB × valorUB de una práctica para la obra social indicada' })
   async precioParaPractica(
     @CurrentUser() session: Session,
     @Param('practiceId', ParseIntPipe) practiceId: number,
     @Query('insurerId') insurerId?: string,
   ) {
-    const labId = requireLabId(session);
     const insId = insurerId ? Number(insurerId) : null;
-    const precio = await this.svc.precioParaPractica(labId, practiceId, insId);
-    return { precio };
-  }
-
-  @Post('precios')
-  @HttpCode(HttpStatus.OK)
-  @Roles('admin')
-  @ApiOperation({ summary: 'Crear o actualizar precio para práctica × obra social' })
-  async upsertPrecio(@CurrentUser() session: Session, @Body() dto: UpsertPrecioDto) {
-    const labId = requireLabId(session);
-    return this.svc.upsertPrecio(labId, dto);
-  }
-
-  @Delete('precios/:id')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  @Roles('admin')
-  @ApiOperation({ summary: 'Eliminar precio de catálogo' })
-  async deletePrecio(@CurrentUser() session: Session, @Param('id', ParseIntPipe) id: number) {
-    const labId = requireLabId(session);
-    await this.svc.deletePrecio(labId, id);
+    return this.svc.precioParaPracticaConInfo(practiceId, insId);
   }
 
   // ─── Detalle ────────────────────────────────────────────────────────────────

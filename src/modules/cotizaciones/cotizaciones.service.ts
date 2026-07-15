@@ -3,7 +3,6 @@ import { DATABASE } from '@/db/database.module';
 import {
   cotizacion,
   cotizacionItem,
-  cotizacionPrecio,
   insurer,
   laboratorio,
   patient,
@@ -11,10 +10,8 @@ import {
   ubValue,
   type Cotizacion,
   type CotizacionItem,
-  type CotizacionPrecio,
   type NewCotizacion,
   type NewCotizacionItem,
-  type NewCotizacionPrecio,
 } from '@/db/schema';
 import { pdfAccentPalette } from '@/pdf/render';
 import type { CatalogoPdfData, CatalogoPrecioSection } from '@/pdf/templates/catalogo';
@@ -30,7 +27,6 @@ import { and, asc, desc, eq, ilike, isNull, or, sql } from 'drizzle-orm';
 import type { CreateCotizacionDto } from './dto/create-cotizacion.dto';
 import type { ListCotizacionesDto } from './dto/list-cotizaciones.dto';
 import type { UpdateCotizacionDto } from './dto/update-cotizacion.dto';
-import type { UpsertPrecioDto } from './dto/upsert-precio.dto';
 
 export interface CotizacionDetalle extends Cotizacion {
   items: CotizacionItem[];
@@ -167,23 +163,44 @@ export class CotizacionesService {
       empresaContacto: dto.empresaContacto ?? null,
       insurerId: dto.insurerId ?? null,
       totalMonto: total.toFixed(2),
+      copagoPorc: dto.copagoPorc != null ? String(dto.copagoPorc) : null,
       validezDias: dto.validezDias ?? 30,
       observaciones: dto.observaciones ?? null,
       createdBy: userId,
     };
 
+    // Pre-fetch UB snapshots for catalog items in parallel
+    const insurerIdForUb = dto.insurerId ?? null;
+    const snapshotMap = new Map<number, { ubsSnapshot: string | null; ubValueSnapshot: string | null }>();
+    await Promise.all(
+      dto.items
+        .filter((item) => item.practiceId != null)
+        .map(async (item) => {
+          const { ubsSnapshot, ubValueSnapshot } = await this.precioParaPracticaConInfo(
+            item.practiceId!,
+            insurerIdForUb,
+          );
+          snapshotMap.set(item.practiceId!, { ubsSnapshot, ubValueSnapshot });
+        }),
+    );
+
     return this.db.transaction(async (tx) => {
       const [cot] = await tx.insert(cotizacion).values(newCot).returning();
 
-      const itemValues: NewCotizacionItem[] = dto.items.map((item, idx) => ({
-        cotizacionId: cot.id,
-        practiceId: item.practiceId ?? null,
-        practicaNombre: item.practicaNombre,
-        precioUnitario: new Decimal(item.precioUnitario).toFixed(2),
-        cantidad: item.cantidad,
-        subtotal: new Decimal(item.precioUnitario).times(item.cantidad).toFixed(2),
-        sort: item.sort ?? idx,
-      }));
+      const itemValues: NewCotizacionItem[] = dto.items.map((item, idx) => {
+        const snap = item.practiceId != null ? snapshotMap.get(item.practiceId) : undefined;
+        return {
+          cotizacionId: cot.id,
+          practiceId: item.practiceId ?? null,
+          practicaNombre: item.practicaNombre,
+          ubsSnapshot: snap?.ubsSnapshot ?? null,
+          ubValueSnapshot: snap?.ubValueSnapshot ?? null,
+          precioUnitario: new Decimal(item.precioUnitario).toFixed(2),
+          cantidad: item.cantidad,
+          subtotal: new Decimal(item.precioUnitario).times(item.cantidad).toFixed(2),
+          sort: item.sort ?? idx,
+        };
+      });
 
       const items = await tx.insert(cotizacionItem).values(itemValues).returning();
 
@@ -199,6 +216,7 @@ export class CotizacionesService {
       ...(dto.validezDias !== undefined && { validezDias: dto.validezDias }),
       ...(dto.observaciones !== undefined && { observaciones: dto.observaciones }),
       ...(dto.insurerId !== undefined && { insurerId: dto.insurerId > 0 ? dto.insurerId : null }),
+      ...(dto.copagoPorc !== undefined && { copagoPorc: dto.copagoPorc != null ? String(dto.copagoPorc) : null }),
       ...(dto.empresaNombre !== undefined && { empresaNombre: dto.empresaNombre }),
       ...(dto.empresaCuit !== undefined && { empresaCuit: dto.empresaCuit || null }),
       ...(dto.empresaEmail !== undefined && { empresaEmail: dto.empresaEmail || null }),
@@ -214,6 +232,26 @@ export class CotizacionesService {
       patch.totalMonto = total.toFixed(2);
     }
 
+    // Pre-fetch UB snapshots for updated items
+    const effectiveInsurerId = dto.insurerId !== undefined
+      ? (dto.insurerId > 0 ? dto.insurerId : null)
+      : existing.insurerId;
+
+    const snapshotMap = new Map<number, { ubsSnapshot: string | null; ubValueSnapshot: string | null }>();
+    if (dto.items && dto.items.length > 0) {
+      await Promise.all(
+        dto.items
+          .filter((item) => item.practiceId != null)
+          .map(async (item) => {
+            const { ubsSnapshot, ubValueSnapshot } = await this.precioParaPracticaConInfo(
+              item.practiceId!,
+              effectiveInsurerId,
+            );
+            snapshotMap.set(item.practiceId!, { ubsSnapshot, ubValueSnapshot });
+          }),
+      );
+    }
+
     return this.db.transaction(async (tx) => {
       const [updated] = await tx
         .update(cotizacion)
@@ -225,15 +263,20 @@ export class CotizacionesService {
 
       if (dto.items && dto.items.length > 0) {
         await tx.delete(cotizacionItem).where(eq(cotizacionItem.cotizacionId, id));
-        const itemValues: NewCotizacionItem[] = dto.items.map((item, idx) => ({
-          cotizacionId: id,
-          practiceId: item.practiceId ?? null,
-          practicaNombre: item.practicaNombre,
-          precioUnitario: new Decimal(item.precioUnitario).toFixed(2),
-          cantidad: item.cantidad,
-          subtotal: new Decimal(item.precioUnitario).times(item.cantidad).toFixed(2),
-          sort: item.sort ?? idx,
-        }));
+        const itemValues: NewCotizacionItem[] = dto.items.map((item, idx) => {
+          const snap = item.practiceId != null ? snapshotMap.get(item.practiceId) : undefined;
+          return {
+            cotizacionId: id,
+            practiceId: item.practiceId ?? null,
+            practicaNombre: item.practicaNombre,
+            ubsSnapshot: snap?.ubsSnapshot ?? null,
+            ubValueSnapshot: snap?.ubValueSnapshot ?? null,
+            precioUnitario: new Decimal(item.precioUnitario).toFixed(2),
+            cantidad: item.cantidad,
+            subtotal: new Decimal(item.precioUnitario).times(item.cantidad).toFixed(2),
+            sort: item.sort ?? idx,
+          };
+        });
         items = await tx.insert(cotizacionItem).values(itemValues).returning();
       }
 
@@ -254,144 +297,121 @@ export class CotizacionesService {
       .where(and(eq(cotizacion.id, id), eq(cotizacion.labId, labId)));
   }
 
-  // ─── Catálogo de precios ────────────────────────────────────────────────────
+  // ─── Nomenclador UB ────────────────────────────────────────────────────────
 
-  async listPrecios(labId: number, insurerId?: number): Promise<Array<CotizacionPrecio & { practicaNombre: string }>> {
-    const conditions = [eq(cotizacionPrecio.labId, labId)];
-    if (insurerId !== undefined) {
-      if (insurerId === 0) {
-        conditions.push(isNull(cotizacionPrecio.insurerId));
-      } else {
-        conditions.push(eq(cotizacionPrecio.insurerId, insurerId));
-      }
-    }
-
-    const rows = await this.db
-      .select({ cp: cotizacionPrecio, practicaNombre: practice.name })
-      .from(cotizacionPrecio)
-      .innerJoin(practice, eq(practice.id, cotizacionPrecio.practiceId))
-      .where(and(...conditions))
-      .orderBy(asc(practice.name));
-
-    return rows.map((r) => ({ ...r.cp, practicaNombre: r.practicaNombre }));
-  }
-
-  async upsertPrecio(labId: number, dto: UpsertPrecioDto): Promise<CotizacionPrecio> {
-    const values: NewCotizacionPrecio = {
-      labId,
-      practiceId: dto.practiceId,
-      insurerId: dto.insurerId ?? null,
-      precio: new Decimal(dto.precio).toFixed(2),
-    };
-
-    const [existing] = await this.db
-      .select({ id: cotizacionPrecio.id })
-      .from(cotizacionPrecio)
-      .where(
-        and(
-          eq(cotizacionPrecio.labId, labId),
-          eq(cotizacionPrecio.practiceId, dto.practiceId),
-          dto.insurerId
-            ? eq(cotizacionPrecio.insurerId, dto.insurerId)
-            : isNull(cotizacionPrecio.insurerId),
-        ),
-      )
-      .limit(1);
-
-    if (existing) {
-      const [row] = await this.db
-        .update(cotizacionPrecio)
-        .set({ precio: values.precio, updatedAt: new Date() })
-        .where(eq(cotizacionPrecio.id, existing.id))
-        .returning();
-      return row;
-    }
-
-    const [row] = await this.db.insert(cotizacionPrecio).values(values).returning();
-    return row;
-  }
-
-  async deletePrecio(labId: number, id: number): Promise<void> {
-    const [row] = await this.db
-      .select({ id: cotizacionPrecio.id })
-      .from(cotizacionPrecio)
-      .where(and(eq(cotizacionPrecio.id, id), eq(cotizacionPrecio.labId, labId)))
-      .limit(1);
-    if (!row) throw new NotFoundException('Precio no encontrado');
-    await this.db.delete(cotizacionPrecio).where(eq(cotizacionPrecio.id, id));
-  }
-
-  /** Precio de una práctica para una obra social (o particular si insurerId = null).
-   *  Si no hay precio en el catálogo y la obra social es Particular, cae en UB × valor UB PARTICULAR. */
-  async precioParaPractica(labId: number, practiceId: number, insurerId: number | null): Promise<string | null> {
-    // 1. Buscar precio explícito en catálogo
-    const [row] = await this.db
-      .select({ precio: cotizacionPrecio.precio })
-      .from(cotizacionPrecio)
-      .where(
-        and(
-          eq(cotizacionPrecio.labId, labId),
-          eq(cotizacionPrecio.practiceId, practiceId),
-          insurerId ? eq(cotizacionPrecio.insurerId, insurerId) : isNull(cotizacionPrecio.insurerId),
-        ),
-      )
-      .limit(1);
-
-    if (row) return row.precio;
-
-    // 2. Fallback: si es Particular, calcular UB × valorUB PARTICULAR
-    if (insurerId !== null) return null;
-
+  /**
+   * Devuelve el precio de una práctica según el tipo de receptor:
+   * - Particular (insurerId null): precio_particular de la práctica (campo directo)
+   * - Obra social: UBs de la práctica × valor UB vigente de la OS
+   */
+  async precioParaPracticaConInfo(
+    practiceId: number,
+    insurerId: number | null,
+  ): Promise<{ precio: string | null; ubsSnapshot: string | null; ubValueSnapshot: string | null }> {
     const [pracRow] = await this.db
-      .select({ units: practice.units })
+      .select({ units: practice.units, precioParticular: practice.precioParticular })
       .from(practice)
       .where(eq(practice.id, practiceId))
       .limit(1);
 
-    if (!pracRow?.units) return null;
+    if (!pracRow) return { precio: null, ubsSnapshot: null, ubValueSnapshot: null };
 
+    // Particular: precio directo de la práctica, sin multiplicar por UBs
+    if (insurerId === null) {
+      return {
+        precio: pracRow.precioParticular ?? null,
+        ubsSnapshot: null,
+        ubValueSnapshot: null,
+      };
+    }
+
+    // Obra social: UBs × valor UB vigente
     const [ubRow] = await this.db
       .select({ value: ubValue.value })
       .from(ubValue)
-      .innerJoin(insurer, eq(insurer.id, ubValue.insurerId))
-      .where(and(eq(insurer.code, 'PARTICULAR'), isNull(ubValue.validTo)))
+      .where(and(eq(ubValue.insurerId, insurerId), isNull(ubValue.validTo)))
       .limit(1);
 
-    if (!ubRow) return null;
+    const ubsSnapshot = pracRow.units ?? null;
+    const ubValueSnapshot = ubRow?.value ?? null;
 
-    return new Decimal(pracRow.units).times(ubRow.value).toFixed(2);
+    if (!ubsSnapshot || !ubValueSnapshot) {
+      return { precio: null, ubsSnapshot, ubValueSnapshot };
+    }
+
+    return {
+      precio: new Decimal(ubsSnapshot).times(ubValueSnapshot).toFixed(2),
+      ubsSnapshot,
+      ubValueSnapshot,
+    };
   }
 
   // ─── PDF data ───────────────────────────────────────────────────────────────
 
   async buildCatalogPdfData(labId: number): Promise<CatalogoPdfData> {
-    const [lab] = await this.db.select().from(laboratorio).where(eq(laboratorio.id, labId)).limit(1);
+    const [[lab], practices, osRows] = await Promise.all([
+      this.db.select().from(laboratorio).where(eq(laboratorio.id, labId)).limit(1),
+      // Todas las prácticas raíz activas
+      this.db
+        .select({
+          id: practice.id,
+          name: practice.name,
+          nbuCode: practice.nbuCode,
+          units: practice.units,
+          precioParticular: practice.precioParticular,
+        })
+        .from(practice)
+        .where(and(eq(practice.active, true), isNull(practice.parentId)))
+        .orderBy(asc(practice.name)),
+      // Obras sociales activas con valor UB vigente (excluye PARTICULAR — tiene precio propio)
+      this.db
+        .select({
+          insurerId: insurer.id,
+          insurerName: insurer.name,
+          insurerCode: insurer.code,
+          ubVal: ubValue.value,
+          ubFrom: ubValue.validFrom,
+        })
+        .from(insurer)
+        .innerJoin(ubValue, and(eq(ubValue.insurerId, insurer.id), isNull(ubValue.validTo)))
+        .where(and(eq(insurer.active, true), sql`${insurer.code} != 'PARTICULAR'`))
+        .orderBy(asc(insurer.name)),
+    ]);
+
     if (!lab) throw new NotFoundException('Laboratorio no encontrado');
 
-    const rows = await this.db
-      .select({
-        cp: cotizacionPrecio,
-        practicaNombre: practice.name,
-        insurerName: insurer.name,
-      })
-      .from(cotizacionPrecio)
-      .innerJoin(practice, eq(practice.id, cotizacionPrecio.practiceId))
-      .leftJoin(insurer, eq(insurer.id, cotizacionPrecio.insurerId))
-      .where(eq(cotizacionPrecio.labId, labId))
-      .orderBy(asc(insurer.name), asc(practice.name));
+    const sections: CatalogoPrecioSection[] = [];
 
-    const sectionMap = new Map<string, Array<{ practicaNombre: string; precio: string }>>();
-    for (const row of rows) {
-      const key = row.insurerName ?? '__particular__';
-      if (!sectionMap.has(key)) sectionMap.set(key, []);
-      sectionMap.get(key)!.push({ practicaNombre: row.practicaNombre, precio: row.cp.precio });
+    // Sección Particular: precio directo de cada práctica
+    const particularItems = practices
+      .filter((p) => p.precioParticular != null)
+      .map((p) => ({
+        practicaNombre: p.name,
+        codigoNbu: p.nbuCode ?? null,
+        ubs: null,
+        precio: p.precioParticular!,
+      }));
+    if (particularItems.length > 0) {
+      sections.push({ insurerName: 'Particular', valorUb: null, valorUbDesde: null, items: particularItems });
     }
 
-    const sections: CatalogoPrecioSection[] = [];
-    const particulares = sectionMap.get('__particular__');
-    if (particulares) sections.push({ insurerName: 'Particular', items: particulares });
-    for (const key of [...sectionMap.keys()].filter((k) => k !== '__particular__').sort()) {
-      sections.push({ insurerName: key, items: sectionMap.get(key)! });
+    // Secciones por obra social: UBs × valor UB
+    for (const row of osRows) {
+      const items = practices
+        .filter((p) => p.units != null)
+        .map((p) => ({
+          practicaNombre: p.name,
+          codigoNbu: p.nbuCode ?? null,
+          ubs: p.units,
+          precio: new Decimal(p.units!).times(row.ubVal).toFixed(2),
+        }));
+      if (items.length === 0) continue;
+      sections.push({
+        insurerName: row.insurerName,
+        valorUb: row.ubVal,
+        valorUbDesde: row.ubFrom ? new Date(row.ubFrom as unknown as string).toISOString().slice(0, 10) : null,
+        items,
+      });
     }
 
     const { accent, accentSoft } = pdfAccentPalette(lab.primaryColor);
@@ -456,6 +476,11 @@ export class CotizacionesService {
       receptorContacto = detalle.empresaContacto ?? null;
     }
 
+    const totalDecimal = new Decimal(detalle.totalMonto);
+    const copagoPorc = detalle.copagoPorc ? new Decimal(detalle.copagoPorc) : null;
+    const totalCopago = copagoPorc ? totalDecimal.times(copagoPorc).dividedBy(100).toFixed(2) : null;
+    const totalOs = copagoPorc ? totalDecimal.minus(totalCopago!).toFixed(2) : null;
+
     return {
       cotizacionId: detalle.id,
       fechaEmision,
@@ -469,8 +494,13 @@ export class CotizacionesService {
       receptorTelefono,
       receptorContacto,
       obraSocialNombre: detalle.insurerInfo?.name ?? null,
+      copagoPorc: detalle.copagoPorc ?? null,
+      totalCopago,
+      totalOs,
       items: detalle.items.map((item) => ({
         practicaNombre: item.practicaNombre,
+        ubsSnapshot: item.ubsSnapshot ?? null,
+        ubValueSnapshot: item.ubValueSnapshot ?? null,
         precioUnitario: item.precioUnitario,
         cantidad: item.cantidad,
         subtotal: item.subtotal,

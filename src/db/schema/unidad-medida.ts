@@ -28,9 +28,10 @@ export const unidadMedida = pgTable(
     id: bigint('id', { mode: 'number' })
       .primaryKey()
       .generatedByDefaultAsIdentity({ name: 'unidad_medida_id_seq' }),
-    labId: bigint('lab_id', { mode: 'number' })
-      .notNull()
-      .references(() => laboratorio.id, { onDelete: 'restrict' }),
+    /** NULL = unidad global compartida por todos los labs. */
+    labId: bigint('lab_id', { mode: 'number' }).references(() => laboratorio.id, {
+      onDelete: 'restrict',
+    }),
     nombre: text('nombre').notNull(),
     simbolo: text('simbolo'),
     active: boolean('active').notNull().default(true),
@@ -40,10 +41,12 @@ export const unidadMedida = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({
-    labNombreUnique: uniqueIndex('idx_unidad_medida_lab_nombre').on(
-      t.labId,
-      sql`lower(${t.nombre})`,
-    ),
+    globalNombreUnique: uniqueIndex('idx_unidad_medida_global_nombre')
+      .on(sql`lower(${t.nombre})`)
+      .where(sql`lab_id IS NULL`),
+    labNombreUnique: uniqueIndex('idx_unidad_medida_lab_nombre')
+      .on(t.labId, sql`lower(${t.nombre})`)
+      .where(sql`lab_id IS NOT NULL`),
     labActiveIdx: index('idx_unidad_medida_lab_active').on(t.labId, t.active),
     nombreTrgmIdx: index('idx_unidad_medida_nombre_trgm').using('gin', sql`nombre gin_trgm_ops`),
   }),

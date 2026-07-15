@@ -466,6 +466,8 @@ function OverlayResultsTable({ results, colors }: { results: InformeResultRow[];
       {results.map((r) => {
         const bStyle = badgeStyle(r.flag);
         const hasUnidades = r.unidades && r.unidades.length > 0;
+        const unidadesConRef = hasUnidades ? r.unidades!.filter(u => u.rangeLow || u.rangeHigh || u.referenceText) : [];
+        const hasAnyRef = !!(r.range ?? r.referenceValue) || (hasUnidades && unidadesConRef.length > 0);
         return (
           <View key={r.nbuCode} style={{ borderWidth: 0.5, borderColor: bColor, borderRadius: 3, overflow: 'hidden' }}>
             <View style={{ flexDirection: 'row' }}>
@@ -500,32 +502,37 @@ function OverlayResultsTable({ results, colors }: { results: InformeResultRow[];
                 <View style={valueCell}><Text style={{ fontSize: 8, color: colors.rowColor }}>{r.unit ?? '—'}</Text></View>
               </View>
             ) : null}
-            <View style={[{ flexDirection: 'row' }, divider]}>
-              <View style={labelCell}><Text style={labelText}>REFERENCIA</Text></View>
-              <View style={valueCell}>
-                {hasUnidades ? (
-                  <View>
-                    {r.unidades!.map((u, i) => {
-                      const hasRange = u.rangeLow || u.rangeHigh;
-                      const rangeStr = hasRange
-                        ? `${u.rangeLow ? fmtNum(u.rangeLow) : '—'} – ${u.rangeHigh ? fmtNum(u.rangeHigh) : '—'}`
-                        : null;
-                      const uRef = rangeStr && u.referenceText
-                        ? `${rangeStr}. ${u.referenceText}`
-                        : rangeStr ?? u.referenceText ?? null;
-                      return (
-                        <View key={`ref-${u.nombre}-${i}`} style={styles.unidadRow} wrap={false}>
-                          <Text style={styles.unidadNombre}>{u.nombre}</Text>
-                          <Text style={{ fontSize: 7.5, color: colors.rowColor }}>{uRef ?? '—'}</Text>
-                        </View>
-                      );
-                    })}
-                  </View>
-                ) : (
-                  <Text style={{ fontSize: 8, color: colors.rowColor }}>{r.range ?? r.referenceValue ?? '—'}</Text>
-                )}
+            {hasAnyRef ? (
+              <View style={[{ flexDirection: 'row' }, divider]}>
+                <View style={labelCell}><Text style={labelText}>REFERENCIA</Text></View>
+                <View style={valueCell}>
+                  {hasUnidades ? (
+                    <View>
+                      {unidadesConRef.map((u, i) => {
+                        const hasRange = u.rangeLow || u.rangeHigh;
+                        const rangeStr = hasRange
+                          ? `${u.rangeLow ? fmtNum(u.rangeLow) : '—'} – ${u.rangeHigh ? fmtNum(u.rangeHigh) : '—'}`
+                          : null;
+                        const uRef = rangeStr && u.referenceText
+                          ? `${rangeStr}. ${u.referenceText}`
+                          : rangeStr ?? u.referenceText;
+                        return (
+                          <View key={`ref-${u.nombre}-${i}`} style={styles.unidadRow} wrap={false}>
+                            <Text style={styles.unidadNombre}>{u.nombre}</Text>
+                            <Text style={{ fontSize: 7.5, color: colors.rowColor }}>{uRef}</Text>
+                          </View>
+                        );
+                      })}
+                      {(r.range ?? r.referenceValue) ? (
+                        <Text style={{ fontSize: 8, color: colors.rowColor, marginTop: unidadesConRef.length > 0 ? 3 : 0 }}>{r.range ?? r.referenceValue}</Text>
+                      ) : null}
+                    </View>
+                  ) : (
+                    <Text style={{ fontSize: 8, color: colors.rowColor }}>{r.range ?? r.referenceValue}</Text>
+                  )}
+                </View>
               </View>
-            </View>
+            ) : null}
             <View style={[{ flexDirection: 'row' }, divider]}>
               <View style={labelCell}><Text style={labelText}>ESTADO</Text></View>
               <View style={valueCell}>
@@ -823,6 +830,8 @@ export function InformeTemplate({ data }: { data: InformeData }) {
           {data.results.map((r) => {
             const bStyle = badgeStyle(r.flag);
             const hasUnidades = r.unidades && r.unidades.length > 0;
+            const unidadesConRef = hasUnidades ? r.unidades!.filter(u => u.rangeLow || u.rangeHigh || u.referenceText) : [];
+            const hasAnyRef = !!(r.range ?? r.referenceValue) || (hasUnidades && unidadesConRef.length > 0);
             const labelCell = { width: '26%', backgroundColor: tHeaderBg, paddingVertical: 6, paddingHorizontal: 8 };
             const labelText = { fontFamily: 'PublicSansSemiBold', fontSize: 7.5, color: tHeaderColor, letterSpacing: 0.4 };
             const valueCell = { flex: 1, paddingVertical: 6, paddingHorizontal: 8 };
@@ -872,38 +881,41 @@ export function InformeTemplate({ data }: { data: InformeData }) {
                   </View>
                 ) : null}
 
-                {/* REFERENCIA */}
-                <View style={[{ flexDirection: 'row' }, divider]}>
-                  <View style={labelCell}><Text style={labelText}>REFERENCIA</Text></View>
-                  <View style={valueCell}>
-                    {hasUnidades ? (
-                      <View>
-                        {r.unidades!.map((u, i) => {
-                          const hasRange = u.rangeLow || u.rangeHigh;
-                          const rangeStr = hasRange
-                            ? `${u.rangeLow ? fmtNum(u.rangeLow) : '—'} – ${u.rangeHigh ? fmtNum(u.rangeHigh) : '—'}`
-                            : null;
-                          const uRef =
-                            rangeStr && u.referenceText
-                              ? `${rangeStr}. ${u.referenceText}`
-                              : rangeStr ?? u.referenceText ?? null;
-                          return (
-                            <View key={`ref-${u.nombre}-${i}`} style={styles.unidadRow} wrap={false}>
-                              <Text style={styles.unidadNombre}>{u.nombre}</Text>
-                              <Text style={{ fontSize: 7.5, color: C.muted }}>{uRef ?? '—'}</Text>
-                            </View>
-                          );
-                        })}
-                      </View>
-                    ) : r.range ? (
-                      <Text style={styles.rangeText}>{r.range}</Text>
-                    ) : r.referenceValue ? (
-                      <Text style={{ fontSize: 7.5, color: C.muted }}>{r.referenceValue}</Text>
-                    ) : (
-                      <Text style={styles.rangeText}>—</Text>
-                    )}
+                {/* REFERENCIA — solo si hay al menos un valor configurado */}
+                {hasAnyRef ? (
+                  <View style={[{ flexDirection: 'row' }, divider]}>
+                    <View style={labelCell}><Text style={labelText}>REFERENCIA</Text></View>
+                    <View style={valueCell}>
+                      {hasUnidades ? (
+                        <View>
+                          {unidadesConRef.map((u, i) => {
+                            const hasRange = u.rangeLow || u.rangeHigh;
+                            const rangeStr = hasRange
+                              ? `${u.rangeLow ? fmtNum(u.rangeLow) : '—'} – ${u.rangeHigh ? fmtNum(u.rangeHigh) : '—'}`
+                              : null;
+                            const uRef =
+                              rangeStr && u.referenceText
+                                ? `${rangeStr}. ${u.referenceText}`
+                                : rangeStr ?? u.referenceText;
+                            return (
+                              <View key={`ref-${u.nombre}-${i}`} style={styles.unidadRow} wrap={false}>
+                                <Text style={styles.unidadNombre}>{u.nombre}</Text>
+                                <Text style={{ fontSize: 7.5, color: C.muted }}>{uRef}</Text>
+                              </View>
+                            );
+                          })}
+                          {(r.range ?? r.referenceValue) ? (
+                            <Text style={{ fontSize: 7.5, color: C.muted, marginTop: unidadesConRef.length > 0 ? 3 : 0 }}>{r.range ?? r.referenceValue}</Text>
+                          ) : null}
+                        </View>
+                      ) : r.range ? (
+                        <Text style={styles.rangeText}>{r.range}</Text>
+                      ) : (
+                        <Text style={{ fontSize: 7.5, color: C.muted }}>{r.referenceValue}</Text>
+                      )}
+                    </View>
                   </View>
-                </View>
+                ) : null}
 
                 {/* ESTADO */}
                 <View style={[{ flexDirection: 'row' }, divider]} wrap={false}>
