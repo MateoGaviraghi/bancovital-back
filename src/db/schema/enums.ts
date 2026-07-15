@@ -74,4 +74,4 @@ export const cotizacionEstadoEnum = pgEnum('cotizacion_estado', [
   'expirada',
 ]);
 
-export const cotizacionTipoEnum = pgEnum('cotizacion_tipo', ['paciente', 'empresa']);
+export const cotizacionTipoEnum = pgEnum('cotizacion_tipo', ['paciente', 'empresa', 'generica']);

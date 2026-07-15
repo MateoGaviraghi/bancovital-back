@@ -142,6 +142,7 @@ export class CotizacionesService {
     if (dto.tipo === 'empresa' && !dto.empresaNombre) {
       throw new BadRequestException('empresaNombre es requerido para tipo empresa');
     }
+    // tipo 'generica': no requiere paciente ni empresa
     if (!dto.items.length) {
       throw new BadRequestException('La cotización debe tener al menos un ítem');
     }
@@ -468,12 +469,15 @@ export class CotizacionesService {
     if (detalle.tipo === 'paciente' && detalle.patientInfo) {
       receptorNombre = `${detalle.patientInfo.lastName}, ${detalle.patientInfo.firstName}`;
       receptorDni = detalle.patientInfo.dni;
-    } else {
+    } else if (detalle.tipo === 'empresa') {
       receptorNombre = detalle.empresaNombre ?? '—';
       receptorCuit = detalle.empresaCuit ?? null;
       receptorEmail = detalle.empresaEmail ?? null;
       receptorTelefono = detalle.empresaTelefono ?? null;
       receptorContacto = detalle.empresaContacto ?? null;
+    } else {
+      // generica: sin destinatario específico
+      receptorNombre = '';
     }
 
     const totalDecimal = new Decimal(detalle.totalMonto);
