@@ -380,6 +380,7 @@ export class CotizacionesService {
     ]);
 
     if (!lab) throw new NotFoundException('Laboratorio no encontrado');
+    if (practices.length === 0) throw new NotFoundException('No hay prácticas activas configuradas');
 
     const sections: CatalogoPrecioSection[] = [];
 

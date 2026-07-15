@@ -189,10 +189,6 @@ export function CatalogoTemplate({ data }: { data: CatalogoPdfData }) {
           <Text style={styles.footerText}>
             {data.lab.legalName} · Aranceles a la fecha de emisión · {data.fecha}
           </Text>
-          <Text
-            style={styles.footerText}
-            render={({ pageNumber, totalPages }) => `Página ${pageNumber} de ${totalPages}`}
-          />
         </View>
       </Page>
     </Document>
