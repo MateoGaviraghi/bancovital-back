@@ -17,7 +17,7 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
-import { renderCatalogoPdf, renderCotizacionPdf } from '@/pdf/render';
+import { renderCotizacionPdf } from '@/pdf/render';
 import { CotizacionesService } from './cotizaciones.service';
 import { CreateCotizacionDto } from './dto/create-cotizacion.dto';
 import { ListCotizacionesDto } from './dto/list-cotizaciones.dto';
@@ -44,8 +44,7 @@ export class CotizacionesController {
   @ApiOperation({ summary: 'Descargar catálogo de aranceles en PDF (UB × valor OS)' })
   async catalogoPdf(@CurrentUser() session: Session, @Res() res: Response) {
     const labId = requireLabId(session);
-    const data = await this.svc.buildCatalogPdfData(labId);
-    const buffer = await renderCatalogoPdf(data);
+    const buffer = await this.svc.getCatalogPdfBuffer(labId);
     res.set({
       'Content-Type': 'application/pdf',
       'Content-Disposition': 'attachment; filename="catalogo-precios.pdf"',

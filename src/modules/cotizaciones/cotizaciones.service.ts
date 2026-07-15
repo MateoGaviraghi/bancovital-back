@@ -14,6 +14,7 @@ import {
   type NewCotizacionItem,
 } from '@/db/schema';
 import { pdfAccentPalette } from '@/pdf/render';
+import { renderCatalogoPdf } from '@/pdf/render';
 import type { CatalogoPdfData, CatalogoPrecioSection } from '@/pdf/templates/catalogo';
 import type { CotizacionPdfData } from '@/pdf/templates/cotizacion';
 import {
@@ -39,9 +40,18 @@ export interface CotizacionSummary extends Cotizacion {
   insurerInfo: { id: number; name: string } | null;
 }
 
+/** Caché en memoria del catálogo PDF por labId (TTL 30 min). */
+const catalogCache = new Map<number, { buffer: Buffer; at: number }>();
+const CATALOG_TTL_MS = 30 * 60 * 1000;
+
 @Injectable()
 export class CotizacionesService {
   constructor(@Inject(DATABASE) private readonly db: Db) {}
+
+  /** Invalida la caché del catálogo para un lab (llamar cuando cambian prácticas o UB values). */
+  static invalidateCatalogCache(labId: number): void {
+    catalogCache.delete(labId);
+  }
 
   // ─── Cotizaciones ──────────────────────────────────────────────────────────
 
@@ -438,6 +448,18 @@ export class CotizacionesService {
       accent,
       accentSoft,
     };
+  }
+
+  /** Genera (o devuelve del caché) el PDF del catálogo de aranceles. */
+  async getCatalogPdfBuffer(labId: number): Promise<Buffer> {
+    const now = Date.now();
+    const hit = catalogCache.get(labId);
+    if (hit && now - hit.at < CATALOG_TTL_MS) return hit.buffer;
+
+    const data = await this.buildCatalogPdfData(labId);
+    const buffer = await renderCatalogoPdf(data);
+    catalogCache.set(labId, { buffer, at: now });
+    return buffer;
   }
 
   async buildPdfData(labId: number, id: number): Promise<CotizacionPdfData> {
