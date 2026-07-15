@@ -35,7 +35,7 @@ export interface CotizacionPdfData {
   fechaEmision: string;
   validezDias: number;
   estado: string;
-  tipo: 'paciente' | 'empresa';
+  tipo: 'paciente' | 'empresa' | 'generica';
   receptorNombre: string;
   receptorDni?: string | null;
   receptorCuit?: string | null;
@@ -178,7 +178,9 @@ export function CotizacionTemplate({ data }: { data: CotizacionPdfData }) {
             </View>
           </View>
           <View style={[styles.cotBadge, { backgroundColor: accentSoft }]}>
-            <Text style={[styles.cotLabel, { color: accent }]}>COTIZACIÓN</Text>
+            <Text style={[styles.cotLabel, { color: accent }]}>
+              {data.tipo === 'generica' ? 'PRESUPUESTO' : 'COTIZACIÓN'}
+            </Text>
             <Text style={[styles.cotNumber, { color: accent }]}>
               #{String(data.cotizacionId).padStart(4, '0')}
             </Text>
@@ -189,69 +191,100 @@ export function CotizacionTemplate({ data }: { data: CotizacionPdfData }) {
         <View style={[styles.rule, { backgroundColor: accent }]} />
 
         {/* ── Info grid ── */}
-        <View style={styles.infoGrid}>
-          <View style={[styles.infoCard, { borderColor: cardBorder, backgroundColor: cardBg }]}>
-            <Text style={[styles.cardTitle, { color: accent }]}>
-              {data.tipo === 'empresa' ? 'EMPRESA' : 'PACIENTE'}
-            </Text>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Nombre</Text>
-              <Text style={styles.infoValue}>{data.receptorNombre}</Text>
+        {data.tipo === 'generica' ? (
+          // Genérica: sin receptor — card de condiciones a full width + aviso
+          <View style={styles.infoGrid}>
+            <View style={[styles.infoCard, { borderColor: cardBorder, backgroundColor: cardBg, flex: 1 }]}>
+              <Text style={[styles.cardTitle, { color: accent }]}>CONDICIONES</Text>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Cobertura</Text>
+                <Text style={styles.infoValue}>{data.obraSocialNombre ?? 'Particular'}</Text>
+              </View>
+              {data.copagoPorc ? (
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>Copago</Text>
+                  <Text style={styles.infoValue}>{fmtNum(data.copagoPorc)}%</Text>
+                </View>
+              ) : null}
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Validez</Text>
+                <Text style={styles.infoValue}>{data.validezDias} días desde la fecha de emisión</Text>
+              </View>
             </View>
-            {data.receptorDni ? (
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>DNI</Text>
-                <Text style={styles.infoValue}>{data.receptorDni}</Text>
-              </View>
-            ) : null}
-            {data.receptorCuit ? (
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>CUIT</Text>
-                <Text style={styles.infoValue}>{data.receptorCuit}</Text>
-              </View>
-            ) : null}
-            {data.receptorContacto ? (
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Contacto</Text>
-                <Text style={styles.infoValue}>{data.receptorContacto}</Text>
-              </View>
-            ) : null}
-            {data.receptorEmail ? (
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Email</Text>
-                <Text style={styles.infoValue}>{data.receptorEmail}</Text>
-              </View>
-            ) : null}
-            {data.receptorTelefono ? (
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Teléfono</Text>
-                <Text style={styles.infoValue}>{data.receptorTelefono}</Text>
-              </View>
-            ) : null}
+            <View style={[styles.infoCard, { borderColor: cardBorder, backgroundColor: '#fffbeb', flex: 1 }]}>
+              <Text style={[styles.cardTitle, { color: '#92400e' }]}>INFORMACIÓN</Text>
+              <Text style={{ fontSize: 7.5, color: '#78350f', lineHeight: 1.5 }}>
+                Este presupuesto es de carácter informativo y no constituye un comprobante fiscal.
+                Los precios están expresados en pesos argentinos e incluyen todas las prácticas detalladas.
+                Ante cualquier consulta comuníquese con el laboratorio.
+              </Text>
+            </View>
           </View>
+        ) : (
+          <View style={styles.infoGrid}>
+            <View style={[styles.infoCard, { borderColor: cardBorder, backgroundColor: cardBg }]}>
+              <Text style={[styles.cardTitle, { color: accent }]}>
+                {data.tipo === 'empresa' ? 'EMPRESA' : 'PACIENTE'}
+              </Text>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Nombre</Text>
+                <Text style={styles.infoValue}>{data.receptorNombre}</Text>
+              </View>
+              {data.receptorDni ? (
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>DNI</Text>
+                  <Text style={styles.infoValue}>{data.receptorDni}</Text>
+                </View>
+              ) : null}
+              {data.receptorCuit ? (
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>CUIT</Text>
+                  <Text style={styles.infoValue}>{data.receptorCuit}</Text>
+                </View>
+              ) : null}
+              {data.receptorContacto ? (
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>Contacto</Text>
+                  <Text style={styles.infoValue}>{data.receptorContacto}</Text>
+                </View>
+              ) : null}
+              {data.receptorEmail ? (
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>Email</Text>
+                  <Text style={styles.infoValue}>{data.receptorEmail}</Text>
+                </View>
+              ) : null}
+              {data.receptorTelefono ? (
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>Teléfono</Text>
+                  <Text style={styles.infoValue}>{data.receptorTelefono}</Text>
+                </View>
+              ) : null}
+            </View>
 
-          <View style={[styles.infoCard, { borderColor: cardBorder, backgroundColor: cardBg, maxWidth: 170 }]}>
-            <Text style={[styles.cardTitle, { color: accent }]}>CONDICIONES</Text>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Obra social</Text>
-              <Text style={styles.infoValue}>{data.obraSocialNombre ?? 'Particular'}</Text>
-            </View>
-            {data.copagoPorc ? (
+            <View style={[styles.infoCard, { borderColor: cardBorder, backgroundColor: cardBg, maxWidth: 170 }]}>
+              <Text style={[styles.cardTitle, { color: accent }]}>CONDICIONES</Text>
               <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Copago paciente</Text>
-                <Text style={styles.infoValue}>{fmtNum(data.copagoPorc)}%</Text>
+                <Text style={styles.infoLabel}>Obra social</Text>
+                <Text style={styles.infoValue}>{data.obraSocialNombre ?? 'Particular'}</Text>
               </View>
-            ) : null}
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Validez</Text>
-              <Text style={styles.infoValue}>{data.validezDias} días</Text>
-            </View>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Estado</Text>
-              <Text style={styles.infoValue}>{data.estado}</Text>
+              {data.copagoPorc ? (
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>Copago paciente</Text>
+                  <Text style={styles.infoValue}>{fmtNum(data.copagoPorc)}%</Text>
+                </View>
+              ) : null}
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Validez</Text>
+                <Text style={styles.infoValue}>{data.validezDias} días</Text>
+              </View>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Estado</Text>
+                <Text style={styles.infoValue}>{data.estado}</Text>
+              </View>
             </View>
           </View>
-        </View>
+        )}
 
         {/* ── Items table ── */}
         <Text style={[styles.tableTitle, { color: accent }]}>Prácticas cotizadas</Text>

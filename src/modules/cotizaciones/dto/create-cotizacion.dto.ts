@@ -39,8 +39,8 @@ export class CotizacionItemInputDto {
 }
 
 export class CreateCotizacionDto {
-  @IsIn(['paciente', 'empresa'])
-  tipo!: 'paciente' | 'empresa';
+  @IsIn(['paciente', 'empresa', 'generica'])
+  tipo!: 'paciente' | 'empresa' | 'generica';
 
   @IsOptional()
   @IsInt()
