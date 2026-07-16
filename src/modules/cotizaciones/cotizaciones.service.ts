@@ -15,7 +15,7 @@ import {
 } from '@/db/schema';
 import { pdfAccentPalette } from '@/pdf/render';
 import { renderCatalogoPdf } from '@/pdf/render';
-import type { CatalogoPdfData, CatalogoPrecioSection } from '@/pdf/templates/catalogo';
+import type { CatalogoPdfData, CatalogoPrecioColumn, CatalogoPrecioRow } from '@/pdf/templates/catalogo';
 import type { CotizacionPdfData } from '@/pdf/templates/cotizacion';
 import {
   BadRequestException,
@@ -362,10 +362,8 @@ export class CotizacionesService {
   async buildCatalogPdfData(labId: number): Promise<CatalogoPdfData> {
     const [[lab], practices, osRows] = await Promise.all([
       this.db.select().from(laboratorio).where(eq(laboratorio.id, labId)).limit(1),
-      // Todas las prácticas raíz activas
       this.db
         .select({
-          id: practice.id,
           name: practice.name,
           nbuCode: practice.nbuCode,
           units: practice.units,
@@ -374,12 +372,9 @@ export class CotizacionesService {
         .from(practice)
         .where(and(eq(practice.active, true), isNull(practice.parentId)))
         .orderBy(asc(practice.name)),
-      // Obras sociales activas con valor UB vigente (excluye PARTICULAR — tiene precio propio)
       this.db
         .select({
-          insurerId: insurer.id,
           insurerName: insurer.name,
-          insurerCode: insurer.code,
           ubVal: ubValue.value,
           ubFrom: ubValue.validFrom,
         })
@@ -392,38 +387,46 @@ export class CotizacionesService {
     if (!lab) throw new NotFoundException('Laboratorio no encontrado');
     if (practices.length === 0) throw new NotFoundException('No hay prácticas activas configuradas');
 
-    const sections: CatalogoPrecioSection[] = [];
+    // ── Columnas ──────────────────────────────────────────────────────────────
+    const columns: CatalogoPrecioColumn[] = [];
 
-    // Sección Particular: precio directo de cada práctica
-    const particularItems = practices
-      .filter((p) => p.precioParticular != null)
-      .map((p) => ({
-        practicaNombre: p.name,
-        codigoNbu: p.nbuCode ?? null,
-        ubs: null,
-        precio: p.precioParticular!,
-      }));
-    if (particularItems.length > 0) {
-      sections.push({ insurerName: 'Particular', valorUb: null, valorUbDesde: null, items: particularItems });
+    const hasParticular = practices.some((p) => p.precioParticular != null);
+    if (hasParticular) {
+      columns.push({ name: 'Particular', valorUb: null, valorUbDesde: null });
+    }
+    for (const row of osRows) {
+      columns.push({
+        name: row.insurerName,
+        valorUb: row.ubVal,
+        valorUbDesde: row.ubFrom
+          ? new Date(row.ubFrom as unknown as string).toISOString().slice(0, 10)
+          : null,
+      });
     }
 
-    // Secciones por obra social: UBs × valor UB
-    for (const row of osRows) {
-      const items = practices
-        .filter((p) => p.units != null)
-        .map((p) => ({
+    // ── Filas ─────────────────────────────────────────────────────────────────
+    const rows: CatalogoPrecioRow[] = [];
+    for (const p of practices) {
+      const prices: Array<string | null> = [];
+
+      if (hasParticular) {
+        prices.push(p.precioParticular ?? null);
+      }
+      for (const row of osRows) {
+        prices.push(
+          p.units != null ? new Decimal(p.units).times(row.ubVal).toFixed(2) : null,
+        );
+      }
+
+      // Solo incluir prácticas que tengan al menos un precio configurado
+      if (prices.some((pr) => pr != null)) {
+        rows.push({
           practicaNombre: p.name,
           codigoNbu: p.nbuCode ?? null,
-          ubs: p.units,
-          precio: new Decimal(p.units!).times(row.ubVal).toFixed(2),
-        }));
-      if (items.length === 0) continue;
-      sections.push({
-        insurerName: row.insurerName,
-        valorUb: row.ubVal,
-        valorUbDesde: row.ubFrom ? new Date(row.ubFrom as unknown as string).toISOString().slice(0, 10) : null,
-        items,
-      });
+          ubs: p.units ?? null,
+          prices,
+        });
+      }
     }
 
     const { accent, accentSoft } = pdfAccentPalette(lab.primaryColor);
@@ -444,7 +447,8 @@ export class CotizacionesService {
         email: lab.email,
         logoSrc: lab.logoPath ?? null,
       },
-      sections,
+      columns,
+      rows,
       accent,
       accentSoft,
     };
