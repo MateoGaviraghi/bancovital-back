@@ -469,7 +469,7 @@ function OverlayResultsTable({ results, colors }: { results: InformeResultRow[];
         const unidadesConRef = hasUnidades ? r.unidades!.filter(u => u.rangeLow || u.rangeHigh || u.referenceText) : [];
         const hasAnyRef = !!(r.range ?? r.referenceValue) || (hasUnidades && unidadesConRef.length > 0);
         return (
-          <View key={r.nbuCode} style={{ borderWidth: 0.5, borderColor: bColor, borderRadius: 3, overflow: 'hidden' }}>
+          <View key={r.nbuCode} style={{ borderWidth: 0.5, borderColor: bColor, borderRadius: 3, overflow: 'hidden' }} wrap={false}>
             <View style={{ flexDirection: 'row' }}>
               <View style={labelCell}><Text style={labelText}>PRÁCTICA</Text></View>
               <View style={valueCell}>
@@ -483,6 +483,9 @@ function OverlayResultsTable({ results, colors }: { results: InformeResultRow[];
               <View style={valueCell}>
                 {hasUnidades ? (
                   <View>
+                    {r.value ? (
+                      <Text style={{ fontSize: 8, color: colors.rowColor, lineHeight: 1.35, marginBottom: 4 }}>{r.value}</Text>
+                    ) : null}
                     {r.unidades!.map((u, i) => (
                       <View key={`${u.nombre}-${i}`} style={styles.unidadRow} wrap={false}>
                         <Text style={styles.unidadNombre}>{u.nombre}</Text>
@@ -637,6 +640,16 @@ function WatermarkInforme({ data }: { data: InformeData }) {
             <WmRow label="Diagnóstico:" value={data.doctor.diagnosis} />
           ) : null}
         </View>
+
+        {/* Observaciones de la orden */}
+        {data.order?.notes ? (
+          <View style={{ marginBottom: 10, borderLeftWidth: 2, borderLeftColor: '#888', paddingLeft: 8 }}>
+            <Text style={{ fontFamily: 'PublicSansSemiBold', fontSize: 7.5, color: '#555', letterSpacing: 0.5, marginBottom: 2 }}>
+              OBSERVACIONES
+            </Text>
+            <Text style={{ fontSize: 8.5, color: '#1a1a1a', lineHeight: 1.4 }}>{data.order.notes}</Text>
+          </View>
+        ) : null}
 
         {/* Tabla de resultados */}
         {data.results.length > 0 ? (
@@ -824,6 +837,27 @@ export function InformeTemplate({ data }: { data: InformeData }) {
           </View>
         </View>
 
+        {/* Observaciones de la orden */}
+        {data.order?.notes ? (
+          <View
+            style={{
+              marginBottom: 10,
+              borderRadius: 3,
+              borderWidth: 0.5,
+              borderColor: tBorder,
+              backgroundColor: accentSoft,
+              paddingVertical: 6,
+              paddingHorizontal: 10,
+            }}
+            wrap={false}
+          >
+            <Text style={{ fontFamily: 'PublicSansSemiBold', fontSize: 7.5, color: accent, letterSpacing: 0.8, marginBottom: 3 }}>
+              OBSERVACIONES
+            </Text>
+            <Text style={{ fontSize: 8.5, color: C.ink, lineHeight: 1.4 }}>{data.order.notes}</Text>
+          </View>
+        ) : null}
+
         {/* Results blocks */}
         <Text style={[styles.resultsTitle, { color: accent }]}>Resultados</Text>
         <View style={{ gap: 8 }}>
@@ -840,6 +874,7 @@ export function InformeTemplate({ data }: { data: InformeData }) {
               <View
                 key={r.nbuCode}
                 style={{ borderWidth: 0.5, borderColor: tBorder, borderRadius: 3, overflow: 'hidden' }}
+                wrap={false}
               >
                 {/* PRÁCTICA */}
                 <View style={{ flexDirection: 'row' }} wrap={false}>
@@ -857,6 +892,9 @@ export function InformeTemplate({ data }: { data: InformeData }) {
                   <View style={valueCell}>
                     {hasUnidades ? (
                       <View>
+                        {r.value ? (
+                          <Text style={[styles.valueProse, { marginBottom: 4 }]}>{r.value}</Text>
+                        ) : null}
                         {r.unidades!.map((u, i) => (
                           <View key={`${u.nombre}-${i}`} style={styles.unidadRow} wrap={false}>
                             <Text style={styles.unidadNombre}>{u.nombre}</Text>
