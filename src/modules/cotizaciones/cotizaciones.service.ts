@@ -1,5 +1,7 @@
 import type { Db } from '@/db/client';
-import { DATABASE } from '@/db/database.module';
+import { DATABASE, SUPABASE_ADMIN } from '@/db/database.module';
+import { resolveAssetDataUri } from '@/modules/lab-config/asset-storage';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   cotizacion,
   cotizacionItem,
@@ -46,7 +48,10 @@ const CATALOG_TTL_MS = 30 * 60 * 1000;
 
 @Injectable()
 export class CotizacionesService {
-  constructor(@Inject(DATABASE) private readonly db: Db) {}
+  constructor(
+    @Inject(DATABASE) private readonly db: Db,
+    @Inject(SUPABASE_ADMIN) private readonly storage: SupabaseClient,
+  ) {}
 
   /** Invalida la caché del catálogo para un lab (llamar cuando cambian prácticas o UB values). */
   static invalidateCatalogCache(labId: number): void {
@@ -387,6 +392,8 @@ export class CotizacionesService {
     if (!lab) throw new NotFoundException('Laboratorio no encontrado');
     if (practices.length === 0) throw new NotFoundException('No hay prácticas activas configuradas');
 
+    const logoSrc = await resolveAssetDataUri(this.storage, lab.logoPath);
+
     // ── Columnas ──────────────────────────────────────────────────────────────
     const columns: CatalogoPrecioColumn[] = [];
 
@@ -445,7 +452,7 @@ export class CotizacionesService {
         cityProvince: [lab.city, lab.province].filter(Boolean).join(', '),
         phone: lab.phone,
         email: lab.email,
-        logoSrc: lab.logoPath ?? null,
+        logoSrc,
       },
       columns,
       rows,
@@ -477,6 +484,7 @@ export class CotizacionesService {
 
     if (!lab) throw new NotFoundException('Laboratorio no encontrado');
 
+    const logoSrc = await resolveAssetDataUri(this.storage, lab.logoPath);
     const { accent, accentSoft } = pdfAccentPalette(lab.primaryColor);
 
     const fechaEmision = detalle.createdAt.toLocaleDateString('es-AR', {
@@ -544,7 +552,7 @@ export class CotizacionesService {
         cityProvince: [lab.city, lab.province].filter(Boolean).join(', '),
         phone: lab.phone,
         email: lab.email,
-        logoSrc: lab.logoPath ?? null,
+        logoSrc,
       },
       accent,
       accentSoft,
