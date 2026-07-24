@@ -65,6 +65,7 @@ export interface OrderSummary extends Order {
     raza: string | null;
     propietario: string;
   } | null;
+  solicitante?: { nombreApellido: string; razonSocial: string | null } | null;
   insurer: { id: number; code: string; name: string } | null;
 }
 
@@ -151,16 +152,11 @@ export class OrdersService {
 
     const priceableInputs: PriceablePractice[] = effectivePractices.map((line) => {
       const p = practices.get(line.practiceId)!;
-      if (p.units === null) {
-        throw new UnprocessableEntityException(
-          `La practica ${p.nbuCode} (${p.name}) no tiene U.B. asignada en el nomenclador y no puede facturarse`,
-        );
-      }
       return {
         practiceId: p.id,
         nbuCode: p.nbuCode,
         name: p.name,
-        units: p.units,
+        units: p.units ?? '0.00',
         isSpecialAct: p.isSpecialAct,
       };
     });
@@ -278,16 +274,11 @@ export class OrdersService {
 
       const priceableInputs: PriceablePractice[] = effectivePractices.map((line) => {
         const p = practices.get(line.practiceId)!;
-        if (p.units === null) {
-          throw new UnprocessableEntityException(
-            `La practica ${p.nbuCode} (${p.name}) no tiene U.B. asignada`,
-          );
-        }
         return {
           practiceId: p.id,
           nbuCode: p.nbuCode,
           name: p.name,
-          units: p.units,
+          units: p.units ?? '0.00',
           isSpecialAct: p.isSpecialAct,
         };
       });
@@ -347,7 +338,7 @@ export class OrdersService {
             priceInsurer: l.priceInsurer,
             patientCopay: l.patientCopay,
             authorizationCode: userInput?.authorizationCode ?? null,
-            includeInReport: userInput?.includeInReport ?? true,
+            includeInReport: l.synthetic ? false : (userInput?.includeInReport ?? true),
             sortOrder: userInput?.sortOrder ?? idx,
             authorizationStatus: 'no_aplica',
           };
@@ -393,16 +384,11 @@ export class OrdersService {
 
       const priceableInputs: PriceablePractice[] = practiceInputs.map((line) => {
         const p = practices.get(line.practiceId)!;
-        if (p.units === null) {
-          throw new UnprocessableEntityException(
-            `La practica ${p.nbuCode} (${p.name}) no tiene U.B. asignada`,
-          );
-        }
         return {
           practiceId: p.id,
           nbuCode: p.nbuCode,
           name: p.name,
-          units: p.units,
+          units: p.units ?? '0.00',
           isSpecialAct: p.isSpecialAct,
         };
       });
@@ -462,7 +448,7 @@ export class OrdersService {
             priceInsurer: l.priceInsurer,
             patientCopay: l.patientCopay,
             authorizationCode: userInput?.authorizationCode ?? null,
-            includeInReport: userInput?.includeInReport ?? true,
+            includeInReport: l.synthetic ? false : (userInput?.includeInReport ?? true),
             sortOrder: userInput?.sortOrder ?? idx,
             authorizationStatus: 'no_aplica',
           };
@@ -557,6 +543,8 @@ export class OrdersService {
           animalNombre: pacienteAnimal.nombre,
           especieNombre: especie.nombre,
           propietarioNombre: propietario.lastName,
+          solicitanteNombreApellido: solicitanteAgua.nombreApellido,
+          solicitanteRazonSocial: solicitanteAgua.razonSocial,
           insurerId: insurer.id,
           insurerCode: insurer.code,
           insurerName: insurer.name,
@@ -566,6 +554,7 @@ export class OrdersService {
         .leftJoin(pacienteAnimal, eq(pacienteAnimal.id, order.animalPatientId))
         .leftJoin(especie, eq(especie.id, pacienteAnimal.especieId))
         .leftJoin(propietario, eq(propietario.id, pacienteAnimal.propietarioId))
+        .leftJoin(solicitanteAgua, eq(solicitanteAgua.id, order.solicitanteAguaId))
         .innerJoin(insurer, eq(insurer.id, order.insurerId))
         .where(whereExpr)
         .orderBy(desc(order.orderDate))
@@ -598,6 +587,9 @@ export class OrdersService {
             raza: null as string | null,
             propietario: r.propietarioNombre ?? '—',
           }
+        : null,
+      solicitante: r.solicitanteNombreApellido
+        ? { nombreApellido: r.solicitanteNombreApellido, razonSocial: r.solicitanteRazonSocial ?? null }
         : null,
       insurer: { id: r.insurerId, code: r.insurerCode, name: r.insurerName },
     }));

@@ -221,6 +221,7 @@ export async function renderFichaPdf(input: RenderFichaInput): Promise<Buffer> {
   ensureFontsRegistered();
   const { order, patient, insurer, lines, lab } = input;
   const logoSrc = input.logoDataUri !== undefined ? input.logoDataUri : (lab.logoPath ?? null);
+  const { accent, accentSoft } = pdfAccentPalette(lab.primaryColor);
 
   const data: FichaData = {
     lab: {
@@ -265,6 +266,8 @@ export async function renderFichaPdf(input: RenderFichaInput): Promise<Buffer> {
       authorizationCode: l.authorizationCode,
     })),
     printedAt: formatDateTime(new Date()),
+    accent,
+    accentSoft,
   };
 
   return renderToBuffer(<FichaTemplate data={data} />);
