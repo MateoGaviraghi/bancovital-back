@@ -15,6 +15,7 @@ export interface InformeUnidadRow {
   rangeLow: string | null;
   rangeHigh: string | null;
   referenceText: string | null;
+  metodologia?: string | null;
 }
 
 export interface InformeResultRow {
@@ -28,6 +29,8 @@ export interface InformeResultRow {
   referenceValue: string | null;
   notes: string | null;
   unidades?: InformeUnidadRow[];
+  /** Total de unidades configuradas para esta práctica (incluyendo las sin valor cargado). */
+  totalDefinedUnidades?: number;
 }
 
 export interface InformeData {
@@ -453,6 +456,200 @@ const DEFAULT_TABLE_COLORS: TableColors = {
   rowColor: '#000000',
 };
 
+// ── Agua / Efluentes: tabla de filas y columnas ──────────────────────
+
+function formatAguaRef(
+  rangeLow: string | null,
+  rangeHigh: string | null,
+  referenceText: string | null,
+): string | null {
+  if (rangeLow && rangeHigh) return `${fmtNum(rangeLow)} – ${fmtNum(rangeHigh)}`;
+  if (!rangeLow && rangeHigh) return `≤${fmtNum(rangeHigh)}`;
+  if (rangeLow && !rangeHigh) return `≥${fmtNum(rangeLow)}`;
+  return referenceText ?? null;
+}
+
+interface AguaRow {
+  parametro: string;
+  isGroupHeader: boolean;
+  isSubRow: boolean;
+  metodo: string | null;
+  resultado: string;
+  unidad: string | null;
+  referencia: string | null;
+  flag: InformeFlag;
+}
+
+function buildAguaRows(results: InformeResultRow[]): AguaRow[] {
+  const rows: AguaRow[] = [];
+  for (const r of results) {
+    const unidades = r.unidades ?? [];
+    if (unidades.length === 0) {
+      rows.push({
+        parametro: r.name,
+        isGroupHeader: false,
+        isSubRow: false,
+        metodo: r.methodology,
+        resultado: r.value || '—',
+        unidad: r.unit,
+        referencia: r.range ?? r.referenceValue ?? null,
+        flag: r.flag,
+      });
+    } else if (unidades.length === 1 && (r.totalDefinedUnidades ?? 1) <= 1) {
+      // Single defined unidad → flat row using practice name as label
+      const u = unidades[0];
+      rows.push({
+        parametro: r.name,
+        isGroupHeader: false,
+        isSubRow: false,
+        metodo: u.metodologia ?? r.methodology,
+        resultado: u.value || '—',
+        unidad: u.simbolo ?? r.unit,
+        referencia:
+          formatAguaRef(u.rangeLow, u.rangeHigh, u.referenceText) ??
+          r.range ??
+          r.referenceValue ??
+          null,
+        flag: r.flag,
+      });
+    } else {
+      rows.push({
+        parametro: r.name,
+        isGroupHeader: true,
+        isSubRow: false,
+        metodo: r.methodology,
+        resultado: r.value || '',
+        unidad: null,
+        referencia: r.range ?? r.referenceValue ?? null,
+        flag: r.flag,
+      });
+      for (const u of unidades) {
+        rows.push({
+          parametro: u.nombre,
+          isGroupHeader: false,
+          isSubRow: true,
+          metodo: u.metodologia ?? null,
+          resultado: u.value || '—',
+          unidad: u.simbolo,
+          referencia: formatAguaRef(u.rangeLow, u.rangeHigh, u.referenceText),
+          flag: null,
+        });
+      }
+    }
+  }
+  return rows;
+}
+
+function AguaEfluentesTable({
+  results,
+  accent,
+  accentSoft,
+  border,
+  rowColor,
+}: {
+  results: InformeResultRow[];
+  accent: string;
+  accentSoft: string;
+  border: string;
+  rowColor: string;
+}) {
+  const rows = buildAguaRows(results);
+  const thStyle = {
+    color: '#ffffff',
+    fontFamily: 'PublicSansSemiBold',
+    fontSize: 7.5,
+    letterSpacing: 0.3,
+  };
+  const cellV = { paddingVertical: 4, paddingHorizontal: 5 };
+  const divR = { borderRightWidth: 0.5, borderRightColor: border };
+
+  return (
+    <View style={{ borderWidth: 0.5, borderColor: border, borderRadius: 3, overflow: 'hidden' }}>
+      {/* Header row */}
+      <View style={{ flexDirection: 'row', backgroundColor: accent }}>
+        <View style={[{ width: '23%' }, cellV, divR]}>
+          <Text style={thStyle}>Parámetro</Text>
+        </View>
+        <View style={[{ width: '32%' }, cellV, divR]}>
+          <Text style={thStyle}>Método</Text>
+        </View>
+        <View style={[{ width: '13%' }, cellV, divR, { alignItems: 'flex-end' }]}>
+          <Text style={thStyle}>Resultado</Text>
+        </View>
+        <View style={[{ width: '12%' }, cellV, divR, { alignItems: 'center' }]}>
+          <Text style={thStyle}>Unidad</Text>
+        </View>
+        <View style={[{ flex: 1 }, cellV, { alignItems: 'flex-end' }]}>
+          <Text style={thStyle}>Referencia</Text>
+        </View>
+      </View>
+
+      {/* Data rows */}
+      {rows.map((row, idx) => {
+        const isAbnormal = row.flag && row.flag !== 'normal';
+        const isBand = idx % 2 === 1;
+        const rowBg = row.isGroupHeader
+          ? accentSoft
+          : isBand
+            ? C.bandBg
+            : '#ffffff';
+        return (
+          <View
+            key={idx}
+            style={{
+              flexDirection: 'row',
+              borderTopWidth: 0.5,
+              borderTopColor: border,
+              backgroundColor: rowBg,
+              alignItems: 'stretch',
+            }}
+            wrap={false}
+          >
+            <View style={[{ width: '23%', justifyContent: 'center' }, cellV, divR]}>
+              <Text
+                style={{
+                  fontSize: row.isGroupHeader ? 8.5 : 8,
+                  color: rowColor,
+                  fontFamily: row.isGroupHeader ? 'PublicSansSemiBold' : 'PublicSans',
+                  paddingLeft: row.isSubRow ? 8 : 0,
+                }}
+              >
+                {row.parametro}
+              </Text>
+            </View>
+            <View style={[{ width: '32%', justifyContent: 'center' }, cellV, divR]}>
+              <Text style={{ fontSize: 7, color: C.muted, lineHeight: 1.3 }}>
+                {row.metodo ?? ''}
+              </Text>
+            </View>
+            <View style={[{ width: '13%', justifyContent: 'center', alignItems: 'flex-end' }, cellV, divR]}>
+              <Text
+                style={{
+                  fontSize: 8.5,
+                  color: isAbnormal ? C.danger : rowColor,
+                  fontFamily: isAbnormal ? 'PublicSansSemiBold' : 'PublicSans',
+                }}
+              >
+                {row.isGroupHeader ? '' : row.resultado}
+              </Text>
+            </View>
+            <View style={[{ width: '12%', justifyContent: 'center', alignItems: 'center' }, cellV, divR]}>
+              <Text style={{ fontSize: 7, color: C.muted }}>
+                {row.unidad ?? ''}
+              </Text>
+            </View>
+            <View style={[{ flex: 1, justifyContent: 'center', alignItems: 'flex-end' }, cellV]}>
+              <Text style={{ fontSize: 7.5, color: C.muted }}>
+                {row.referencia ?? ''}
+              </Text>
+            </View>
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
 function OverlayResultsTable({ results, colors }: { results: InformeResultRow[]; colors: TableColors }) {
   const lbg = colors.headerBg;
   const lcolor = colors.headerColor;
@@ -491,6 +688,7 @@ function OverlayResultsTable({ results, colors }: { results: InformeResultRow[];
                         <Text style={styles.unidadNombre}>{u.nombre}</Text>
                         <Text style={styles.unidadValue}>{u.value || '—'}</Text>
                         {u.simbolo ? <Text style={styles.unidadSimbolo}>{u.simbolo}</Text> : null}
+                        {u.metodologia ? <Text style={{ fontSize: 6, color: bColor, marginLeft: 2 }}>Mét: {u.metodologia}</Text> : null}
                       </View>
                     ))}
                   </View>
@@ -580,6 +778,7 @@ function WatermarkInforme({ data }: { data: InformeData }) {
     rowColor: tc?.rowColor ?? DEFAULT_TABLE_COLORS.rowColor,
   };
   const m = data.margins ?? { top: 20, bottom: 20, left: 40, right: 40 };
+  const isAgua = !!(data.muestraAgua || data.solicitanteAgua);
 
   return (
     <Document
@@ -653,7 +852,17 @@ function WatermarkInforme({ data }: { data: InformeData }) {
 
         {/* Tabla de resultados */}
         {data.results.length > 0 ? (
-          <OverlayResultsTable results={data.results} colors={tableColors} />
+          isAgua ? (
+            <AguaEfluentesTable
+              results={data.results}
+              accent={tableColors.headerBg}
+              accentSoft={C.primarySoft}
+              border={tableColors.borderColor}
+              rowColor={tableColors.rowColor}
+            />
+          ) : (
+            <OverlayResultsTable results={data.results} colors={tableColors} />
+          )
         ) : null}
 
         <View style={{ flexGrow: 1, minHeight: 20 }} />
@@ -701,6 +910,7 @@ export function InformeTemplate({ data }: { data: InformeData }) {
   const tHeaderColor = tc?.headerColor || '#ffffff';
   const tBorder = tc?.borderColor || C.border;
   const tRowColor = tc?.rowColor || C.ink;
+  const isAgua = !!(data.muestraAgua || data.solicitanteAgua);
   const cc = data.layoutConfig?.['cuadros'];
   const cardTitle = cc?.color || accent;
   const cardBorder = cc?.borderColor || C.border;
@@ -858,130 +1068,124 @@ export function InformeTemplate({ data }: { data: InformeData }) {
           </View>
         ) : null}
 
-        {/* Results blocks */}
+        {/* Results */}
         <Text style={[styles.resultsTitle, { color: accent }]}>Resultados</Text>
-        <View style={{ gap: 8 }}>
-          {data.results.map((r) => {
-            const bStyle = badgeStyle(r.flag);
-            const hasUnidades = r.unidades && r.unidades.length > 0;
-            const unidadesConRef = hasUnidades ? r.unidades!.filter(u => u.rangeLow || u.rangeHigh || u.referenceText) : [];
-            const hasAnyRef = !!(r.range ?? r.referenceValue) || (hasUnidades && unidadesConRef.length > 0);
-            const labelCell = { width: '26%', backgroundColor: tHeaderBg, paddingVertical: 6, paddingHorizontal: 8 };
-            const labelText = { fontFamily: 'PublicSansSemiBold', fontSize: 7.5, color: tHeaderColor, letterSpacing: 0.4 };
-            const valueCell = { flex: 1, paddingVertical: 6, paddingHorizontal: 8 };
-            const divider = { borderTopWidth: 0.5, borderTopColor: tBorder };
-            return (
-              <View
-                key={r.nbuCode}
-                style={{ borderWidth: 0.5, borderColor: tBorder, borderRadius: 3, overflow: 'hidden' }}
-                wrap={false}
-              >
-                {/* PRÁCTICA */}
-                <View style={{ flexDirection: 'row' }} wrap={false}>
-                  <View style={labelCell}><Text style={labelText}>PRÁCTICA</Text></View>
-                  <View style={valueCell}>
-                    <Text style={[styles.practiceName, { color: tRowColor }]}>{r.name}</Text>
-                    <Text style={styles.nbuCode}>NBU {r.nbuCode}</Text>
-                    {r.methodology ? <Text style={styles.metaText}>Método: {r.methodology}</Text> : null}
-                  </View>
-                </View>
 
-                {/* RESULTADO */}
-                <View style={[{ flexDirection: 'row' }, divider]}>
-                  <View style={labelCell}><Text style={labelText}>RESULTADO</Text></View>
-                  <View style={valueCell}>
-                    {hasUnidades ? (
-                      <View>
-                        {r.value ? (
-                          <Text style={[styles.valueProse, { marginBottom: 4 }]}>{r.value}</Text>
-                        ) : null}
-                        {r.unidades!.map((u, i) => (
-                          <View key={`${u.nombre}-${i}`} style={styles.unidadRow} wrap={false}>
-                            <Text style={styles.unidadNombre}>{u.nombre}</Text>
-                            <Text style={styles.unidadValue}>{u.value || '—'}</Text>
-                            {u.simbolo ? <Text style={styles.unidadSimbolo}>{u.simbolo}</Text> : null}
-                          </View>
-                        ))}
-                      </View>
-                    ) : (
-                      <Text style={isNumericValue(r.value) ? styles.valueNum : styles.valueProse}>
-                        {r.value || '—'}
-                      </Text>
-                    )}
+        {isAgua ? (
+          <AguaEfluentesTable
+            results={data.results}
+            accent={tHeaderBg}
+            accentSoft={accentSoft}
+            border={tBorder}
+            rowColor={tRowColor}
+          />
+        ) : (
+          <View style={{ gap: 8 }}>
+            {data.results.map((r) => {
+              const bStyle = badgeStyle(r.flag);
+              const hasUnidades = r.unidades && r.unidades.length > 0;
+              const unidadesConRef = hasUnidades ? r.unidades!.filter(u => u.rangeLow || u.rangeHigh || u.referenceText) : [];
+              const hasAnyRef = !!(r.range ?? r.referenceValue) || (hasUnidades && unidadesConRef.length > 0);
+              const labelCell = { width: '26%', backgroundColor: tHeaderBg, paddingVertical: 6, paddingHorizontal: 8 };
+              const labelText = { fontFamily: 'PublicSansSemiBold', fontSize: 7.5, color: tHeaderColor, letterSpacing: 0.4 };
+              const valueCell = { flex: 1, paddingVertical: 6, paddingHorizontal: 8 };
+              const divider = { borderTopWidth: 0.5, borderTopColor: tBorder };
+              return (
+                <View
+                  key={r.nbuCode}
+                  style={{ borderWidth: 0.5, borderColor: tBorder, borderRadius: 3, overflow: 'hidden' }}
+                  wrap={false}
+                >
+                  <View style={{ flexDirection: 'row' }} wrap={false}>
+                    <View style={labelCell}><Text style={labelText}>PRÁCTICA</Text></View>
+                    <View style={valueCell}>
+                      <Text style={[styles.practiceName, { color: tRowColor }]}>{r.name}</Text>
+                      <Text style={styles.nbuCode}>NBU {r.nbuCode}</Text>
+                      {r.methodology ? <Text style={styles.metaText}>Método: {r.methodology}</Text> : null}
+                    </View>
                   </View>
-                </View>
-
-                {/* UNIDAD — solo si no tiene sub-unidades */}
-                {!hasUnidades ? (
-                  <View style={[{ flexDirection: 'row' }, divider]} wrap={false}>
-                    <View style={labelCell}><Text style={labelText}>UNIDAD</Text></View>
-                    <View style={valueCell}><Text style={styles.unitText}>{r.unit ?? '—'}</Text></View>
-                  </View>
-                ) : null}
-
-                {/* REFERENCIA — solo si hay al menos un valor configurado */}
-                {hasAnyRef ? (
                   <View style={[{ flexDirection: 'row' }, divider]}>
-                    <View style={labelCell}><Text style={labelText}>REFERENCIA</Text></View>
+                    <View style={labelCell}><Text style={labelText}>RESULTADO</Text></View>
                     <View style={valueCell}>
                       {hasUnidades ? (
                         <View>
-                          {unidadesConRef.map((u, i) => {
-                            const hasRange = u.rangeLow || u.rangeHigh;
-                            const rangeStr = hasRange
-                              ? `${u.rangeLow ? fmtNum(u.rangeLow) : '—'} – ${u.rangeHigh ? fmtNum(u.rangeHigh) : '—'}`
-                              : null;
-                            const uRef =
-                              rangeStr && u.referenceText
-                                ? `${rangeStr}. ${u.referenceText}`
-                                : rangeStr ?? u.referenceText;
-                            return (
-                              <View key={`ref-${u.nombre}-${i}`} style={styles.unidadRow} wrap={false}>
-                                <Text style={styles.unidadNombre}>{u.nombre}</Text>
-                                <Text style={{ fontSize: 7.5, color: C.muted }}>{uRef}</Text>
-                              </View>
-                            );
-                          })}
-                          {(r.range ?? r.referenceValue) ? (
-                            <Text style={{ fontSize: 7.5, color: C.muted, marginTop: unidadesConRef.length > 0 ? 3 : 0 }}>{r.range ?? r.referenceValue}</Text>
-                          ) : null}
+                          {r.value ? <Text style={[styles.valueProse, { marginBottom: 4 }]}>{r.value}</Text> : null}
+                          {r.unidades!.map((u, i) => (
+                            <View key={`${u.nombre}-${i}`} style={styles.unidadRow} wrap={false}>
+                              <Text style={styles.unidadNombre}>{u.nombre}</Text>
+                              <Text style={styles.unidadValue}>{u.value || '—'}</Text>
+                              {u.simbolo ? <Text style={styles.unidadSimbolo}>{u.simbolo}</Text> : null}
+                              {u.metodologia ? <Text style={{ fontSize: 6, color: tBorder, marginLeft: 2 }}>Mét: {u.metodologia}</Text> : null}
+                            </View>
+                          ))}
                         </View>
-                      ) : r.range ? (
-                        <Text style={styles.rangeText}>{r.range}</Text>
                       ) : (
-                        <Text style={{ fontSize: 7.5, color: C.muted }}>{r.referenceValue}</Text>
+                        <Text style={isNumericValue(r.value) ? styles.valueNum : styles.valueProse}>
+                          {r.value || '—'}
+                        </Text>
                       )}
                     </View>
                   </View>
-                ) : null}
-
-                {/* ESTADO */}
-                <View style={[{ flexDirection: 'row' }, divider]} wrap={false}>
-                  <View style={labelCell}><Text style={labelText}>ESTADO</Text></View>
-                  <View style={valueCell}>
-                    {bStyle ? (
-                      <Text style={[styles.badge, bStyle]}>{flagLabel(r.flag)}</Text>
-                    ) : (
-                      <Text style={styles.rangeText}>—</Text>
-                    )}
-                  </View>
-                </View>
-
-                {/* OBSERVACIONES */}
-                {r.notes ? (
-                  <View style={[{ flexDirection: 'row' }, divider]}>
-                    <View style={labelCell}><Text style={labelText}>OBSERVACIONES</Text></View>
+                  {!hasUnidades ? (
+                    <View style={[{ flexDirection: 'row' }, divider]} wrap={false}>
+                      <View style={labelCell}><Text style={labelText}>UNIDAD</Text></View>
+                      <View style={valueCell}><Text style={styles.unitText}>{r.unit ?? '—'}</Text></View>
+                    </View>
+                  ) : null}
+                  {hasAnyRef ? (
+                    <View style={[{ flexDirection: 'row' }, divider]}>
+                      <View style={labelCell}><Text style={labelText}>REFERENCIA</Text></View>
+                      <View style={valueCell}>
+                        {hasUnidades ? (
+                          <View>
+                            {unidadesConRef.map((u, i) => {
+                              const hasRange = u.rangeLow || u.rangeHigh;
+                              const rangeStr = hasRange
+                                ? `${u.rangeLow ? fmtNum(u.rangeLow) : '—'} – ${u.rangeHigh ? fmtNum(u.rangeHigh) : '—'}`
+                                : null;
+                              const uRef = rangeStr && u.referenceText ? `${rangeStr}. ${u.referenceText}` : rangeStr ?? u.referenceText;
+                              return (
+                                <View key={`ref-${u.nombre}-${i}`} style={styles.unidadRow} wrap={false}>
+                                  <Text style={styles.unidadNombre}>{u.nombre}</Text>
+                                  <Text style={{ fontSize: 7.5, color: C.muted }}>{uRef}</Text>
+                                </View>
+                              );
+                            })}
+                            {(r.range ?? r.referenceValue) ? (
+                              <Text style={{ fontSize: 7.5, color: C.muted, marginTop: unidadesConRef.length > 0 ? 3 : 0 }}>{r.range ?? r.referenceValue}</Text>
+                            ) : null}
+                          </View>
+                        ) : r.range ? (
+                          <Text style={styles.rangeText}>{r.range}</Text>
+                        ) : (
+                          <Text style={{ fontSize: 7.5, color: C.muted }}>{r.referenceValue}</Text>
+                        )}
+                      </View>
+                    </View>
+                  ) : null}
+                  <View style={[{ flexDirection: 'row' }, divider]} wrap={false}>
+                    <View style={labelCell}><Text style={labelText}>ESTADO</Text></View>
                     <View style={valueCell}>
-                      <Text style={styles.metaText}>{r.notes}</Text>
+                      {bStyle ? (
+                        <Text style={[styles.badge, bStyle]}>{flagLabel(r.flag)}</Text>
+                      ) : (
+                        <Text style={styles.rangeText}>—</Text>
+                      )}
                     </View>
                   </View>
-                ) : null}
-              </View>
-            );
-          })}
-        </View>
+                  {r.notes ? (
+                    <View style={[{ flexDirection: 'row' }, divider]}>
+                      <View style={labelCell}><Text style={labelText}>OBSERVACIONES</Text></View>
+                      <View style={valueCell}><Text style={styles.metaText}>{r.notes}</Text></View>
+                    </View>
+                  ) : null}
+                </View>
+              );
+            })}
+          </View>
+        )}
 
-        <View style={styles.flexSpacer} />
+        {isAgua ? null : <View style={styles.flexSpacer} />}
       </Page>
     </Document>
   );

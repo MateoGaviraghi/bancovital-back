@@ -24,7 +24,9 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { and, asc, eq, inArray, isNull, or } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull, notInArray, or } from 'drizzle-orm';
+
+const SYNTHETIC_NBU_CODES = ['660001', '662001', '661200'];
 import type { UpsertResultDto } from './dto/upsert-result.dto';
 
 const LOADABLE_STATUSES = new Set(['borrador', 'confirmada', 'en_proceso', 'resultados_cargados']);
@@ -92,7 +94,10 @@ export class ResultsService {
       .from(orderPractice)
       .leftJoin(result, eq(result.orderPracticeId, orderPractice.id))
       .leftJoin(practice, eq(practice.id, orderPractice.practiceId))
-      .where(eq(orderPractice.orderId, orderId))
+      .where(and(
+        eq(orderPractice.orderId, orderId),
+        notInArray(orderPractice.nbuCodeSnapshot, SYNTHETIC_NBU_CODES),
+      ))
       .orderBy(asc(orderPractice.sortOrder), asc(orderPractice.id));
 
     const opIds = rows.map((r) => r.orderPractice.id);
