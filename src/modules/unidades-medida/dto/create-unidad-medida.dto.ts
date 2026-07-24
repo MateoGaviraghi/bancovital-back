@@ -32,4 +32,11 @@ export class CreateUnidadMedidaDto {
   @IsArray()
   @IsString({ each: true })
   opcionesPredeterminadas?: string[] | null;
+
+  @ApiProperty({ required: false, nullable: true, maxLength: 200, description: 'Metodología analítica (ej "Fotometría", "Inmunoturbidimetría")' })
+  @IsOptional()
+  @Transform(({ value }) => (typeof value === 'string' ? (value.trim() || null) : value))
+  @IsString()
+  @MaxLength(200)
+  metodologia?: string | null;
 }

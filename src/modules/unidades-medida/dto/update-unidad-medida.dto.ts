@@ -29,4 +29,11 @@ export class UpdateUnidadMedidaDto {
   @IsArray()
   @IsString({ each: true })
   opcionesPredeterminadas?: string[] | null;
+
+  @ApiPropertyOptional({ nullable: true, maxLength: 200, description: 'Metodología analítica (ej "Fotometría", "Inmunoturbidimetría")' })
+  @IsOptional()
+  @Transform(({ value }) => (typeof value === 'string' ? (value.trim() || null) : value))
+  @IsString()
+  @MaxLength(200)
+  metodologia?: string | null;
 }

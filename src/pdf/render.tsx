@@ -112,7 +112,7 @@ export interface RenderInformeInput {
   /** Valores de unidades cargados, agrupados por orderPracticeId (sort ya aplicado). */
   unidadValuesByLineId?: Map<number, OrderPracticeUnidadValue[]>;
   /** Rangos de referencia por unidad asociada: key = "practiceId:unidadId" */
-  unidadRefsByKey?: Map<string, { rangeLow: string | null; rangeHigh: string | null; referenceText: string | null }>;
+  unidadRefsByKey?: Map<string, { rangeLow: string | null; rangeHigh: string | null; referenceText: string | null; metodologia?: string | null }>;
   /** Unidades configuradas por práctica (fallback de unidad/referencia cuando no hay sub-valores cargados). */
   practiceUnidadsByPracticeId?: Map<number, Array<{ unidadId: number; simbolo: string | null; rangeLow: string | null; rangeHigh: string | null; referenceText: string | null }>>;
   /** Metodologia y valor de referencia por practiceId (para mostrar en PDF cuando no hay resultado). */
@@ -369,6 +369,7 @@ export function buildInformeData(input: RenderInformeInput): InformeData {
             rangeLow: ref?.rangeLow ?? null,
             rangeHigh: ref?.rangeHigh ?? null,
             referenceText: ref?.referenceText ?? null,
+            metodologia: ref?.metodologia ?? null,
           };
         });
         const practiceData = l.practiceId ? (practiceDataById?.get(l.practiceId) ?? null) : null;
@@ -414,6 +415,7 @@ export function buildInformeData(input: RenderInformeInput): InformeData {
           referenceValue,
           notes: r?.notes ?? null,
           unidades: unidades.length > 0 ? unidades : undefined,
+          totalDefinedUnidades: puList.length > 0 ? puList.length : undefined,
         };
       }),
     signedBy: {

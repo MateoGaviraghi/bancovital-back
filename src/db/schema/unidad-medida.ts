@@ -36,6 +36,7 @@ export const unidadMedida = pgTable(
     simbolo: text('simbolo'),
     active: boolean('active').notNull().default(true),
     opcionesPredeterminadas: jsonb('opciones_predeterminadas').$type<string[]>(),
+    metodologia: text('metodologia'),
     createdBy: uuid('created_by').references(() => user.id),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),

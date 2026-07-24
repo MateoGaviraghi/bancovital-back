@@ -142,6 +142,7 @@ export class UnidadesMedidaService {
         nombre,
         simbolo: dto.simbolo?.trim() || null,
         opcionesPredeterminadas: dto.opcionesPredeterminadas ?? null,
+        metodologia: dto.metodologia ?? null,
         createdBy,
       })
       .returning();
@@ -177,6 +178,7 @@ export class UnidadesMedidaService {
       ...('opcionesPredeterminadas' in dto && {
         opcionesPredeterminadas: (dto.opcionesPredeterminadas as string[] | null) ?? null,
       }),
+      ...(dto.metodologia !== undefined && { metodologia: dto.metodologia }),
       updatedAt: new Date(),
     };
 

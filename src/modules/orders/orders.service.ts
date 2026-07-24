@@ -248,6 +248,12 @@ export class OrdersService {
     if (dto.patientId !== undefined) {
       await this.resolvePatient(labId, dto.patientId);
     }
+    if (dto.solicitanteAguaId !== undefined && dto.solicitanteAguaId !== null) {
+      await this.assertSolicitanteAgua(labId, dto.solicitanteAguaId);
+    }
+    if (dto.muestraAguaId !== undefined && dto.muestraAguaId !== null) {
+      await this.assertMuestraAgua(labId, dto.muestraAguaId);
+    }
 
     const effectiveInsurerId = dto.insurerId ?? current.insurerId;
     const effectiveIsUrgent = dto.isUrgent ?? current.isUrgent;
@@ -296,7 +302,68 @@ export class OrdersService {
       );
 
       return this.db.transaction(async (tx) => {
-        await tx.delete(orderPractice).where(eq(orderPractice.orderId, id));
+        // Load existing lines so we can UPDATE in place instead of delete+reinsert.
+        // Deleting order_practice rows cascades to result and order_practice_unidad_value,
+        // wiping entered results. We preserve the row ID for any practice that stays.
+        const existingLines = await tx
+          .select()
+          .from(orderPractice)
+          .where(eq(orderPractice.orderId, id));
+
+        const existingByPracticeId = new Map<number, OrderPractice>(
+          existingLines
+            .filter((l) => l.practiceId !== null)
+            .map((l) => [l.practiceId!, l]),
+        );
+
+        const toInsert: NewOrderPractice[] = [];
+        const toUpdateEntries: Array<{ rowId: number; values: Omit<NewOrderPractice, 'id' | 'createdAt'> }> = [];
+        const keptPracticeIds = new Set<number>();
+
+        for (const [idx, l] of pricing.lines.entries()) {
+          const userInput =
+            l.practiceId !== null ? userInputByPracticeId.get(l.practiceId) : undefined;
+          const rowValues = {
+            orderId: id,
+            practiceId: l.practiceId,
+            nbuCodeSnapshot: l.nbuCode,
+            nameSnapshot: l.name,
+            unitsSnapshot: l.units,
+            ubValueSnapshot: l.ubValue,
+            priceParticular: l.priceParticular,
+            priceInsurer: l.priceInsurer,
+            patientCopay: l.patientCopay,
+            authorizationCode: userInput?.authorizationCode ?? null,
+            includeInReport: l.synthetic ? false : (userInput?.includeInReport ?? true),
+            sortOrder: userInput?.sortOrder ?? idx,
+            authorizationStatus: 'no_aplica' as const,
+          };
+
+          const existing = l.practiceId !== null ? existingByPracticeId.get(l.practiceId) : undefined;
+          if (existing) {
+            toUpdateEntries.push({ rowId: existing.id, values: rowValues });
+            keptPracticeIds.add(l.practiceId!);
+          } else {
+            toInsert.push(rowValues as NewOrderPractice);
+          }
+        }
+
+        // Only delete synthetics and practices explicitly removed by the user
+        const toDeleteIds = existingLines
+          .filter((l) => l.practiceId === null || !keptPracticeIds.has(l.practiceId))
+          .map((l) => l.id);
+
+        if (toDeleteIds.length > 0) {
+          await tx.delete(orderPractice).where(inArray(orderPractice.id, toDeleteIds));
+        }
+
+        for (const { rowId, values } of toUpdateEntries) {
+          await tx.update(orderPractice).set(values).where(eq(orderPractice.id, rowId));
+        }
+
+        if (toInsert.length > 0) {
+          await tx.insert(orderPractice).values(toInsert);
+        }
 
         const [updatedOrder] = await tx
           .update(order)
@@ -315,6 +382,8 @@ export class OrdersService {
             ...(dto.origin !== undefined && { origin: dto.origin }),
             isUrgent: effectiveIsUrgent,
             ...(dto.notes !== undefined && { notes: dto.notes ?? null }),
+            ...(dto.solicitanteAguaId !== undefined && { solicitanteAguaId: dto.solicitanteAguaId ?? null }),
+            ...(dto.muestraAguaId !== undefined && { muestraAguaId: dto.muestraAguaId ?? null }),
             totalParticular: pricing.totals.particular,
             totalInsurer: pricing.totals.insurer,
             totalPatientCopay: pricing.totals.patientCopay,
@@ -324,28 +393,13 @@ export class OrdersService {
           .where(and(eq(order.id, id), eq(order.labId, labId)))
           .returning();
 
-        const lineRows: NewOrderPractice[] = pricing.lines.map((l: PricedLine, idx: number) => {
-          const userInput =
-            l.practiceId !== null ? userInputByPracticeId.get(l.practiceId) : undefined;
-          return {
-            orderId: id,
-            practiceId: l.practiceId,
-            nbuCodeSnapshot: l.nbuCode,
-            nameSnapshot: l.name,
-            unitsSnapshot: l.units,
-            ubValueSnapshot: l.ubValue,
-            priceParticular: l.priceParticular,
-            priceInsurer: l.priceInsurer,
-            patientCopay: l.patientCopay,
-            authorizationCode: userInput?.authorizationCode ?? null,
-            includeInReport: l.synthetic ? false : (userInput?.includeInReport ?? true),
-            sortOrder: userInput?.sortOrder ?? idx,
-            authorizationStatus: 'no_aplica',
-          };
-        });
+        const allLines = await tx
+          .select()
+          .from(orderPractice)
+          .where(eq(orderPractice.orderId, id))
+          .orderBy(asc(orderPractice.sortOrder), asc(orderPractice.id));
 
-        const insertedLines = await tx.insert(orderPractice).values(lineRows).returning();
-        return { order: updatedOrder, lines: insertedLines };
+        return { order: updatedOrder, lines: allLines };
       });
     }
 
@@ -406,7 +460,68 @@ export class OrdersService {
       );
 
       return this.db.transaction(async (tx) => {
-        await tx.delete(orderPractice).where(eq(orderPractice.orderId, id));
+        // Load existing lines so we can UPDATE in place instead of delete+reinsert.
+        // Deleting order_practice rows cascades to result and order_practice_unidad_value,
+        // wiping entered results. We preserve the row ID for any practice that stays.
+        const existingLines = await tx
+          .select()
+          .from(orderPractice)
+          .where(eq(orderPractice.orderId, id));
+
+        const existingByPracticeId = new Map<number, OrderPractice>(
+          existingLines
+            .filter((l) => l.practiceId !== null)
+            .map((l) => [l.practiceId!, l]),
+        );
+
+        const toInsert: NewOrderPractice[] = [];
+        const toUpdateEntries: Array<{ rowId: number; values: Omit<NewOrderPractice, 'id' | 'createdAt'> }> = [];
+        const keptPracticeIds = new Set<number>();
+
+        for (const [idx, l] of pricing.lines.entries()) {
+          const userInput =
+            l.practiceId !== null ? userInputByPracticeId.get(l.practiceId) : undefined;
+          const rowValues = {
+            orderId: id,
+            practiceId: l.practiceId,
+            nbuCodeSnapshot: l.nbuCode,
+            nameSnapshot: l.name,
+            unitsSnapshot: l.units,
+            ubValueSnapshot: l.ubValue,
+            priceParticular: l.priceParticular,
+            priceInsurer: l.priceInsurer,
+            patientCopay: l.patientCopay,
+            authorizationCode: userInput?.authorizationCode ?? null,
+            includeInReport: l.synthetic ? false : (userInput?.includeInReport ?? true),
+            sortOrder: userInput?.sortOrder ?? idx,
+            authorizationStatus: 'no_aplica' as const,
+          };
+
+          const existing = l.practiceId !== null ? existingByPracticeId.get(l.practiceId) : undefined;
+          if (existing) {
+            toUpdateEntries.push({ rowId: existing.id, values: rowValues });
+            keptPracticeIds.add(l.practiceId!);
+          } else {
+            toInsert.push(rowValues as NewOrderPractice);
+          }
+        }
+
+        // Only delete synthetics and practices explicitly removed by the user
+        const toDeleteIds = existingLines
+          .filter((l) => l.practiceId === null || !keptPracticeIds.has(l.practiceId))
+          .map((l) => l.id);
+
+        if (toDeleteIds.length > 0) {
+          await tx.delete(orderPractice).where(inArray(orderPractice.id, toDeleteIds));
+        }
+
+        for (const { rowId, values } of toUpdateEntries) {
+          await tx.update(orderPractice).set(values).where(eq(orderPractice.id, rowId));
+        }
+
+        if (toInsert.length > 0) {
+          await tx.insert(orderPractice).values(toInsert);
+        }
 
         const [updatedOrder] = await tx
           .update(order)
@@ -425,6 +540,8 @@ export class OrdersService {
             ...(dto.origin !== undefined && { origin: dto.origin }),
             isUrgent: effectiveIsUrgent,
             ...(dto.notes !== undefined && { notes: dto.notes ?? null }),
+            ...(dto.solicitanteAguaId !== undefined && { solicitanteAguaId: dto.solicitanteAguaId ?? null }),
+            ...(dto.muestraAguaId !== undefined && { muestraAguaId: dto.muestraAguaId ?? null }),
             totalParticular: pricing.totals.particular,
             totalInsurer: pricing.totals.insurer,
             totalPatientCopay: pricing.totals.patientCopay,
@@ -434,28 +551,13 @@ export class OrdersService {
           .where(and(eq(order.id, id), eq(order.labId, labId)))
           .returning();
 
-        const lineRows: NewOrderPractice[] = pricing.lines.map((l: PricedLine, idx: number) => {
-          const userInput =
-            l.practiceId !== null ? userInputByPracticeId.get(l.practiceId) : undefined;
-          return {
-            orderId: id,
-            practiceId: l.practiceId,
-            nbuCodeSnapshot: l.nbuCode,
-            nameSnapshot: l.name,
-            unitsSnapshot: l.units,
-            ubValueSnapshot: l.ubValue,
-            priceParticular: l.priceParticular,
-            priceInsurer: l.priceInsurer,
-            patientCopay: l.patientCopay,
-            authorizationCode: userInput?.authorizationCode ?? null,
-            includeInReport: l.synthetic ? false : (userInput?.includeInReport ?? true),
-            sortOrder: userInput?.sortOrder ?? idx,
-            authorizationStatus: 'no_aplica',
-          };
-        });
+        const allLines = await tx
+          .select()
+          .from(orderPractice)
+          .where(eq(orderPractice.orderId, id))
+          .orderBy(asc(orderPractice.sortOrder), asc(orderPractice.id));
 
-        const insertedLines = await tx.insert(orderPractice).values(lineRows).returning();
-        return { order: updatedOrder, lines: insertedLines };
+        return { order: updatedOrder, lines: allLines };
       });
     }
 
@@ -477,6 +579,8 @@ export class OrdersService {
         ...(dto.origin !== undefined && { origin: dto.origin }),
         ...(dto.isUrgent !== undefined && { isUrgent: dto.isUrgent }),
         ...(dto.notes !== undefined && { notes: dto.notes ?? null }),
+        ...(dto.solicitanteAguaId !== undefined && { solicitanteAguaId: dto.solicitanteAguaId ?? null }),
+        ...(dto.muestraAguaId !== undefined && { muestraAguaId: dto.muestraAguaId ?? null }),
         updatedAt: new Date(),
       })
       .where(and(eq(order.id, id), eq(order.labId, labId)))

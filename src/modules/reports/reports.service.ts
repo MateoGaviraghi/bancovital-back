@@ -622,7 +622,7 @@ export class ReportsService {
       }
     }
 
-    const unidadRefsByKey = new Map<string, { rangeLow: string | null; rangeHigh: string | null; referenceText: string | null }>();
+    const unidadRefsByKey = new Map<string, { rangeLow: string | null; rangeHigh: string | null; referenceText: string | null; metodologia?: string | null }>();
     const practiceUnidadsByPracticeId = new Map<number, Array<{ unidadId: number; simbolo: string | null; rangeLow: string | null; rangeHigh: string | null; referenceText: string | null }>>();
     if (practiceIds.length > 0) {
       const puRows = await this.db
@@ -630,6 +630,7 @@ export class ReportsService {
           practiceId: practiceUnidad.practiceId,
           unidadId: practiceUnidad.unidadId,
           simbolo: unidadMedida.simbolo,
+          metodologia: unidadMedida.metodologia,
           rangeLow: practiceUnidad.rangeLow,
           rangeHigh: practiceUnidad.rangeHigh,
           referenceText: practiceUnidad.referenceText,
@@ -643,6 +644,7 @@ export class ReportsService {
           rangeLow: pu.rangeLow,
           rangeHigh: pu.rangeHigh,
           referenceText: pu.referenceText,
+          metodologia: pu.metodologia,
         });
         const list = practiceUnidadsByPracticeId.get(pu.practiceId) ?? [];
         list.push({ unidadId: pu.unidadId, simbolo: pu.simbolo, rangeLow: pu.rangeLow, rangeHigh: pu.rangeHigh, referenceText: pu.referenceText });
