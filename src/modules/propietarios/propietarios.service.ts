@@ -49,18 +49,20 @@ export class PropietariosService {
   }
 
   async create(dto: CreatePropietarioDto, labId: number, createdBy: string): Promise<Propietario> {
-    const [existing] = await this.db
-      .select({ id: propietario.id })
-      .from(propietario)
-      .where(
-        and(eq(propietario.labId, labId), eq(propietario.dni, dto.dni), isNull(propietario.deletedAt)),
-      )
-      .limit(1);
-    if (existing) throw new ConflictException('Ya existe un propietario activo con ese DNI');
+    if (dto.dni) {
+      const [existing] = await this.db
+        .select({ id: propietario.id })
+        .from(propietario)
+        .where(
+          and(eq(propietario.labId, labId), eq(propietario.dni, dto.dni), isNull(propietario.deletedAt)),
+        )
+        .limit(1);
+      if (existing) throw new ConflictException('Ya existe un propietario activo con ese DNI');
+    }
 
     const values: NewPropietario = {
       labId,
-      dni: dto.dni,
+      dni: dto.dni ?? '',
       firstName: dto.firstName,
       lastName: dto.lastName,
       phone: dto.phone ?? null,
@@ -94,7 +96,7 @@ export class PropietariosService {
     }
 
     const patch: Partial<NewPropietario> = {
-      ...(dto.dni !== undefined && { dni: dto.dni }),
+      ...(dto.dni !== undefined && { dni: dto.dni ?? '' }),
       ...(dto.firstName !== undefined && { firstName: dto.firstName }),
       ...(dto.lastName !== undefined && { lastName: dto.lastName }),
       ...(dto.phone !== undefined && { phone: dto.phone }),

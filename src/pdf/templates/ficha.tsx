@@ -43,6 +43,8 @@ export interface FichaData {
   };
   practices: FichaPracticeRow[];
   printedAt: string;
+  accent?: string | null;
+  accentSoft?: string | null;
 }
 
 const C = {
@@ -197,6 +199,8 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 
 export function FichaTemplate({ data }: { data: FichaData }) {
   const sexLabel = data.patient.sex ? SEX_LABEL[data.patient.sex] : '—';
+  const accent = data.accent || C.primary;
+  const accentSoft = data.accentSoft || C.primarySoft;
 
   return (
     <Document
@@ -219,29 +223,29 @@ export function FichaTemplate({ data }: { data: FichaData }) {
               {data.lab.email ? `  ·  ${data.lab.email}` : ''}
             </Text>
           </View>
-          <View style={styles.protocolBadge}>
-            <Text style={styles.protocolLabel}>FICHA DE TRABAJO</Text>
-            <Text style={styles.protocolNumber}>{data.protocol.number}</Text>
+          <View style={[styles.protocolBadge, { backgroundColor: accentSoft }]}>
+            <Text style={[styles.protocolLabel, { color: accent }]}>FICHA DE TRABAJO</Text>
+            <Text style={[styles.protocolNumber, { color: accent }]}>{data.protocol.number}</Text>
             <Text style={styles.protocolDate}>{data.protocol.orderDate}</Text>
             {data.protocol.isUrgent && <Text style={styles.urgentBadge}>● URGENTE</Text>}
           </View>
         </View>
 
         {/* ── Gold rule ── */}
-        <View style={styles.rule} />
+        <View style={[styles.rule, { backgroundColor: accent }]} />
         <View style={{ marginBottom: 14 }} />
 
         {/* ── Info cards ── */}
         <View style={styles.infoGrid}>
           <View style={styles.infoCard}>
-            <Text style={styles.cardTitle}>PACIENTE</Text>
+            <Text style={[styles.cardTitle, { color: accent }]}>PACIENTE</Text>
             <InfoRow label="Apellido, Nombre" value={data.patient.fullName} />
             <InfoRow label="DNI" value={data.patient.dni} />
             <InfoRow label="Sexo · Edad" value={`${sexLabel} · ${data.patient.age}`} />
             <InfoRow label="Nacimiento" value={data.patient.birthDate} />
           </View>
           <View style={styles.infoCard}>
-            <Text style={styles.cardTitle}>COBERTURA Y MÉDICO</Text>
+            <Text style={[styles.cardTitle, { color: accent }]}>COBERTURA Y MÉDICO</Text>
             <InfoRow
               label="Obra social"
               value={
@@ -265,9 +269,9 @@ export function FichaTemplate({ data }: { data: FichaData }) {
         </View>
 
         {/* ── Practices table ── */}
-        <Text style={styles.practicesTitle}>PRÁCTICAS A REALIZAR</Text>
+        <Text style={[styles.practicesTitle, { color: accent }]}>PRÁCTICAS A REALIZAR</Text>
         <View style={styles.table}>
-          <View style={styles.tableHeader} fixed>
+          <View style={[styles.tableHeader, { backgroundColor: accent }]} fixed>
             <Text style={[styles.th, styles.colPractica]}>PRÁCTICA</Text>
             <Text style={[styles.th, styles.colNbu]}>NBU</Text>
             <Text style={[styles.th, styles.colSeccion]}>SECCIÓN</Text>
@@ -311,7 +315,7 @@ export function FichaTemplate({ data }: { data: FichaData }) {
         </View>
 
         {/* ── Footer ── */}
-        <View style={styles.footer} fixed>
+        <View style={[styles.footer, { borderTopColor: accent }]} fixed>
           <View style={styles.footerSignBox}>
             <View style={styles.footerSignLine} />
             <Text style={styles.footerLabel}>Firma y aclaración · Bioquímico responsable</Text>

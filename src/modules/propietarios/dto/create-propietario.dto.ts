@@ -2,10 +2,11 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsEmail, IsOptional, IsString, Length, MaxLength } from 'class-validator';
 
 export class CreatePropietarioDto {
-  @ApiProperty({ minLength: 1, maxLength: 20 })
+  @ApiProperty({ required: false, nullable: true, maxLength: 20 })
+  @IsOptional()
   @IsString()
-  @Length(1, 20)
-  dni!: string;
+  @MaxLength(20)
+  dni?: string | null;
 
   @ApiProperty({ minLength: 1, maxLength: 100 })
   @IsString()
