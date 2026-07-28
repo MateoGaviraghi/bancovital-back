@@ -305,16 +305,14 @@ export function CotizacionTemplate({ data }: { data: CotizacionPdfData }) {
               style={[styles.tableRow, { backgroundColor: idx % 2 === 0 ? '#fff' : '#f9fafb' }]}
               wrap={false}
             >
-              <View style={{ flex: 1 }}>
-                <Text style={styles.tdPractica}>{item.practicaNombre}</Text>
+              <View style={{ flex: 1, flexDirection: 'column' }}>
+                <Text style={{ fontSize: 8 }}>{item.practicaNombre}</Text>
                 {item.children && item.children.length > 0
                   ? item.children.map((child, ci) => (
-                      <Text
-                        key={ci}
-                        style={{ fontSize: 7, color: '#777', paddingLeft: 8, marginTop: 1.5 }}
-                      >
-                        · {child}
-                      </Text>
+                      <View key={ci} style={{ flexDirection: 'row', marginTop: 2 }}>
+                        <View style={{ width: 10 }} />
+                        <Text style={{ fontSize: 7, color: '#777' }}>· {child}</Text>
+                      </View>
                     ))
                   : null}
               </View>

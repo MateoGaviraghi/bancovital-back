@@ -9,7 +9,9 @@ import {
   laboratorio,
   patient,
   practice,
+  practiceUnidad,
   ubValue,
+  unidadMedida,
   type Cotizacion,
   type CotizacionItem,
   type NewCotizacion,
@@ -520,13 +522,32 @@ export class CotizacionesService {
     const totalCopago = copagoPorc ? totalDecimal.times(copagoPorc).dividedBy(100).toFixed(2) : null;
     const totalOs = copagoPorc ? totalDecimal.minus(totalCopago!).toFixed(2) : null;
 
-    // Load child practices for any item that references a parent practice
+    // Load what's included in each practice: unidades de medida + child practices
     const parentPracticeIds = detalle.items
       .filter((i) => i.practiceId != null)
       .map((i) => i.practiceId!);
 
     const childrenByParentId = new Map<number, string[]>();
     if (parentPracticeIds.length > 0) {
+      // 1. Unidades de medida configuradas para cada práctica (incluye globales y las del lab)
+      const unidadRows = await this.db
+        .select({ practiceId: practiceUnidad.practiceId, nombre: unidadMedida.nombre })
+        .from(practiceUnidad)
+        .innerJoin(unidadMedida, eq(unidadMedida.id, practiceUnidad.unidadId))
+        .where(
+          and(
+            inArray(practiceUnidad.practiceId, parentPracticeIds),
+            or(eq(practiceUnidad.labId, labId), isNull(practiceUnidad.labId)),
+          ),
+        )
+        .orderBy(asc(practiceUnidad.sortOrder), asc(practiceUnidad.id));
+      for (const row of unidadRows) {
+        const list = childrenByParentId.get(row.practiceId) ?? [];
+        if (!list.includes(row.nombre)) list.push(row.nombre);
+        childrenByParentId.set(row.practiceId, list);
+      }
+
+      // 2. Subprácticas con parentId explícito (patrón alternativo)
       const childRows = await this.db
         .select({ parentId: practice.parentId, name: practice.name })
         .from(practice)
@@ -535,7 +556,7 @@ export class CotizacionesService {
       for (const child of childRows) {
         if (child.parentId != null) {
           const list = childrenByParentId.get(child.parentId) ?? [];
-          list.push(child.name);
+          if (!list.includes(child.name)) list.push(child.name);
           childrenByParentId.set(child.parentId, list);
         }
       }
