@@ -26,7 +26,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import Decimal from 'decimal.js';
-import { and, asc, desc, eq, ilike, isNull, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, ilike, inArray, isNull, or, sql } from 'drizzle-orm';
 import type { CreateCotizacionDto } from './dto/create-cotizacion.dto';
 import type { ListCotizacionesDto } from './dto/list-cotizaciones.dto';
 import type { UpdateCotizacionDto } from './dto/update-cotizacion.dto';
@@ -520,6 +520,27 @@ export class CotizacionesService {
     const totalCopago = copagoPorc ? totalDecimal.times(copagoPorc).dividedBy(100).toFixed(2) : null;
     const totalOs = copagoPorc ? totalDecimal.minus(totalCopago!).toFixed(2) : null;
 
+    // Load child practices for any item that references a parent practice
+    const parentPracticeIds = detalle.items
+      .filter((i) => i.practiceId != null)
+      .map((i) => i.practiceId!);
+
+    const childrenByParentId = new Map<number, string[]>();
+    if (parentPracticeIds.length > 0) {
+      const childRows = await this.db
+        .select({ parentId: practice.parentId, name: practice.name })
+        .from(practice)
+        .where(and(inArray(practice.parentId, parentPracticeIds), eq(practice.active, true)))
+        .orderBy(asc(practice.name));
+      for (const child of childRows) {
+        if (child.parentId != null) {
+          const list = childrenByParentId.get(child.parentId) ?? [];
+          list.push(child.name);
+          childrenByParentId.set(child.parentId, list);
+        }
+      }
+    }
+
     return {
       cotizacionId: detalle.id,
       fechaEmision,
@@ -543,6 +564,7 @@ export class CotizacionesService {
         precioUnitario: item.precioUnitario,
         cantidad: item.cantidad,
         subtotal: item.subtotal,
+        children: item.practiceId ? (childrenByParentId.get(item.practiceId) ?? []) : [],
       })),
       totalMonto: detalle.totalMonto,
       observaciones: detalle.observaciones,
