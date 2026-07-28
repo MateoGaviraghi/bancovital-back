@@ -28,6 +28,8 @@ export interface CotizacionPdfItem {
   precioUnitario: string;
   cantidad: number;
   subtotal: string;
+  /** Prácticas hijas incluidas dentro de esta práctica (para mostrar al cliente). */
+  children?: string[];
 }
 
 export interface CotizacionPdfData {
@@ -301,8 +303,21 @@ export function CotizacionTemplate({ data }: { data: CotizacionPdfData }) {
             <View
               key={idx}
               style={[styles.tableRow, { backgroundColor: idx % 2 === 0 ? '#fff' : '#f9fafb' }]}
+              wrap={false}
             >
-              <Text style={styles.tdPractica}>{item.practicaNombre}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.tdPractica}>{item.practicaNombre}</Text>
+                {item.children && item.children.length > 0
+                  ? item.children.map((child, ci) => (
+                      <Text
+                        key={ci}
+                        style={{ fontSize: 7, color: '#777', paddingLeft: 8, marginTop: 1.5 }}
+                      >
+                        · {child}
+                      </Text>
+                    ))
+                  : null}
+              </View>
               {showUb ? <Text style={styles.tdUbs}>{fmtNum(item.ubsSnapshot)}</Text> : null}
               {showUb ? (
                 <Text style={styles.tdUbVal}>
