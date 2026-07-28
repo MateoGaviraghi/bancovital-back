@@ -198,10 +198,12 @@ export function CotizacionTemplate({ data }: { data: CotizacionPdfData }) {
           <View style={styles.infoGrid}>
             <View style={[styles.infoCard, { borderColor: cardBorder, backgroundColor: cardBg, flex: 1 }]}>
               <Text style={[styles.cardTitle, { color: accent }]}>CONDICIONES</Text>
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Cobertura</Text>
-                <Text style={styles.infoValue}>{data.obraSocialNombre ?? 'Particular'}</Text>
-              </View>
+              {data.obraSocialNombre ? (
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>Cobertura</Text>
+                  <Text style={styles.infoValue}>{data.obraSocialNombre}</Text>
+                </View>
+              ) : null}
               {data.copagoPorc ? (
                 <View style={styles.infoRow}>
                   <Text style={styles.infoLabel}>Copago</Text>
@@ -266,10 +268,12 @@ export function CotizacionTemplate({ data }: { data: CotizacionPdfData }) {
 
             <View style={[styles.infoCard, { borderColor: cardBorder, backgroundColor: cardBg, maxWidth: 170 }]}>
               <Text style={[styles.cardTitle, { color: accent }]}>CONDICIONES</Text>
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Obra social</Text>
-                <Text style={styles.infoValue}>{data.obraSocialNombre ?? 'Particular'}</Text>
-              </View>
+              {data.obraSocialNombre ? (
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>Obra social</Text>
+                  <Text style={styles.infoValue}>{data.obraSocialNombre}</Text>
+                </View>
+              ) : null}
               {data.copagoPorc ? (
                 <View style={styles.infoRow}>
                   <Text style={styles.infoLabel}>Copago paciente</Text>

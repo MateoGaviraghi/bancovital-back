@@ -574,7 +574,7 @@ export class CotizacionesService {
       receptorEmail,
       receptorTelefono,
       receptorContacto,
-      obraSocialNombre: detalle.insurerInfo?.name ?? null,
+      obraSocialNombre: detalle.insurerInfo?.code === 'PARTICULAR' ? null : (detalle.insurerInfo?.name ?? null),
       copagoPorc: detalle.copagoPorc ?? null,
       totalCopago,
       totalOs,
