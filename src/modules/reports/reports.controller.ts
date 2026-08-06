@@ -72,7 +72,7 @@ export class ReportsController {
     return this.reports.regenerateAll(requireLabId(user));
   }
 
-  @Get(':orderId/ficha')
+@Get(':orderId/ficha')
   @Roles('admin', 'bioquimico', 'recepcion')
   @Header('Content-Type', 'application/pdf')
   @ApiOperation({ summary: 'Genera y descarga la ficha de trabajo de la orden (sin resultados)' })

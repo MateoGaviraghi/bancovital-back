@@ -116,7 +116,7 @@ export interface RenderInformeInput {
   /** Unidades configuradas por práctica (fallback de unidad/referencia cuando no hay sub-valores cargados). */
   practiceUnidadsByPracticeId?: Map<number, Array<{ unidadId: number; simbolo: string | null; rangeLow: string | null; rangeHigh: string | null; referenceText: string | null }>>;
   /** Metodologia y valor de referencia por practiceId (para mostrar en PDF cuando no hay resultado). */
-  practiceDataById?: Map<number, { methodology: string | null; referenceValue: string | null; defaultUnit: string | null }>;
+  practiceDataById?: Map<number, { methodology: string | null; referenceValue: string | null; defaultUnit: string | null; defaultObservation: string | null }>;
   /** Rangos de referencia por especie (veterinaria): key = practiceId */
   especieRefsByPractice?: Map<number, { rangeLow: string | null; rangeHigh: string | null; unit: string | null }>;
   lab: Laboratorio;
@@ -245,8 +245,9 @@ export async function renderFichaPdf(input: RenderFichaInput): Promise<Buffer> {
           sex: patient.sex,
           age: patient.birthDate ? ageString(patient.birthDate) : '—',
           birthDate: patient.birthDate ? formatDate(patient.birthDate) : '—',
+          phone: patient.phone ?? null,
         }
-      : { fullName: '—', dni: '—', sex: null, age: '—', birthDate: '—' },
+      : { fullName: '—', dni: '—', sex: null, age: '—', birthDate: '—', phone: null },
     insurer: {
       name: insurer.name,
       affiliateNumber: order.insuranceAffiliateNumber,
@@ -255,7 +256,7 @@ export async function renderFichaPdf(input: RenderFichaInput): Promise<Buffer> {
       name: order.referringDoctorName,
       mp: order.referringDoctorMp,
       diagnosis: order.diagnosis,
-      notes: order.notes,
+      notes: sanitizeText(order.notes),
     },
     practices: lines.map((l) => ({
       nbuCode: l.nbuCodeSnapshot,
@@ -271,6 +272,10 @@ export async function renderFichaPdf(input: RenderFichaInput): Promise<Buffer> {
   };
 
   return renderToBuffer(<FichaTemplate data={data} />);
+}
+
+function sanitizeText(s: string | null | undefined): string | null {
+  return s?.replace(/\n/g, ' ') ?? null;
 }
 
 export function buildInformeData(input: RenderInformeInput): InformeData {
@@ -351,7 +356,7 @@ export function buildInformeData(input: RenderInformeInput): InformeData {
     order: {
       origin: order.origin,
       isUrgent: order.isUrgent,
-      notes: order.notes,
+      notes: sanitizeText(order.notes),
     },
     results: lines
       .filter((l) => l.includeInReport && l.practiceId !== null)
@@ -363,13 +368,13 @@ export function buildInformeData(input: RenderInformeInput): InformeData {
           const refKey = l.practiceId ? `${l.practiceId}:${u.unidadId}` : '';
           const ref = refKey ? (input.unidadRefsByKey?.get(refKey) ?? null) : null;
           return {
-            nombre: u.unidadNombreSnapshot,
+            nombre: sanitizeText(u.unidadNombreSnapshot) ?? '',
             simbolo: u.unidadSimboloSnapshot,
-            value: u.valueNumeric ? cleanNumber(u.valueNumeric) : (u.valueText ?? ''),
+            value: u.valueNumeric ? cleanNumber(u.valueNumeric) : sanitizeText(u.valueText) ?? '',
             rangeLow: ref?.rangeLow ?? null,
             rangeHigh: ref?.rangeHigh ?? null,
-            referenceText: ref?.referenceText ?? null,
-            metodologia: ref?.metodologia ?? null,
+            referenceText: sanitizeText(ref?.referenceText ?? null),
+            metodologia: sanitizeText(ref?.metodologia ?? null),
           };
         });
         const practiceData = l.practiceId ? (practiceDataById?.get(l.practiceId) ?? null) : null;
@@ -393,14 +398,14 @@ export function buildInformeData(input: RenderInformeInput): InformeData {
           }
           return null;
         })();
-        let referenceValue = practiceData?.referenceValue ?? null;
+        let referenceValue = sanitizeText(practiceData?.referenceValue ?? null);
         if (!range && !referenceValue && !hasUnidadValues && puList.length > 0) {
           const firstPu = puList[0];
           if (firstPu.rangeLow || firstPu.rangeHigh) {
             const baseRange = formatRange(firstPu.rangeLow, firstPu.rangeHigh, unit);
-            range = firstPu.referenceText ? `${baseRange}. ${firstPu.referenceText}` : baseRange;
+            range = firstPu.referenceText ? `${baseRange}. ${sanitizeText(firstPu.referenceText) ?? ''}` : baseRange;
           } else if (firstPu.referenceText) {
-            referenceValue = firstPu.referenceText;
+            referenceValue = sanitizeText(firstPu.referenceText);
           }
         }
 
@@ -411,9 +416,9 @@ export function buildInformeData(input: RenderInformeInput): InformeData {
           unit,
           range,
           flag: r?.flag ?? null,
-          methodology: r?.methodology || practiceData?.methodology || null,
+          methodology: sanitizeText(r?.methodology || practiceData?.methodology || null),
           referenceValue,
-          notes: r?.notes ?? null,
+          notes: sanitizeText(r?.notes ?? practiceData?.defaultObservation ?? null),
           unidades: unidades.length > 0 ? unidades : undefined,
           totalDefinedUnidades: puList.length > 0 ? puList.length : undefined,
         };
@@ -598,9 +603,10 @@ function cleanNumber(s: string): string {
 
 function formatRange(low: string | null, high: string | null, unit: string | null): string | null {
   if (!low && !high) return null;
-  const a = low ? cleanNumber(low) : '−∞';
-  const b = high ? cleanNumber(high) : '+∞';
-  return `${a} – ${b}${unit ? ` ${unit}` : ''}`;
+  const unitStr = unit ? ` ${unit}` : '';
+  if (low && high) return `${cleanNumber(low)} - ${cleanNumber(high)}${unitStr}`;
+  if (high) return `< ${cleanNumber(high)}${unitStr}`;
+  return `> ${cleanNumber(low!)}${unitStr}`;
 }
 
 // ── Contrato ───────────────────────────────────────────────────────────────────

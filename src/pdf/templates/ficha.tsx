@@ -30,6 +30,7 @@ export interface FichaData {
     sex: 'F' | 'M' | 'X' | null;
     age: string;
     birthDate: string;
+    phone: string | null;
   };
   insurer: {
     name: string;
@@ -48,287 +49,289 @@ export interface FichaData {
 }
 
 const C = {
-  primary: '#0db5b0',
-  primarySoft: '#e4f7f6',
-  ink: '#1a2b3c',
-  muted: '#4a6279',
-  subtle: '#8ba3b5',
-  border: '#dde4ea',
-  bandBg: '#f4f7f9',
-  success: '#15803d',
-  successSoft: '#dcfce7',
-  warning: '#b45309',
-  warningSoft: '#fef3c7',
-  danger: '#b91c1c',
-  dangerSoft: '#fee2e2',
+  primary: '#1a2b5b',
+  ink: '#111111',
+  muted: '#444444',
+  subtle: '#888888',
+  border: '#bbbbbb',
+  bg: '#f8f8f8',
 };
 
 const styles = StyleSheet.create({
   page: {
-    paddingTop: 32,
-    paddingBottom: 60,
-    paddingHorizontal: 36,
+    paddingTop: 18,
+    paddingBottom: 36,
+    paddingHorizontal: 28,
     fontFamily: 'Roboto',
-    fontSize: 10,
+    fontSize: 9,
     color: C.ink,
-    lineHeight: 1.4,
+    lineHeight: 1.3,
   },
-  header: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 },
-  logo: { width: 52, height: 52, marginRight: 12, objectFit: 'contain' },
-  labInfo: { flexGrow: 1 },
-  legalName: { fontSize: 15, fontWeight: 'bold', color: C.ink, lineHeight: 1.2, marginBottom: 4 },
-  labLine: { fontSize: 8.5, color: C.muted, lineHeight: 1.35, marginBottom: 2 },
-  rule: { height: 2, backgroundColor: C.primary, borderRadius: 1, marginBottom: 6 },
-  protocolBadge: {
-    flexDirection: 'column',
+
+  // ── Header ──
+  header: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 6 },
+  logo: { width: 44, height: 44, marginRight: 10, objectFit: 'contain' },
+  labBlock: { flex: 1 },
+  labName: { fontSize: 11, fontWeight: 'bold', color: C.ink, marginBottom: 2 },
+  labSub: { fontSize: 7.5, color: C.muted },
+  orderBadge: {
     alignItems: 'flex-end',
-    backgroundColor: C.primarySoft,
-    borderRadius: 3,
-    paddingVertical: 3,
-    paddingHorizontal: 7,
-    marginLeft: 12,
   },
-  protocolLabel: { fontSize: 6, color: C.primary, fontWeight: 'bold', letterSpacing: 1.2 },
-  protocolNumber: { fontSize: 9, fontWeight: 'bold', color: C.primary },
-  protocolDate: { fontSize: 7, color: C.muted },
-  urgentBadge: {
-    fontSize: 7,
-    fontWeight: 'bold',
-    color: C.danger,
-    marginTop: 2,
-    letterSpacing: 0.8,
+  orderNum: { fontSize: 11, fontWeight: 'bold', color: C.primary },
+  orderDate: { fontSize: 8, color: C.muted },
+  urgentText: { fontSize: 8, fontWeight: 'bold', color: '#cc0000', marginTop: 2 },
+
+  // ── Rule ──
+  rule: { height: 1.5, backgroundColor: C.primary, marginBottom: 8 },
+
+  // ── Patient block ──
+  patientName: { fontSize: 14, fontWeight: 'bold', color: C.ink, marginBottom: 3 },
+  infoRow: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 2 },
+  infoChunk: { marginRight: 16 },
+  infoLabel: { fontSize: 7.5, color: C.muted },
+  infoValue: { fontSize: 8.5, color: C.ink, fontWeight: 'bold' },
+
+  // ── Two columns ──
+  twoCol: { flexDirection: 'row', gap: 12, marginBottom: 8 },
+  colLeft: { flex: 1 },
+  colRight: { flex: 1 },
+
+  // ── Comprobante banner ──
+  banner: {
+    borderWidth: 1.5,
+    borderColor: C.ink,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    marginBottom: 8,
+    alignItems: 'center',
   },
-  infoGrid: { flexDirection: 'row', gap: 12, marginBottom: 16 },
-  infoCard: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: C.border,
-    borderRadius: 6,
-    backgroundColor: C.bandBg,
-    padding: 12,
-  },
-  cardTitle: {
-    fontSize: 7.5,
-    color: C.primary,
-    letterSpacing: 1.5,
-    fontWeight: 'bold',
-    marginBottom: 7,
-  },
-  row: { flexDirection: 'row', marginVertical: 1.5 },
-  rowLabel: { width: 96, color: C.muted, fontSize: 9 },
-  rowValue: { flex: 1, fontSize: 9, color: C.ink },
-  practicesTitle: {
-    fontSize: 7.5,
-    color: C.primary,
-    letterSpacing: 1.5,
-    fontWeight: 'bold',
+  bannerText: { fontSize: 8, fontWeight: 'bold', color: C.ink, textAlign: 'center', letterSpacing: 0.3 },
+
+  // ── Extraction row ──
+  extractionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     marginBottom: 6,
+    paddingBottom: 3,
+    borderBottomWidth: 0.5,
+    borderBottomColor: C.border,
   },
-  table: { borderWidth: 1, borderColor: C.border, borderRadius: 6, overflow: 'hidden' },
+  extractionChunk: { flexDirection: 'row', gap: 4 },
+  extractionLabel: { fontSize: 7.5, color: C.muted },
+  extractionValue: { fontSize: 8, color: C.ink, fontWeight: 'bold' },
+  extractionBlank: {
+    width: 80,
+    borderBottomWidth: 0.5,
+    borderBottomColor: C.ink,
+    marginLeft: 4,
+  },
+
+  // ── Table ──
   tableHeader: {
     flexDirection: 'row',
     backgroundColor: C.primary,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
+    paddingVertical: 4,
+    paddingHorizontal: 6,
   },
-  th: { color: '#ffffff', fontSize: 8, fontWeight: 'bold', letterSpacing: 0.5 },
+  thNbu: { width: 42, color: '#fff', fontSize: 7.5, fontWeight: 'bold' },
+  thName: { flex: 1, color: '#fff', fontSize: 7.5, fontWeight: 'bold' },
+  thSection: { width: 70, color: '#fff', fontSize: 7.5, fontWeight: 'bold' },
+  thVal: { width: 50, color: '#fff', fontSize: 7.5, fontWeight: 'bold', textAlign: 'center' },
   tableRow: {
     flexDirection: 'row',
-    paddingVertical: 7,
-    paddingHorizontal: 10,
-    borderTopWidth: 0.5,
-    borderTopColor: C.border,
+    paddingVertical: 5,
+    paddingHorizontal: 6,
+    borderBottomWidth: 0.5,
+    borderBottomColor: C.border,
+    alignItems: 'center',
+    minHeight: 20,
+  },
+  zebraRow: { backgroundColor: C.bg },
+  cellNbu: { width: 42 },
+  cellName: { flex: 1, paddingRight: 4 },
+  cellSection: { width: 70, paddingRight: 4 },
+  cellVal: {
+    width: 50,
+    borderLeftWidth: 0.5,
+    borderLeftColor: C.border,
+    height: '100%',
     alignItems: 'center',
   },
-  zebraRow: { backgroundColor: C.bandBg },
-  colPractica: { width: '38%', paddingRight: 8 },
-  colNbu: { width: '13%', paddingRight: 4 },
-  colSeccion: { width: '20%', paddingRight: 4 },
-  colElab: { width: '15%', paddingRight: 4 },
-  colAuth: { width: '14%' },
-  practicaName: { fontSize: 9.5, fontWeight: 'bold', color: C.ink },
-  nbuText: { fontSize: 7.5, color: C.subtle, marginTop: 1 },
-  sectionText: { fontSize: 8.5, color: C.muted },
-  badge: {
-    borderRadius: 4,
-    paddingVertical: 2,
-    paddingHorizontal: 5,
-    fontSize: 7.5,
-    fontWeight: 'bold',
-    letterSpacing: 0.3,
-  },
-  badgePropia: { backgroundColor: C.successSoft, color: C.success },
-  badgeDerivar: { backgroundColor: C.warningSoft, color: C.warning },
-  badgeAuth: { backgroundColor: C.successSoft, color: C.success },
-  badgePendiente: { backgroundColor: C.warningSoft, color: C.warning },
-  badgeRechazada: { backgroundColor: C.dangerSoft, color: C.danger },
+  nbuText: { fontSize: 8, color: C.muted },
+  practicaName: { fontSize: 9, color: C.ink },
+  sectionText: { fontSize: 7.5, color: C.muted },
+  elab: { fontSize: 7, color: C.muted, marginTop: 1 },
+
+  // ── Footer ──
   footer: {
     position: 'absolute',
-    bottom: 16,
-    left: 36,
-    right: 36,
+    bottom: 14,
+    left: 28,
+    right: 28,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-end',
-    borderTopWidth: 2,
-    borderTopColor: C.primary,
-    paddingTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: C.border,
+    paddingTop: 4,
   },
-  footerSignBox: { alignItems: 'flex-start' },
-  footerSignLine: {
-    width: 140,
+  footerLine: {
+    width: 130,
     borderBottomWidth: 0.5,
-    borderBottomColor: C.border,
-    marginTop: 32,
-    marginBottom: 3,
+    borderBottomColor: C.ink,
+    marginBottom: 2,
+    marginTop: 20,
   },
-  footerLabel: { fontSize: 8, color: C.subtle },
-  footerMeta: { textAlign: 'right', fontSize: 7.5, color: C.subtle },
+  footerLabel: { fontSize: 7, color: C.muted },
+  footerMeta: { fontSize: 7, color: C.muted, textAlign: 'right' },
 });
 
-const SEX_LABEL: Record<'F' | 'M' | 'X', string> = { F: 'Femenino', M: 'Masculino', X: 'Otro' };
+const SEX_LABEL: Record<'F' | 'M' | 'X', string> = { F: 'Femenina', M: 'Masculino', X: 'Otro' };
+const SEX_PREFIX: Record<'F' | 'M' | 'X', string> = { F: 'Sra.', M: 'Sr.', X: '' };
 
-function InfoRow({ label, value }: { label: string; value: string }) {
+function InfoChunk({ label, value }: { label: string; value: string }) {
   return (
-    <View style={styles.row}>
-      <Text style={styles.rowLabel}>{label}</Text>
-      <Text style={styles.rowValue}>{value || '—'}</Text>
+    <View style={styles.infoChunk}>
+      <Text style={styles.infoLabel}>{label}</Text>
+      <Text style={styles.infoValue}>{value || '—'}</Text>
     </View>
   );
 }
 
 export function FichaTemplate({ data }: { data: FichaData }) {
-  const sexLabel = data.patient.sex ? SEX_LABEL[data.patient.sex] : '—';
   const accent = data.accent || C.primary;
-  const accentSoft = data.accentSoft || C.primarySoft;
+  const prefix = data.patient.sex ? SEX_PREFIX[data.patient.sex] : '';
+  const sexLabel = data.patient.sex ? SEX_LABEL[data.patient.sex] : '—';
 
   return (
-    <Document
-      title={`Ficha ${data.protocol.number}`}
-      author={data.lab.legalName}
-      subject="Ficha de trabajo"
-    >
+    <Document title={`Ficha ${data.protocol.number}`} author={data.lab.legalName} subject="Ficha de trabajo">
       <Page size="A4" style={styles.page}>
+
         {/* ── Header ── */}
         <View style={styles.header}>
           {data.lab.logoSrc ? <Image src={data.lab.logoSrc} style={styles.logo} /> : null}
-          <View style={styles.labInfo}>
-            <Text style={styles.legalName}>{data.lab.legalName}</Text>
-            <Text style={styles.labLine}>
-              {data.lab.address} — {data.lab.cityProvince}
-            </Text>
-            <Text style={styles.labLine}>
-              CUIT {data.lab.cuit}
-              {data.lab.phone ? `  ·  Tel. ${data.lab.phone}` : ''}
-              {data.lab.email ? `  ·  ${data.lab.email}` : ''}
-            </Text>
+          <View style={styles.labBlock}>
+            <Text style={styles.labName}>{data.lab.legalName}</Text>
+            <Text style={styles.labSub}>{data.lab.address} — {data.lab.cityProvince}</Text>
+            {(data.lab.phone || data.lab.cuit) ? (
+              <Text style={styles.labSub}>
+                {data.lab.cuit ? `CUIT ${data.lab.cuit}` : ''}
+                {data.lab.cuit && data.lab.phone ? '  ·  ' : ''}
+                {data.lab.phone ? `Tel. ${data.lab.phone}` : ''}
+              </Text>
+            ) : null}
           </View>
-          <View style={[styles.protocolBadge, { backgroundColor: accentSoft }]}>
-            <Text style={[styles.protocolLabel, { color: accent }]}>FICHA DE TRABAJO</Text>
-            <Text style={[styles.protocolNumber, { color: accent }]}>{data.protocol.number}</Text>
-            <Text style={styles.protocolDate}>{data.protocol.orderDate}</Text>
-            {data.protocol.isUrgent && <Text style={styles.urgentBadge}>● URGENTE</Text>}
+          <View style={styles.orderBadge}>
+            <Text style={[styles.orderNum, { color: accent }]}>N° {data.protocol.number}</Text>
+            <Text style={styles.orderDate}>{data.protocol.orderDate}</Text>
+            {data.protocol.isUrgent ? <Text style={styles.urgentText}>● URGENTE</Text> : null}
           </View>
         </View>
 
-        {/* ── Gold rule ── */}
+        {/* ── Rule ── */}
         <View style={[styles.rule, { backgroundColor: accent }]} />
-        <View style={{ marginBottom: 14 }} />
 
-        {/* ── Info cards ── */}
-        <View style={styles.infoGrid}>
-          <View style={styles.infoCard}>
-            <Text style={[styles.cardTitle, { color: accent }]}>PACIENTE</Text>
-            <InfoRow label="Apellido, Nombre" value={data.patient.fullName} />
-            <InfoRow label="DNI" value={data.patient.dni} />
-            <InfoRow label="Sexo · Edad" value={`${sexLabel} · ${data.patient.age}`} />
-            <InfoRow label="Nacimiento" value={data.patient.birthDate} />
+        {/* ── Patient + Doctor ── */}
+        <View style={styles.twoCol}>
+          <View style={styles.colLeft}>
+            <Text style={styles.patientName}>{prefix ? `${prefix} ` : ''}{data.patient.fullName}</Text>
+            <View style={styles.infoRow}>
+              <InfoChunk label="Nacim." value={data.patient.birthDate} />
+              <InfoChunk label="Edad" value={data.patient.age} />
+              <InfoChunk label="Sexo" value={sexLabel} />
+            </View>
+            <View style={styles.infoRow}>
+              <InfoChunk label="DNI" value={data.patient.dni} />
+              {data.patient.phone ? <InfoChunk label="Tel." value={data.patient.phone} /> : null}
+            </View>
           </View>
-          <View style={styles.infoCard}>
-            <Text style={[styles.cardTitle, { color: accent }]}>COBERTURA Y MÉDICO</Text>
-            <InfoRow
-              label="Obra social"
-              value={
-                data.insurer.name +
-                (data.insurer.affiliateNumber ? ` · ${data.insurer.affiliateNumber}` : '')
-              }
-            />
-            <InfoRow
-              label="Médico"
-              value={
-                [data.doctor.name, data.doctor.mp ? `M.P. ${data.doctor.mp}` : null]
-                  .filter(Boolean)
-                  .join(' · ') || '—'
-              }
-            />
-            {data.doctor.diagnosis ? (
-              <InfoRow label="Diagnóstico" value={data.doctor.diagnosis} />
+          <View style={styles.colRight}>
+            <View style={styles.infoRow}>
+              <InfoChunk
+                label="Cobertura"
+                value={data.insurer.name + (data.insurer.affiliateNumber ? ` · N° ${data.insurer.affiliateNumber}` : '')}
+              />
+            </View>
+            {data.doctor.name ? (
+              <View style={styles.infoRow}>
+                <InfoChunk
+                  label="Médico"
+                  value={[data.doctor.name, data.doctor.mp ? `M.P. ${data.doctor.mp}` : null].filter(Boolean).join(' · ')}
+                />
+              </View>
             ) : null}
-            {data.doctor.notes ? <InfoRow label="Notas" value={data.doctor.notes} /> : null}
+          </View>
+        </View>
+
+        {/* ── Comprobante banner ── */}
+        <View style={styles.banner}>
+          <Text style={styles.bannerText}>
+            PARA AGILIZAR LA ENTREGA DE SUS ANÁLISIS CONSERVE ESTE COMPROBANTE
+          </Text>
+        </View>
+
+        {/* ── Extraction row ── */}
+        <View style={styles.extractionRow}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Text style={styles.extractionLabel}>Extracción: </Text>
+            <View style={styles.extractionBlank} />
+          </View>
+          {data.doctor.notes ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={styles.extractionLabel}>Notas: </Text>
+              <Text style={styles.extractionValue}>{data.doctor.notes}</Text>
+            </View>
+          ) : null}
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Text style={styles.extractionLabel}>Retirar el: </Text>
+            <View style={styles.extractionBlank} />
           </View>
         </View>
 
         {/* ── Practices table ── */}
-        <Text style={[styles.practicesTitle, { color: accent }]}>PRÁCTICAS A REALIZAR</Text>
-        <View style={styles.table}>
-          <View style={[styles.tableHeader, { backgroundColor: accent }]} fixed>
-            <Text style={[styles.th, styles.colPractica]}>PRÁCTICA</Text>
-            <Text style={[styles.th, styles.colNbu]}>NBU</Text>
-            <Text style={[styles.th, styles.colSeccion]}>SECCIÓN</Text>
-            <Text style={[styles.th, styles.colElab]}>ELABORACIÓN</Text>
-            <Text style={[styles.th, styles.colAuth]}>AUTORIZACIÓN</Text>
-          </View>
-          {data.practices.map((p, idx) => (
-            <View
-              key={p.nbuCode}
-              style={idx % 2 === 1 ? [styles.tableRow, styles.zebraRow] : styles.tableRow}
-              wrap={false}
-            >
-              <View style={styles.colPractica}>
-                <Text style={styles.practicaName}>{p.name}</Text>
-                <Text style={styles.nbuText}>NBU {p.nbuCode}</Text>
-              </View>
-              <View style={styles.colNbu}>
-                <Text style={styles.nbuText}>{p.nbuCode}</Text>
-              </View>
-              <View style={styles.colSeccion}>
-                <Text style={styles.sectionText}>{p.section ?? '—'}</Text>
-              </View>
-              <View style={styles.colElab}>
-                <Text
-                  style={[styles.badge, p.isElaborated ? styles.badgePropia : styles.badgeDerivar]}
-                >
-                  {p.isElaborated ? 'PROPIA' : 'DERIVAR'}
-                </Text>
-              </View>
-              <View style={styles.colAuth}>
-                {p.authorizationStatus === 'autorizada' ? (
-                  <Text style={[styles.badge, styles.badgeAuth]}>AUTORIZADA</Text>
-                ) : p.authorizationStatus === 'pendiente' ? (
-                  <Text style={[styles.badge, styles.badgePendiente]}>PENDIENTE</Text>
-                ) : p.authorizationStatus === 'rechazada' ? (
-                  <Text style={[styles.badge, styles.badgeRechazada]}>RECHAZADA</Text>
-                ) : null}
-              </View>
-            </View>
-          ))}
+        <View style={[styles.tableHeader, { backgroundColor: accent }]} fixed>
+          <Text style={styles.thNbu}>NBU</Text>
+          <Text style={styles.thName}>PRÁCTICA</Text>
+          <Text style={styles.thSection}>SECCIÓN</Text>
+          <Text style={[styles.thVal, { borderLeftWidth: 0.5, borderLeftColor: 'rgba(255,255,255,0.3)', paddingLeft: 4 }]}>VALOR</Text>
         </View>
 
+        {data.practices.map((p, idx) => (
+          <View
+            key={`${p.nbuCode}-${idx}`}
+            style={idx % 2 === 1 ? [styles.tableRow, styles.zebraRow] : styles.tableRow}
+            wrap={false}
+          >
+            <View style={styles.cellNbu}>
+              <Text style={styles.nbuText}>{p.nbuCode}</Text>
+            </View>
+            <View style={styles.cellName}>
+              <Text style={styles.practicaName}>{p.name}</Text>
+              {!p.isElaborated ? <Text style={styles.elab}>Derivar</Text> : null}
+              {p.authorizationStatus === 'pendiente' ? <Text style={[styles.elab, { color: '#b45309' }]}>Autorización pendiente</Text> : null}
+              {p.authorizationStatus === 'rechazada' ? <Text style={[styles.elab, { color: '#b91c1c' }]}>Autorización rechazada</Text> : null}
+              {p.authorizationCode ? <Text style={styles.elab}>Cód. {p.authorizationCode}</Text> : null}
+            </View>
+            <View style={styles.cellSection}>
+              <Text style={styles.sectionText}>{p.section ?? '—'}</Text>
+            </View>
+            <View style={styles.cellVal} />
+          </View>
+        ))}
+
         {/* ── Footer ── */}
-        <View style={[styles.footer, { borderTopColor: accent }]} fixed>
-          <View style={styles.footerSignBox}>
-            <View style={styles.footerSignLine} />
+        <View style={styles.footer} fixed>
+          <View>
+            <View style={styles.footerLine} />
             <Text style={styles.footerLabel}>Firma y aclaración · Bioquímico responsable</Text>
           </View>
-          <View style={styles.footerSignBox}>
-            <View style={styles.footerSignLine} />
+          <View>
+            <View style={styles.footerLine} />
             <Text style={styles.footerLabel}>Fecha y hora de extracción</Text>
           </View>
-          <View>
-            <Text style={styles.footerMeta}>Ficha de trabajo</Text>
-            <Text style={styles.footerMeta}>Impreso: {data.printedAt}</Text>
-          </View>
+          <Text style={styles.footerMeta}>Impreso: {data.printedAt}</Text>
         </View>
+
       </Page>
     </Document>
   );

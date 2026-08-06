@@ -23,6 +23,7 @@ export const labPracticeConfig = pgTable(
     methodology: text('methodology'),
     referenceValue: text('reference_value'),
     notes: text('notes'),
+    defaultObservation: text('default_observation'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },

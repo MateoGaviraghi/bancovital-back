@@ -19,4 +19,10 @@ export class UpdateLabPracticeConfigDto {
   @IsString()
   @MaxLength(2000)
   notes?: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  defaultObservation?: string | null;
 }
