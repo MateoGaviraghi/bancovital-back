@@ -158,12 +158,13 @@ export class OrdersService {
         name: p.name,
         units: p.units ?? '0.00',
         isSpecialAct: p.isSpecialAct,
+        precioParticular: p.precioParticular ?? null,
       };
     });
 
     const pricing = calculateOrderPricing({
       insurerCode: ins.code,
-      ubInsurer: ubInsurer.value,
+      ubInsurer: ins.code === PARTICULAR_CODE ? '0' : ubInsurer.value,
       ubParticular: ubParticular.value,
       isUrgent: dto.isUrgent,
       practices: priceableInputs,
@@ -236,9 +237,9 @@ export class OrdersService {
     dto: UpdateOrderDto,
   ): Promise<{ order: Order; lines: OrderPractice[] }> {
     const current = await this.requireOrder(labId, id);
-    if (current.status !== 'borrador') {
+    if (current.status !== 'borrador' && current.status !== 'resultados_cargados') {
       throw new ConflictException(
-        `Solo se pueden editar ordenes en estado "borrador" (estado actual: ${current.status})`,
+        `Solo se pueden editar ordenes en estado "borrador" o "resultados_cargados" (estado actual: ${current.status})`,
       );
     }
 
@@ -291,7 +292,7 @@ export class OrdersService {
 
       const pricing = calculateOrderPricing({
         insurerCode: ins.code,
-        ubInsurer: ubInsurer.value,
+        ubInsurer: ins.code === PARTICULAR_CODE ? '0' : ubInsurer.value,
         ubParticular: ubParticular.value,
         isUrgent: effectiveIsUrgent,
         practices: priceableInputs,
@@ -317,34 +318,43 @@ export class OrdersService {
         );
 
         const toInsert: NewOrderPractice[] = [];
-        const toUpdateEntries: Array<{ rowId: number; values: Omit<NewOrderPractice, 'id' | 'createdAt'> }> = [];
+        const toUpdateEntries: Array<{ rowId: number; mutable: Pick<NewOrderPractice, 'patientCopay' | 'authorizationCode' | 'authorizationStatus' | 'includeInReport' | 'sortOrder'> }> = [];
         const keptPracticeIds = new Set<number>();
 
         for (const [idx, l] of pricing.lines.entries()) {
           const userInput =
             l.practiceId !== null ? userInputByPracticeId.get(l.practiceId) : undefined;
-          const rowValues = {
-            orderId: id,
-            practiceId: l.practiceId,
-            nbuCodeSnapshot: l.nbuCode,
-            nameSnapshot: l.name,
-            unitsSnapshot: l.units,
-            ubValueSnapshot: l.ubValue,
-            priceParticular: l.priceParticular,
-            priceInsurer: l.priceInsurer,
-            patientCopay: l.patientCopay,
-            authorizationCode: userInput?.authorizationCode ?? null,
-            includeInReport: l.synthetic ? false : (userInput?.includeInReport ?? true),
-            sortOrder: userInput?.sortOrder ?? idx,
-            authorizationStatus: 'no_aplica' as const,
-          };
 
           const existing = l.practiceId !== null ? existingByPracticeId.get(l.practiceId) : undefined;
           if (existing) {
-            toUpdateEntries.push({ rowId: existing.id, values: rowValues });
+            // price_particular and price_insurer are also immutable by DB trigger.
+            toUpdateEntries.push({
+              rowId: existing.id,
+              mutable: {
+                patientCopay: l.patientCopay,
+                authorizationCode: userInput?.authorizationCode ?? null,
+                includeInReport: l.synthetic ? false : (userInput?.includeInReport ?? true),
+                sortOrder: userInput?.sortOrder ?? idx,
+                authorizationStatus: 'no_aplica' as const,
+              },
+            });
             keptPracticeIds.add(l.practiceId!);
           } else {
-            toInsert.push(rowValues as NewOrderPractice);
+            toInsert.push({
+              orderId: id,
+              practiceId: l.practiceId,
+              nbuCodeSnapshot: l.nbuCode,
+              nameSnapshot: l.name,
+              unitsSnapshot: l.units,
+              ubValueSnapshot: l.ubValue,
+              priceParticular: l.priceParticular,
+              priceInsurer: l.priceInsurer,
+              patientCopay: l.patientCopay,
+              authorizationCode: userInput?.authorizationCode ?? null,
+              includeInReport: l.synthetic ? false : (userInput?.includeInReport ?? true),
+              sortOrder: userInput?.sortOrder ?? idx,
+              authorizationStatus: 'no_aplica' as const,
+            } as NewOrderPractice);
           }
         }
 
@@ -357,8 +367,8 @@ export class OrdersService {
           await tx.delete(orderPractice).where(inArray(orderPractice.id, toDeleteIds));
         }
 
-        for (const { rowId, values } of toUpdateEntries) {
-          await tx.update(orderPractice).set(values).where(eq(orderPractice.id, rowId));
+        for (const { rowId, mutable } of toUpdateEntries) {
+          await tx.update(orderPractice).set(mutable).where(eq(orderPractice.id, rowId));
         }
 
         if (toInsert.length > 0) {
@@ -449,7 +459,7 @@ export class OrdersService {
 
       const pricing = calculateOrderPricing({
         insurerCode: ins.code,
-        ubInsurer: ubInsurer.value,
+        ubInsurer: ins.code === PARTICULAR_CODE ? '0' : ubInsurer.value,
         ubParticular: ubParticular.value,
         isUrgent: effectiveIsUrgent,
         practices: priceableInputs,
@@ -475,34 +485,43 @@ export class OrdersService {
         );
 
         const toInsert: NewOrderPractice[] = [];
-        const toUpdateEntries: Array<{ rowId: number; values: Omit<NewOrderPractice, 'id' | 'createdAt'> }> = [];
+        const toUpdateEntries: Array<{ rowId: number; mutable: Pick<NewOrderPractice, 'patientCopay' | 'authorizationCode' | 'authorizationStatus' | 'includeInReport' | 'sortOrder'> }> = [];
         const keptPracticeIds = new Set<number>();
 
         for (const [idx, l] of pricing.lines.entries()) {
           const userInput =
             l.practiceId !== null ? userInputByPracticeId.get(l.practiceId) : undefined;
-          const rowValues = {
-            orderId: id,
-            practiceId: l.practiceId,
-            nbuCodeSnapshot: l.nbuCode,
-            nameSnapshot: l.name,
-            unitsSnapshot: l.units,
-            ubValueSnapshot: l.ubValue,
-            priceParticular: l.priceParticular,
-            priceInsurer: l.priceInsurer,
-            patientCopay: l.patientCopay,
-            authorizationCode: userInput?.authorizationCode ?? null,
-            includeInReport: l.synthetic ? false : (userInput?.includeInReport ?? true),
-            sortOrder: userInput?.sortOrder ?? idx,
-            authorizationStatus: 'no_aplica' as const,
-          };
 
           const existing = l.practiceId !== null ? existingByPracticeId.get(l.practiceId) : undefined;
           if (existing) {
-            toUpdateEntries.push({ rowId: existing.id, values: rowValues });
+            // price_particular and price_insurer are also immutable by DB trigger.
+            toUpdateEntries.push({
+              rowId: existing.id,
+              mutable: {
+                patientCopay: l.patientCopay,
+                authorizationCode: userInput?.authorizationCode ?? null,
+                includeInReport: l.synthetic ? false : (userInput?.includeInReport ?? true),
+                sortOrder: userInput?.sortOrder ?? idx,
+                authorizationStatus: 'no_aplica' as const,
+              },
+            });
             keptPracticeIds.add(l.practiceId!);
           } else {
-            toInsert.push(rowValues as NewOrderPractice);
+            toInsert.push({
+              orderId: id,
+              practiceId: l.practiceId,
+              nbuCodeSnapshot: l.nbuCode,
+              nameSnapshot: l.name,
+              unitsSnapshot: l.units,
+              ubValueSnapshot: l.ubValue,
+              priceParticular: l.priceParticular,
+              priceInsurer: l.priceInsurer,
+              patientCopay: l.patientCopay,
+              authorizationCode: userInput?.authorizationCode ?? null,
+              includeInReport: l.synthetic ? false : (userInput?.includeInReport ?? true),
+              sortOrder: userInput?.sortOrder ?? idx,
+              authorizationStatus: 'no_aplica' as const,
+            } as NewOrderPractice);
           }
         }
 
@@ -515,8 +534,8 @@ export class OrdersService {
           await tx.delete(orderPractice).where(inArray(orderPractice.id, toDeleteIds));
         }
 
-        for (const { rowId, values } of toUpdateEntries) {
-          await tx.update(orderPractice).set(values).where(eq(orderPractice.id, rowId));
+        for (const { rowId, mutable } of toUpdateEntries) {
+          await tx.update(orderPractice).set(mutable).where(eq(orderPractice.id, rowId));
         }
 
         if (toInsert.length > 0) {

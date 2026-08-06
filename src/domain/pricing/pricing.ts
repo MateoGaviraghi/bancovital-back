@@ -26,6 +26,8 @@ export interface PriceablePractice {
   units: string;
   /** TRUE para sobrecarga/inhibicion/estimulo. Dispara inyeccion de 662001. */
   isSpecialAct: boolean;
+  /** Precio particular fijo (override de units × ubParticular). */
+  precioParticular?: string | null;
 }
 
 export interface PricingInput {
@@ -161,8 +163,13 @@ function priceLine(
   copayRate: string | undefined,
   synthetic: boolean,
 ): PricedLine {
-  const priceParticular = multiplyMoney(p.units, ubParticular);
-  const priceInsurer = multiplyMoney(p.units, ubInsurer);
+  const hasFixedPrice = p.precioParticular != null && p.precioParticular !== '';
+  const priceParticular = hasFixedPrice
+    ? toMoneyString(new Decimal(p.precioParticular!))
+    : multiplyMoney(p.units, ubParticular);
+  const priceInsurer = hasFixedPrice
+    ? ZERO
+    : multiplyMoney(p.units, ubInsurer);
   const patientCopay = computeCopay(priceInsurer, copayRate);
 
   return {
