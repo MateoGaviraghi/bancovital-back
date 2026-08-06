@@ -30,6 +30,7 @@ export class LabPracticeConfigService {
       if (dto.methodology !== undefined) set.methodology = dto.methodology?.trim() || null;
       if (dto.referenceValue !== undefined) set.referenceValue = dto.referenceValue?.trim() || null;
       if (dto.notes !== undefined) set.notes = dto.notes?.trim() || null;
+      if (dto.defaultObservation !== undefined) set.defaultObservation = dto.defaultObservation?.trim() || null;
 
       const [row] = await this.db
         .update(labPracticeConfig)
@@ -47,6 +48,7 @@ export class LabPracticeConfigService {
         methodology: dto.methodology?.trim() || null,
         referenceValue: dto.referenceValue?.trim() || null,
         notes: dto.notes?.trim() || null,
+        defaultObservation: dto.defaultObservation?.trim() || null,
       })
       .returning();
     return row;

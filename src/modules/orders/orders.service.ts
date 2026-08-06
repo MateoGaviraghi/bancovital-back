@@ -779,7 +779,6 @@ export class OrdersService {
   async finalize(labId: number, id: number): Promise<Order> {
     const current = await this.requireOrder(labId, id);
     this.assertTransition(current.status, 'resultados_cargados');
-    await this.assertHasReportableResults(id);
     return this.applyStatus(id, labId, current.status, 'resultados_cargados');
   }
 

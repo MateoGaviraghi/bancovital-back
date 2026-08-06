@@ -379,9 +379,6 @@ export class ReportsService {
         `No se puede emitir orden en estado "${ord.status}". Solo "resultados_cargados".`,
       );
     }
-    // No emitir informes clínicamente vacíos: exigir resultados en las líneas
-    // reportables de la orden (mismo guard que finalize()).
-    await this.orders.assertHasReportableResults(orderId);
     return ord;
   }
 
@@ -558,7 +555,7 @@ export class ReportsService {
     const practiceIds = lines.map((l) => l.practiceId).filter((id): id is number => id !== null);
     const practiceDataById = new Map<
       number,
-      { methodology: string | null; referenceValue: string | null; defaultUnit: string | null }
+      { methodology: string | null; referenceValue: string | null; defaultUnit: string | null; defaultObservation: string | null }
     >();
     if (practiceIds.length > 0) {
       const practiceRows = await this.db
@@ -569,6 +566,7 @@ export class ReportsService {
           defaultUnit: practice.defaultUnit,
           labMethodology: labPracticeConfig.methodology,
           labReferenceValue: labPracticeConfig.referenceValue,
+          labDefaultObservation: labPracticeConfig.defaultObservation,
         })
         .from(practice)
         .leftJoin(
@@ -581,6 +579,7 @@ export class ReportsService {
           methodology: p.labMethodology ?? p.methodology,
           referenceValue: p.labReferenceValue ?? p.referenceValue,
           defaultUnit: p.defaultUnit,
+          defaultObservation: p.labDefaultObservation ?? null,
         });
     }
 

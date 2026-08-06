@@ -464,8 +464,8 @@ function formatAguaRef(
   referenceText: string | null,
 ): string | null {
   if (rangeLow && rangeHigh) return `${fmtNum(rangeLow)} – ${fmtNum(rangeHigh)}`;
-  if (!rangeLow && rangeHigh) return `≤${fmtNum(rangeHigh)}`;
-  if (rangeLow && !rangeHigh) return `≥${fmtNum(rangeLow)}`;
+  if (!rangeLow && rangeHigh) return `<= ${fmtNum(rangeHigh)}`;
+  if (rangeLow && !rangeHigh) return `>= ${fmtNum(rangeLow)}`;
   return referenceText ?? null;
 }
 
@@ -899,6 +899,195 @@ function WatermarkInforme({ data }: { data: InformeData }) {
   );
 }
 
+// ── Bloque de estudio (nuevo formato) ────────────────────────────────
+
+function EstudioBlock({
+  r,
+  signedBy,
+}: {
+  r: InformeResultRow;
+  signedBy: InformeData['signedBy'];
+}) {
+  const hasUnidades = r.unidades && r.unidades.length > 0;
+  const isAbnormal =
+    r.flag === 'high' || r.flag === 'low' || r.flag === 'critical_high' || r.flag === 'critical_low';
+  const isCritical = r.flag === 'critical_high' || r.flag === 'critical_low';
+  const flagColor = isCritical ? C.danger : C.warning;
+
+  return (
+    <View style={{ marginBottom: 14 }}>
+      {/* Header: name + método */}
+      <View
+        wrap={false}
+        style={{
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'flex-end',
+          paddingBottom: 3,
+          borderBottomWidth: 1.5,
+          borderBottomColor: C.ink,
+          marginBottom: 2,
+        }}
+      >
+        <Text style={{ fontFamily: 'PublicSansSemiBold', fontSize: 10.5, color: C.ink }}>
+          Estudio: {r.name}.
+        </Text>
+        {r.methodology ? (
+          <Text
+            style={{
+              fontSize: 8.5,
+              color: C.muted,
+              textAlign: 'right',
+              maxWidth: '45%',
+              lineHeight: 1.3,
+            }}
+          >
+            Método: {r.methodology}
+          </Text>
+        ) : null}
+      </View>
+
+      {/* Rows */}
+      {hasUnidades ? (
+        r.unidades!.map((u, i) => {
+          const hasRange = u.rangeLow || u.rangeHigh;
+          const rangeStr = hasRange
+            ? `${u.rangeLow ? fmtNum(u.rangeLow) : '—'} a ${u.rangeHigh ? fmtNum(u.rangeHigh) : '—'}`
+            : null;
+          const ref =
+            rangeStr && u.referenceText
+              ? `${rangeStr}. ${u.referenceText}`
+              : (rangeStr ?? u.referenceText ?? '');
+          // Prose layout for long text values to avoid narrow-column wrapping
+          const isProse = !isNumericValue(u.value) && u.value.length > 12;
+
+          return (
+            <View
+              key={`${u.nombre}-${i}`}
+              wrap={false}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'flex-start',
+                paddingVertical: 3,
+                borderBottomWidth: 0.3,
+                borderBottomColor: C.border,
+              }}
+            >
+              <Text style={{ width: '42%', fontSize: 9, color: C.muted, paddingRight: 6, lineHeight: 1.4 }}>
+                {u.nombre}:
+              </Text>
+              {isProse ? (
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 9, fontFamily: 'PublicSansSemiBold', color: C.ink, lineHeight: 1.4 }}>
+                    {u.value || '—'}{u.simbolo ? ` ${u.simbolo}` : ''}
+                  </Text>
+                  {ref ? (
+                    <Text style={{ fontSize: 7.5, color: C.subtle, lineHeight: 1.3, marginTop: 1 }}>{ref}</Text>
+                  ) : null}
+                </View>
+              ) : (
+                <>
+                  <Text
+                    style={{
+                      flex: 1,
+                      fontSize: isNumericValue(u.value) ? 10 : 9,
+                      fontFamily: 'PublicSansSemiBold',
+                      color: C.ink,
+                      textAlign: 'right',
+                    }}
+                  >
+                    {u.value || '—'}
+                  </Text>
+                  <Text style={{ width: 38, fontSize: 8, color: C.muted, textAlign: 'center' }}>
+                    {u.simbolo ?? ''}
+                  </Text>
+                  <Text
+                    style={{
+                      width: 120,
+                      fontSize: 8,
+                      color: C.subtle,
+                      textAlign: 'right',
+                      lineHeight: 1.3,
+                    }}
+                  >
+                    {ref}
+                  </Text>
+                </>
+              )}
+            </View>
+          );
+        })
+      ) : (
+        <View
+          wrap={false}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'flex-start',
+            paddingVertical: 3,
+            borderBottomWidth: 0.3,
+            borderBottomColor: C.border,
+          }}
+        >
+          {isNumericValue(r.value) ? (
+            <>
+              <Text style={{ flex: 1, fontSize: 9, color: C.muted }}>Resultado:</Text>
+              <Text
+                style={{
+                  width: 90,
+                  fontSize: 10,
+                  fontFamily: 'PublicSansSemiBold',
+                  color: isAbnormal ? flagColor : C.ink,
+                  textAlign: 'right',
+                }}
+              >
+                {r.value || '—'}
+              </Text>
+              <Text style={{ width: 38, fontSize: 8, color: C.muted, textAlign: 'center' }}>
+                {r.unit ?? ''}
+              </Text>
+              <Text style={{ width: 120, fontSize: 8, color: C.subtle, textAlign: 'right', lineHeight: 1.3 }}>
+                {r.range ?? ''}
+              </Text>
+            </>
+          ) : (
+            <>
+              <Text style={{ width: '42%', fontSize: 9, color: C.muted, paddingRight: 6 }}>Resultado:</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 9, fontFamily: 'PublicSansSemiBold', color: isAbnormal ? flagColor : C.ink, lineHeight: 1.4 }}>
+                  {r.value || '—'}{r.unit ? ` ${r.unit}` : ''}
+                </Text>
+                {r.range ? (
+                  <Text style={{ fontSize: 7.5, color: C.subtle, lineHeight: 1.3, marginTop: 1 }}>{r.range}</Text>
+                ) : null}
+              </View>
+            </>
+          )}
+        </View>
+      )}
+
+      {/* Reference value (orange) — only for simple results */}
+      {r.referenceValue && !hasUnidades ? (
+        <Text style={{ fontSize: 8, color: C.warning, marginTop: 3, lineHeight: 1.4 }}>
+          Valor de referencia: {r.referenceValue}
+        </Text>
+      ) : null}
+
+      {/* Notes */}
+      {r.notes ? (
+        <Text style={{ fontSize: 8, color: C.muted, marginTop: 3, lineHeight: 1.4 }}>
+          Observaciones: {r.notes}
+        </Text>
+      ) : null}
+
+      {/* Firma per study */}
+      <Text style={{ fontSize: 8, color: C.muted, marginTop: 6 }}>
+        Firma: {signedBy.name}
+        {signedBy.matricula ? ` (MP: ${signedBy.matricula})` : ''}
+      </Text>
+    </View>
+  );
+}
+
 // ── Modo estructurado (sin marca de agua) ────────────────────────────
 
 export function InformeTemplate({ data }: { data: InformeData }) {
@@ -996,13 +1185,6 @@ export function InformeTemplate({ data }: { data: InformeData }) {
                 <InfoRow label="DNI" value={data.patient.dni} />
                 <InfoRow label="Sexo · Edad" value={`${sexLabel} · ${data.patient.age}`} />
                 <InfoRow label="Nacimiento" value={data.patient.birthDate} />
-                {data.patient.streetAddress || data.patient.city ? (
-                  <InfoRow
-                    label="Domicilio"
-                    value={[data.patient.streetAddress, data.patient.city].filter(Boolean).join(', ')}
-                  />
-                ) : null}
-                {data.patient.phone ? <InfoRow label="Teléfono" value={data.patient.phone} /> : null}
               </>
             )}
           </View>
@@ -1071,121 +1253,13 @@ export function InformeTemplate({ data }: { data: InformeData }) {
         {/* Results */}
         <Text style={[styles.resultsTitle, { color: accent }]}>Resultados</Text>
 
-        {isAgua ? (
-          <AguaEfluentesTable
-            results={data.results}
-            accent={tHeaderBg}
-            accentSoft={accentSoft}
-            border={tBorder}
-            rowColor={tRowColor}
-          />
-        ) : (
-          <View style={{ gap: 8 }}>
-            {data.results.map((r) => {
-              const bStyle = badgeStyle(r.flag);
-              const hasUnidades = r.unidades && r.unidades.length > 0;
-              const unidadesConRef = hasUnidades ? r.unidades!.filter(u => u.rangeLow || u.rangeHigh || u.referenceText) : [];
-              const hasAnyRef = !!(r.range ?? r.referenceValue) || (hasUnidades && unidadesConRef.length > 0);
-              const labelCell = { width: '26%', backgroundColor: tHeaderBg, paddingVertical: 6, paddingHorizontal: 8 };
-              const labelText = { fontFamily: 'PublicSansSemiBold', fontSize: 7.5, color: tHeaderColor, letterSpacing: 0.4 };
-              const valueCell = { flex: 1, paddingVertical: 6, paddingHorizontal: 8 };
-              const divider = { borderTopWidth: 0.5, borderTopColor: tBorder };
-              return (
-                <View
-                  key={r.nbuCode}
-                  style={{ borderWidth: 0.5, borderColor: tBorder, borderRadius: 3, overflow: 'hidden' }}
-                  wrap={false}
-                >
-                  <View style={{ flexDirection: 'row' }} wrap={false}>
-                    <View style={labelCell}><Text style={labelText}>PRÁCTICA</Text></View>
-                    <View style={valueCell}>
-                      <Text style={[styles.practiceName, { color: tRowColor }]}>{r.name}</Text>
-                      <Text style={styles.nbuCode}>NBU {r.nbuCode}</Text>
-                      {r.methodology ? <Text style={styles.metaText}>Método: {r.methodology}</Text> : null}
-                    </View>
-                  </View>
-                  <View style={[{ flexDirection: 'row' }, divider]}>
-                    <View style={labelCell}><Text style={labelText}>RESULTADO</Text></View>
-                    <View style={valueCell}>
-                      {hasUnidades ? (
-                        <View>
-                          {r.value ? <Text style={[styles.valueProse, { marginBottom: 4 }]}>{r.value}</Text> : null}
-                          {r.unidades!.map((u, i) => (
-                            <View key={`${u.nombre}-${i}`} style={styles.unidadRow} wrap={false}>
-                              <Text style={styles.unidadNombre}>{u.nombre}</Text>
-                              <Text style={styles.unidadValue}>{u.value || '—'}</Text>
-                              {u.simbolo ? <Text style={styles.unidadSimbolo}>{u.simbolo}</Text> : null}
-                              {u.metodologia ? <Text style={{ fontSize: 6, color: tBorder, marginLeft: 2 }}>Mét: {u.metodologia}</Text> : null}
-                            </View>
-                          ))}
-                        </View>
-                      ) : (
-                        <Text style={isNumericValue(r.value) ? styles.valueNum : styles.valueProse}>
-                          {r.value || '—'}
-                        </Text>
-                      )}
-                    </View>
-                  </View>
-                  {!hasUnidades ? (
-                    <View style={[{ flexDirection: 'row' }, divider]} wrap={false}>
-                      <View style={labelCell}><Text style={labelText}>UNIDAD</Text></View>
-                      <View style={valueCell}><Text style={styles.unitText}>{r.unit ?? '—'}</Text></View>
-                    </View>
-                  ) : null}
-                  {hasAnyRef ? (
-                    <View style={[{ flexDirection: 'row' }, divider]}>
-                      <View style={labelCell}><Text style={labelText}>REFERENCIA</Text></View>
-                      <View style={valueCell}>
-                        {hasUnidades ? (
-                          <View>
-                            {unidadesConRef.map((u, i) => {
-                              const hasRange = u.rangeLow || u.rangeHigh;
-                              const rangeStr = hasRange
-                                ? `${u.rangeLow ? fmtNum(u.rangeLow) : '—'} – ${u.rangeHigh ? fmtNum(u.rangeHigh) : '—'}`
-                                : null;
-                              const uRef = rangeStr && u.referenceText ? `${rangeStr}. ${u.referenceText}` : rangeStr ?? u.referenceText;
-                              return (
-                                <View key={`ref-${u.nombre}-${i}`} style={styles.unidadRow} wrap={false}>
-                                  <Text style={styles.unidadNombre}>{u.nombre}</Text>
-                                  <Text style={{ fontSize: 7.5, color: C.muted }}>{uRef}</Text>
-                                </View>
-                              );
-                            })}
-                            {(r.range ?? r.referenceValue) ? (
-                              <Text style={{ fontSize: 7.5, color: C.muted, marginTop: unidadesConRef.length > 0 ? 3 : 0 }}>{r.range ?? r.referenceValue}</Text>
-                            ) : null}
-                          </View>
-                        ) : r.range ? (
-                          <Text style={styles.rangeText}>{r.range}</Text>
-                        ) : (
-                          <Text style={{ fontSize: 7.5, color: C.muted }}>{r.referenceValue}</Text>
-                        )}
-                      </View>
-                    </View>
-                  ) : null}
-                  <View style={[{ flexDirection: 'row' }, divider]} wrap={false}>
-                    <View style={labelCell}><Text style={labelText}>ESTADO</Text></View>
-                    <View style={valueCell}>
-                      {bStyle ? (
-                        <Text style={[styles.badge, bStyle]}>{flagLabel(r.flag)}</Text>
-                      ) : (
-                        <Text style={styles.rangeText}>—</Text>
-                      )}
-                    </View>
-                  </View>
-                  {r.notes ? (
-                    <View style={[{ flexDirection: 'row' }, divider]}>
-                      <View style={labelCell}><Text style={labelText}>OBSERVACIONES</Text></View>
-                      <View style={valueCell}><Text style={styles.metaText}>{r.notes}</Text></View>
-                    </View>
-                  ) : null}
-                </View>
-              );
-            })}
-          </View>
-        )}
+        <View style={{ gap: 0 }}>
+          {data.results.map((r) => (
+            <EstudioBlock key={r.nbuCode} r={r} signedBy={data.signedBy} />
+          ))}
+        </View>
 
-        {isAgua ? null : <View style={styles.flexSpacer} />}
+        <View style={styles.flexSpacer} />
       </Page>
     </Document>
   );

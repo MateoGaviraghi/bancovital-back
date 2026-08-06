@@ -244,9 +244,7 @@ export class ResultsService {
   }
 
   async upsert(labId: number, dto: UpsertResultDto, enteredBy: string): Promise<Result> {
-    if (!dto.valueNumeric && !dto.valueText) {
-      throw new BadRequestException('Debe enviar valueNumeric o valueText (al menos uno)');
-    }
+    // valueNumeric and valueText are both optional — notes/observaciones can be saved alone
 
     const [line] = await this.db
       .select()
