@@ -901,13 +901,7 @@ function WatermarkInforme({ data }: { data: InformeData }) {
 
 // ── Bloque de estudio (nuevo formato) ────────────────────────────────
 
-function EstudioBlock({
-  r,
-  signedBy,
-}: {
-  r: InformeResultRow;
-  signedBy: InformeData['signedBy'];
-}) {
+function EstudioBlock({ r }: { r: InformeResultRow }) {
   const hasUnidades = r.unidades && r.unidades.length > 0;
   const isAbnormal =
     r.flag === 'high' || r.flag === 'low' || r.flag === 'critical_high' || r.flag === 'critical_low';
@@ -1072,18 +1066,6 @@ function EstudioBlock({
         </Text>
       ) : null}
 
-      {/* Notes */}
-      {r.notes ? (
-        <Text style={{ fontSize: 8, color: C.muted, marginTop: 3, lineHeight: 1.4 }}>
-          Observaciones: {r.notes}
-        </Text>
-      ) : null}
-
-      {/* Firma per study */}
-      <Text style={{ fontSize: 8, color: C.muted, marginTop: 6 }}>
-        Firma: {signedBy.name}
-        {signedBy.matricula ? ` (MP: ${signedBy.matricula})` : ''}
-      </Text>
     </View>
   );
 }
@@ -1255,9 +1237,27 @@ export function InformeTemplate({ data }: { data: InformeData }) {
 
         <View style={{ gap: 0 }}>
           {data.results.map((r) => (
-            <EstudioBlock key={r.nbuCode} r={r} signedBy={data.signedBy} />
+            <EstudioBlock key={r.nbuCode} r={r} />
           ))}
         </View>
+
+        {/* Observaciones de los estudios — al final */}
+        {data.results.some((r) => r.notes) ? (
+          <View style={{ marginTop: 8, marginBottom: 6 }}>
+            <Text style={{ fontFamily: 'PublicSansSemiBold', fontSize: 7.5, color: C.muted, letterSpacing: 0.6, marginBottom: 3 }}>
+              OBSERVACIONES
+            </Text>
+            {[...new Set(data.results.filter((r) => r.notes).map((r) => r.notes))].map((note, i) => (
+              <Text key={i} style={{ fontSize: 8, color: C.muted, lineHeight: 1.4 }}>{note}</Text>
+            ))}
+          </View>
+        ) : null}
+
+        {/* Firma única al final */}
+        <Text style={{ fontSize: 8, color: C.muted, marginTop: 6 }}>
+          Firma: {data.signedBy.name}
+          {data.signedBy.matricula ? ` (MP: ${data.signedBy.matricula})` : ''}
+        </Text>
 
         <View style={styles.flexSpacer} />
       </Page>
