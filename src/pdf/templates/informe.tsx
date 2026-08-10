@@ -1069,9 +1069,13 @@ function EstudioBlock({ r }: { r: InformeResultRow }) {
       )}
 
       {r.referenceValue ? (
-        <Text style={{ fontSize: 8, color: C.warning, marginTop: 3, lineHeight: 1.4 }}>
-          Valor de referencia: {r.referenceValue}
-        </Text>
+        <View style={{ marginTop: 3 }}>
+          {r.referenceValue.split('\n').map((line, i) => (
+            <Text key={i} style={{ fontSize: 8, color: C.warning, lineHeight: 1.4 }}>
+              {i === 0 ? `Valor de referencia: ${line}` : line}
+            </Text>
+          ))}
+        </View>
       ) : null}
 
       {r.notes ? (
@@ -1127,16 +1131,7 @@ export function InformeTemplate({ data }: { data: InformeData }) {
         ) : null}
 
         {/* Header: si hay fondo el paddingTop de la página ya deja el espacio necesario */}
-        {data.fondoSrc ? (
-          /* Con membrete: solo el badge de protocolo alineado a la derecha */
-          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginBottom: 6 }}>
-            <View style={[styles.protocolBadge, { backgroundColor: accentSoft }]}>
-              <Text style={[styles.protocolLabel, { color: accent }]}>PROTOCOLO</Text>
-              <Text style={[styles.protocolNumber, { color: accent }]}>{data.protocol.number}</Text>
-              <Text style={styles.protocolDate}>{data.protocol.orderDate}</Text>
-            </View>
-          </View>
-        ) : (
+        {data.fondoSrc ? null : (
           <>
             <View style={styles.header}>
               {data.lab.logoSrc ? <Image src={data.lab.logoSrc} style={styles.logo} /> : null}
@@ -1150,11 +1145,6 @@ export function InformeTemplate({ data }: { data: InformeData }) {
                   {data.lab.phone ? `  ·  Tel. ${data.lab.phone}` : ''}
                   {data.lab.email ? `  ·  ${data.lab.email}` : ''}
                 </Text>
-              </View>
-              <View style={[styles.protocolBadge, { backgroundColor: accentSoft }]}>
-                <Text style={[styles.protocolLabel, { color: accent }]}>PROTOCOLO</Text>
-                <Text style={[styles.protocolNumber, { color: accent }]}>{data.protocol.number}</Text>
-                <Text style={styles.protocolDate}>{data.protocol.orderDate}</Text>
               </View>
             </View>
             <View style={[styles.rule, { backgroundColor: accent }]} />
@@ -1264,11 +1254,16 @@ export function InformeTemplate({ data }: { data: InformeData }) {
           ))}
         </View>
 
-        {/* Firma única al final */}
-        <Text style={{ fontSize: 8, color: C.muted, marginTop: 6 }}>
-          Firma: {data.signedBy.name}
-          {data.signedBy.matricula ? ` (MP: ${data.signedBy.matricula})` : ''}
-        </Text>
+        {/* Firma + protocolo al final */}
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 6 }}>
+          <Text style={{ fontSize: 8, color: C.muted }}>
+            Firma: {data.signedBy.name}
+            {data.signedBy.matricula ? ` (MP: ${data.signedBy.matricula})` : ''}
+          </Text>
+          <Text style={{ fontSize: 7, color: C.subtle }}>
+            Protocolo N° {data.protocol.number}  ·  {data.protocol.orderDate}
+          </Text>
+        </View>
 
         <View style={styles.flexSpacer} />
       </Page>
