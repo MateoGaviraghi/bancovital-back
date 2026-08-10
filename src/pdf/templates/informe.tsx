@@ -941,6 +941,15 @@ function EstudioBlock({ r }: { r: InformeResultRow }) {
         ) : null}
       </View>
 
+      {/* Valor principal cuando hay sub-unidades (ej: sedimento urinario) */}
+      {hasUnidades && r.value ? (
+        <View wrap={false} style={{ paddingVertical: 3, borderBottomWidth: 0.3, borderBottomColor: C.border }}>
+          <Text style={{ fontSize: 9, fontFamily: 'PublicSansSemiBold', color: C.ink, lineHeight: 1.4 }}>
+            {r.value}
+          </Text>
+        </View>
+      ) : null}
+
       {/* Rows */}
       {hasUnidades ? (
         r.unidades!.map((u, i) => {
@@ -1059,10 +1068,15 @@ function EstudioBlock({ r }: { r: InformeResultRow }) {
         </View>
       )}
 
-      {/* Reference value (orange) — only for simple results */}
-      {r.referenceValue && !hasUnidades ? (
+      {r.referenceValue ? (
         <Text style={{ fontSize: 8, color: C.warning, marginTop: 3, lineHeight: 1.4 }}>
           Valor de referencia: {r.referenceValue}
+        </Text>
+      ) : null}
+
+      {r.notes ? (
+        <Text style={{ fontSize: 8, color: C.muted, marginTop: 3, lineHeight: 1.4 }}>
+          Observaciones: {r.notes}
         </Text>
       ) : null}
 
@@ -1113,7 +1127,16 @@ export function InformeTemplate({ data }: { data: InformeData }) {
         ) : null}
 
         {/* Header: si hay fondo el paddingTop de la página ya deja el espacio necesario */}
-        {data.fondoSrc ? null : (
+        {data.fondoSrc ? (
+          /* Con membrete: solo el badge de protocolo alineado a la derecha */
+          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginBottom: 6 }}>
+            <View style={[styles.protocolBadge, { backgroundColor: accentSoft }]}>
+              <Text style={[styles.protocolLabel, { color: accent }]}>PROTOCOLO</Text>
+              <Text style={[styles.protocolNumber, { color: accent }]}>{data.protocol.number}</Text>
+              <Text style={styles.protocolDate}>{data.protocol.orderDate}</Text>
+            </View>
+          </View>
+        ) : (
           <>
             <View style={styles.header}>
               {data.lab.logoSrc ? <Image src={data.lab.logoSrc} style={styles.logo} /> : null}
@@ -1240,18 +1263,6 @@ export function InformeTemplate({ data }: { data: InformeData }) {
             <EstudioBlock key={r.nbuCode} r={r} />
           ))}
         </View>
-
-        {/* Observaciones de los estudios — al final */}
-        {data.results.some((r) => r.notes) ? (
-          <View style={{ marginTop: 8, marginBottom: 6 }}>
-            <Text style={{ fontFamily: 'PublicSansSemiBold', fontSize: 7.5, color: C.muted, letterSpacing: 0.6, marginBottom: 3 }}>
-              OBSERVACIONES
-            </Text>
-            {[...new Set(data.results.filter((r) => r.notes).map((r) => r.notes))].map((note, i) => (
-              <Text key={i} style={{ fontSize: 8, color: C.muted, lineHeight: 1.4 }}>{note}</Text>
-            ))}
-          </View>
-        ) : null}
 
         {/* Firma única al final */}
         <Text style={{ fontSize: 8, color: C.muted, marginTop: 6 }}>
