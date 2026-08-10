@@ -398,7 +398,8 @@ export function buildInformeData(input: RenderInformeInput): InformeData {
           }
           return null;
         })();
-        let referenceValue = sanitizeText(practiceData?.referenceValue ?? null);
+        // referenceValue: no stripear \n para que el template pueda renderizarlos como líneas separadas
+        let referenceValue = practiceData?.referenceValue?.replace(/\r\n/g, '\n').replace(/\r/g, '\n') ?? null;
         if (!range && !referenceValue && !hasUnidadValues && puList.length > 0) {
           const firstPu = puList[0];
           if (firstPu.rangeLow || firstPu.rangeHigh) {
