@@ -53,6 +53,7 @@ function practiceFixture(template: ReferenceValueTemplate | null): Practice {
     isSpecialAct: false,
     active: true,
     parentId: null,
+    standalone: true,
     referenceValue: null,
     methodology: null,
     isElaborated: false,

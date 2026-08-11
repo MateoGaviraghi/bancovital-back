@@ -10,6 +10,7 @@ import {
   pacienteAnimal,
   patient,
   practice,
+  practiceComposition,
   propietario,
   result,
   servicio,
@@ -1065,19 +1066,26 @@ export class OrdersService {
     dtoPractices: OrderPracticeInputDto[],
   ): Promise<OrderPracticeInputDto[]> {
     const parentIds = dtoPractices.map((p) => p.practiceId);
-    const children = await this.db
-      .select()
-      .from(practice)
-      .where(and(inArray(practice.parentId, parentIds), eq(practice.active, true)));
+    const compositionRows = await this.db
+      .select({
+        parentPracticeId: practiceComposition.parentPracticeId,
+        componentPracticeId: practiceComposition.componentPracticeId,
+        sortOrder: practiceComposition.sortOrder,
+        active: practice.active,
+      })
+      .from(practiceComposition)
+      .innerJoin(practice, eq(practice.id, practiceComposition.componentPracticeId))
+      .where(and(inArray(practiceComposition.parentPracticeId, parentIds), eq(practice.active, true)))
+      .orderBy(asc(practiceComposition.sortOrder));
 
     const alreadyIncluded = new Set(parentIds);
     const extra: OrderPracticeInputDto[] = [];
     let sortIdx = dtoPractices.length;
 
-    for (const child of children) {
-      if (!alreadyIncluded.has(child.id)) {
-        alreadyIncluded.add(child.id);
-        extra.push({ practiceId: child.id, sortOrder: sortIdx++, includeInReport: true });
+    for (const row of compositionRows) {
+      if (!alreadyIncluded.has(row.componentPracticeId)) {
+        alreadyIncluded.add(row.componentPracticeId);
+        extra.push({ practiceId: row.componentPracticeId, sortOrder: sortIdx++, includeInReport: true });
       }
     }
 
