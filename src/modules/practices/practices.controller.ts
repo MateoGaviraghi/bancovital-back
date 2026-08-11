@@ -15,6 +15,7 @@ import {
   Query,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiNoContentResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { AddComponentDto } from './dto/add-component.dto';
 import { CatalogQueryDto } from './dto/catalog-query.dto';
 import { CreatePracticeDto } from './dto/create-practice.dto';
 import { UpdatePracticeDto } from './dto/update-practice.dto';
@@ -93,6 +94,40 @@ export class PracticesController {
   @ApiOperation({ summary: 'Actualizar práctica (campos parciales)' })
   update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdatePracticeDto) {
     return this.practices.update(id, dto);
+  }
+
+  // ── Composition (M:N subprácticas) ────────────────────────────────
+
+  @Get(':id/components')
+  @ApiOperation({ summary: 'Componentes (subprácticas) de esta práctica' })
+  getComponents(@Param('id', ParseIntPipe) id: number) {
+    return this.practices.getComponents(id);
+  }
+
+  @Post(':id/components')
+  @Roles('admin')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Agregar una práctica como componente de esta práctica' })
+  addComponent(@Param('id', ParseIntPipe) id: number, @Body() dto: AddComponentDto) {
+    return this.practices.addComponent(id, dto);
+  }
+
+  @Delete(':id/components/:componentId')
+  @Roles('admin')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiNoContentResponse({ description: 'Componente quitado' })
+  @ApiOperation({ summary: 'Quitar un componente de esta práctica' })
+  async removeComponent(
+    @Param('id', ParseIntPipe) id: number,
+    @Param('componentId', ParseIntPipe) componentId: number,
+  ) {
+    await this.practices.removeComponent(id, componentId);
+  }
+
+  @Get(':id/parents')
+  @ApiOperation({ summary: 'Prácticas padre de las que esta práctica es componente' })
+  getParents(@Param('id', ParseIntPipe) id: number) {
+    return this.practices.getParents(id);
   }
 
   // ── Valores de referencia por especie ──────────────────────────────

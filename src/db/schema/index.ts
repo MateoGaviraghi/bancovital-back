@@ -1,4 +1,5 @@
 export * from './anuncio';
+export * from './antibiotico';
 export * from './attachment';
 export * from './cotizacion';
 export * from './cotizacion-item';
@@ -22,6 +23,7 @@ export * from './patient';
 export * from './payment';
 export * from './plan';
 export * from './practice';
+export * from './practice-composition';
 export * from './practice-referencia-especie';
 export * from './practice-unidad';
 export * from './practice-unidad-ref-especie';

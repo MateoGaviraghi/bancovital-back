@@ -37,8 +37,12 @@ export const practice = pgTable(
     referenceValueTemplate: jsonb('reference_value_template').$type<ReferenceValueTemplate>(),
     isSpecialAct: boolean('is_special_act').notNull().default(false),
     active: boolean('active').notNull().default(true),
-    /** Si no es null, esta practica es hija de la practica con este id. */
     parentId: bigint('parent_id', { mode: 'number' }),
+    /**
+     * true (default) = aparece en el buscador de órdenes de forma independiente.
+     * false = solo se agrega automáticamente como componente de una práctica compuesta.
+     */
+    standalone: boolean('standalone').notNull().default(true),
     /** Texto libre con valores de referencia orientativos para el bioquimico. */
     referenceValue: text('reference_value'),
     /** Metodologia por defecto para esta practica (se muestra en el PDF). */

@@ -115,4 +115,9 @@ export class UpdatePracticeDto {
   @IsOptional()
   @IsBoolean()
   isElaborated?: boolean;
+
+  @ApiPropertyOptional({ description: 'false = solo aparece como subpráctica (no se muestra en el buscador de órdenes)' })
+  @IsOptional()
+  @IsBoolean()
+  standalone?: boolean;
 }

@@ -4,12 +4,15 @@ import { DATABASE } from '@/db/database.module';
 import {
   type NewPracticeReferenciaEspecie,
   type Practice,
+  type PracticeComposition,
   type PracticeReferenciaEspecie,
   practice,
+  practiceComposition,
   practiceReferenciaEspecie,
 } from '@/db/schema';
 import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { type SQL, and, asc, eq, ilike, inArray, isNull, or, sql } from 'drizzle-orm';
+import { type SQL, and, asc, eq, ilike, inArray, or, sql } from 'drizzle-orm';
+import type { AddComponentDto } from './dto/add-component.dto';
 import type { CatalogQueryDto } from './dto/catalog-query.dto';
 import type { CreatePracticeDto } from './dto/create-practice.dto';
 import type { UpdatePracticeDto } from './dto/update-practice.dto';
@@ -31,7 +34,7 @@ export class PracticesService {
   constructor(@Inject(DATABASE) private readonly db: Db) {}
 
   async search(query: string, limit = 50, section?: string): Promise<PracticeWithChildren[]> {
-    const filters = [eq(practice.active, true), isNull(practice.parentId)];
+    const filters = [eq(practice.active, true), eq(practice.standalone, true)];
     if (section) filters.push(eq(practice.section, section));
     if (query) {
       const like = `%${query}%`;
@@ -161,6 +164,7 @@ export class PracticesService {
     if (dto.methodology !== undefined) set.methodology = dto.methodology?.trim() || null;
     if (dto.defaultUnit !== undefined) set.defaultUnit = dto.defaultUnit?.trim() || null;
     if (dto.isElaborated !== undefined) set.isElaborated = dto.isElaborated;
+    if (dto.standalone !== undefined) set.standalone = dto.standalone;
 
     try {
       const [row] = await this.db.update(practice).set(set).where(eq(practice.id, id)).returning();
@@ -228,25 +232,92 @@ export class PracticesService {
     if (!row) throw new NotFoundException('Referencia no encontrada');
   }
 
-  private async hydrateChildren(parents: Practice[]): Promise<PracticeWithChildren[]> {
-    if (parents.length === 0) return [];
-    const parentIds = parents.map((p) => p.id);
-    const childRows = await this.db
+  // ── Composition (M:N) ────────────────────────────────────────────────
+
+  async getComponents(parentId: number): Promise<Pick<Practice, 'id' | 'nbuCode' | 'name'>[]> {
+    const rows = await this.db
       .select({
         id: practice.id,
         nbuCode: practice.nbuCode,
         name: practice.name,
-        parentId: practice.parentId,
+        sortOrder: practiceComposition.sortOrder,
       })
-      .from(practice)
-      .where(and(inArray(practice.parentId, parentIds), eq(practice.active, true)))
+      .from(practiceComposition)
+      .innerJoin(practice, eq(practice.id, practiceComposition.componentPracticeId))
+      .where(eq(practiceComposition.parentPracticeId, parentId))
+      .orderBy(asc(practiceComposition.sortOrder), asc(practice.name));
+    return rows.map(({ id, nbuCode, name }) => ({ id, nbuCode, name }));
+  }
+
+  async getParents(componentId: number): Promise<Pick<Practice, 'id' | 'nbuCode' | 'name'>[]> {
+    const rows = await this.db
+      .select({ id: practice.id, nbuCode: practice.nbuCode, name: practice.name })
+      .from(practiceComposition)
+      .innerJoin(practice, eq(practice.id, practiceComposition.parentPracticeId))
+      .where(eq(practiceComposition.componentPracticeId, componentId))
       .orderBy(asc(practice.name));
+    return rows;
+  }
+
+  async addComponent(parentId: number, dto: AddComponentDto): Promise<PracticeComposition> {
+    if (parentId === dto.componentId) {
+      throw new ConflictException('Una práctica no puede ser componente de sí misma.');
+    }
+    const [parent, component] = await Promise.all([
+      this.byIds([parentId]),
+      this.byIds([dto.componentId]),
+    ]);
+    if (!parent[0]) throw new NotFoundException(`Práctica padre ${parentId} no encontrada.`);
+    if (!component[0]) throw new NotFoundException(`Práctica componente ${dto.componentId} no encontrada.`);
+
+    try {
+      const [row] = await this.db
+        .insert(practiceComposition)
+        .values({ parentPracticeId: parentId, componentPracticeId: dto.componentId, sortOrder: dto.sortOrder ?? 0 })
+        .returning();
+      return row;
+    } catch (err: unknown) {
+      if (isUniqueViolation(err)) {
+        throw new ConflictException(`La práctica ${dto.componentId} ya es componente de ${parentId}.`);
+      }
+      throw err;
+    }
+  }
+
+  async removeComponent(parentId: number, componentId: number): Promise<void> {
+    const [row] = await this.db
+      .delete(practiceComposition)
+      .where(
+        and(
+          eq(practiceComposition.parentPracticeId, parentId),
+          eq(practiceComposition.componentPracticeId, componentId),
+        ),
+      )
+      .returning();
+    if (!row) throw new NotFoundException('Relación de componente no encontrada.');
+  }
+
+  private async hydrateChildren(parents: Practice[]): Promise<PracticeWithChildren[]> {
+    if (parents.length === 0) return [];
+    const parentIds = parents.map((p) => p.id);
+
+    const rows = await this.db
+      .select({
+        parentPracticeId: practiceComposition.parentPracticeId,
+        id: practice.id,
+        nbuCode: practice.nbuCode,
+        name: practice.name,
+      })
+      .from(practiceComposition)
+      .innerJoin(practice, eq(practice.id, practiceComposition.componentPracticeId))
+      .where(inArray(practiceComposition.parentPracticeId, parentIds))
+      .orderBy(asc(practiceComposition.sortOrder), asc(practice.name));
 
     const childrenByParentId = new Map<number, Pick<Practice, 'id' | 'nbuCode' | 'name'>[]>();
-    for (const c of childRows) {
-      const list = childrenByParentId.get(c.parentId!) ?? [];
-      list.push({ id: c.id, nbuCode: c.nbuCode, name: c.name });
-      childrenByParentId.set(c.parentId!, list);
+    for (const r of rows) {
+      const list = childrenByParentId.get(r.parentPracticeId) ?? [];
+      list.push({ id: r.id, nbuCode: r.nbuCode, name: r.name });
+      childrenByParentId.set(r.parentPracticeId, list);
     }
 
     return parents.map((p) => ({ ...p, children: childrenByParentId.get(p.id) ?? [] }));
