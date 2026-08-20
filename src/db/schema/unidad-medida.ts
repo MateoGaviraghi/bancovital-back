@@ -37,6 +37,10 @@ export const unidadMedida = pgTable(
     active: boolean('active').notNull().default(true),
     opcionesPredeterminadas: jsonb('opciones_predeterminadas').$type<string[]>(),
     metodologia: text('metodologia'),
+    /** true = el valor se deriva automáticamente de otros; no lo tipea el bioquímico. */
+    esCalculada: boolean('es_calculada').notNull().default(false),
+    /** Expresión legible que describe cómo se calcula este valor (metadata, no ejecutado aún). */
+    formula: text('formula'),
     createdBy: uuid('created_by').references(() => user.id),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
