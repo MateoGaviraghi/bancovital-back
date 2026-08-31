@@ -6,6 +6,7 @@ import {
   insurer,
   muestraAgua,
   order,
+  orderMuestraAgua,
   orderPractice,
   pacienteAnimal,
   patient,
@@ -18,7 +19,15 @@ import {
   ubValue,
   veterinario,
 } from '@/db/schema';
-import type { NewOrder, NewOrderPractice, Order, OrderPractice, Servicio } from '@/db/schema';
+import type {
+  NewOrder,
+  NewOrderMuestraAgua,
+  NewOrderPractice,
+  Order,
+  OrderMuestraAgua,
+  OrderPractice,
+  Servicio,
+} from '@/db/schema';
 import {
   type PriceablePractice,
   type PricedLine,
@@ -50,7 +59,7 @@ import {
   sql,
 } from 'drizzle-orm';
 import type { CancelOrderDto } from './dto/cancel-order.dto';
-import type { CreateOrderDto, OrderPracticeInputDto } from './dto/create-order.dto';
+import type { CreateOrderDto, OrderMuestraInputDto, OrderPracticeInputDto } from './dto/create-order.dto';
 import type { ListOrdersDto } from './dto/list-orders.dto';
 import type { UpdateOrderDto } from './dto/update-order.dto';
 
@@ -111,7 +120,7 @@ export class OrdersService {
     }
 
     let solicitanteAguaId: number | null = null;
-    let muestraAguaId: number | null = null;
+    let muestraInputs: OrderMuestraInputDto[] = [];
     if (svc.usaSolicitanteAgua) {
       if (!dto.solicitanteAguaId) {
         throw new UnprocessableEntityException('solicitanteAguaId es requerido para este servicio');
@@ -120,11 +129,16 @@ export class OrdersService {
       solicitanteAguaId = dto.solicitanteAguaId;
     }
     if (svc.usaMuestraAgua) {
-      if (!dto.muestraAguaId) {
-        throw new UnprocessableEntityException('muestraAguaId es requerido para este servicio');
+      if (dto.muestras && dto.muestras.length > 0) {
+        muestraInputs = dto.muestras;
+      } else if (dto.muestraAguaId) {
+        muestraInputs = [{ muestraAguaId: dto.muestraAguaId }];
+      } else {
+        throw new UnprocessableEntityException('muestras[] es requerido para este servicio');
       }
-      await this.assertMuestraAgua(labId, dto.muestraAguaId);
-      muestraAguaId = dto.muestraAguaId;
+      for (const m of muestraInputs) {
+        await this.assertMuestraAgua(labId, m.muestraAguaId);
+      }
     }
 
     let insurerId = dto.insurerId && dto.insurerId > 0 ? dto.insurerId : undefined;
@@ -175,6 +189,10 @@ export class OrdersService {
       effectivePractices.map((l) => [l.practiceId, l]),
     );
 
+    const numMuestras = Math.max(muestraInputs.length, 1);
+    const multiplyTotal = (val: string) =>
+      numMuestras > 1 ? (parseFloat(val) * numMuestras).toFixed(2) : val;
+
     return this.db.transaction(async (tx) => {
       // Registrar consumo ANTES de insertar la orden para tener el flag correcto
       const { esExcedente } = await this.consumo.registrarOrden(labId, tx);
@@ -195,37 +213,60 @@ export class OrdersService {
         isUrgent: dto.isUrgent,
         notes: dto.notes ?? null,
         status: 'borrador',
-        totalParticular: pricing.totals.particular,
-        totalInsurer: pricing.totals.insurer,
-        totalPatientCopay: pricing.totals.patientCopay,
+        totalParticular: multiplyTotal(pricing.totals.particular),
+        totalInsurer: multiplyTotal(pricing.totals.insurer),
+        totalPatientCopay: multiplyTotal(pricing.totals.patientCopay),
         ubValueUsed: pricing.ubValueUsed,
         createdBy,
         esExcedente,
         customData: dto.customData ?? null,
         solicitanteAguaId,
-        muestraAguaId,
+        muestraAguaId: null,
       };
       const [insertedOrder] = await tx.insert(order).values(orderValues).returning();
 
-      const lineRows: NewOrderPractice[] = pricing.lines.map((l: PricedLine, idx: number) => {
-        const userInput =
-          l.practiceId !== null ? userInputByPracticeId.get(l.practiceId) : undefined;
-        return {
-          orderId: insertedOrder.id,
-          practiceId: l.practiceId,
-          nbuCodeSnapshot: l.nbuCode,
-          nameSnapshot: l.name,
-          unitsSnapshot: l.units,
-          ubValueSnapshot: l.ubValue,
-          priceParticular: l.priceParticular,
-          priceInsurer: l.priceInsurer,
-          patientCopay: l.patientCopay,
-          authorizationCode: userInput?.authorizationCode ?? null,
-          includeInReport: userInput?.includeInReport ?? true,
-          sortOrder: userInput?.sortOrder ?? idx,
-          authorizationStatus: 'no_aplica',
-        };
-      });
+      // Insert muestras and get their IDs
+      const insertedMuestras: OrderMuestraAgua[] = [];
+      for (const [idx, m] of muestraInputs.entries()) {
+        const [oma] = await tx
+          .insert(orderMuestraAgua)
+          .values({
+            orderId: insertedOrder.id,
+            muestraAguaId: m.muestraAguaId,
+            identificador: m.identificador ?? null,
+            sortOrder: m.sortOrder ?? idx,
+          })
+          .returning();
+        insertedMuestras.push(oma);
+      }
+
+      // Replicate practice lines for each muestra (or once if no muestras)
+      const iterMuestras: Array<OrderMuestraAgua | null> =
+        insertedMuestras.length > 0 ? insertedMuestras : [null];
+
+      const lineRows: NewOrderPractice[] = [];
+      for (const muestra of iterMuestras) {
+        for (const [idx, l] of pricing.lines.entries()) {
+          const userInput =
+            l.practiceId !== null ? userInputByPracticeId.get(l.practiceId) : undefined;
+          lineRows.push({
+            orderId: insertedOrder.id,
+            practiceId: l.practiceId,
+            nbuCodeSnapshot: l.nbuCode,
+            nameSnapshot: l.name,
+            unitsSnapshot: l.units,
+            ubValueSnapshot: l.ubValue,
+            priceParticular: l.priceParticular,
+            priceInsurer: l.priceInsurer,
+            patientCopay: l.patientCopay,
+            authorizationCode: userInput?.authorizationCode ?? null,
+            includeInReport: userInput?.includeInReport ?? true,
+            sortOrder: userInput?.sortOrder ?? idx,
+            authorizationStatus: 'no_aplica',
+            muestraOrdenId: muestra?.id ?? null,
+          });
+        }
+      }
 
       const insertedLines = await tx.insert(orderPractice).values(lineRows).returning();
       return { order: insertedOrder, lines: insertedLines };
@@ -253,7 +294,11 @@ export class OrdersService {
     if (dto.solicitanteAguaId !== undefined && dto.solicitanteAguaId !== null) {
       await this.assertSolicitanteAgua(labId, dto.solicitanteAguaId);
     }
-    if (dto.muestraAguaId !== undefined && dto.muestraAguaId !== null) {
+    if (dto.muestras && dto.muestras.length > 0) {
+      for (const m of dto.muestras) {
+        await this.assertMuestraAgua(labId, m.muestraAguaId);
+      }
+    } else if (dto.muestraAguaId !== undefined && dto.muestraAguaId !== null) {
       await this.assertMuestraAgua(labId, dto.muestraAguaId);
     }
 
@@ -304,7 +349,7 @@ export class OrdersService {
       );
 
       return this.db.transaction(async (tx) => {
-        // Load existing lines so we can UPDATE in place instead of delete+reinsert.
+        // Load existing lines and muestras so we can UPDATE in place instead of delete+reinsert.
         // Deleting order_practice rows cascades to result and order_practice_unidad_value,
         // wiping entered results. We preserve the row ID for any practice that stays.
         const existingLines = await tx
@@ -312,56 +357,116 @@ export class OrdersService {
           .from(orderPractice)
           .where(eq(orderPractice.orderId, id));
 
-        const existingByPracticeId = new Map<number, OrderPractice>(
+        const muestrasForOrder = await tx
+          .select()
+          .from(orderMuestraAgua)
+          .where(eq(orderMuestraAgua.orderId, id))
+          .orderBy(asc(orderMuestraAgua.sortOrder));
+
+        // Manage muestra updates if provided
+        if (dto.muestras && dto.muestras.length > 0) {
+          const currentMuestraIds = new Set(muestrasForOrder.map((m) => m.muestraAguaId));
+          const requestedMuestraIds = new Set(dto.muestras.map((m) => m.muestraAguaId));
+
+          const toRemove = muestrasForOrder.filter((m) => !requestedMuestraIds.has(m.muestraAguaId));
+          if (toRemove.length > 0) {
+            await tx
+              .delete(orderMuestraAgua)
+              .where(inArray(orderMuestraAgua.id, toRemove.map((m) => m.id)));
+          }
+
+          for (const [idx, m] of dto.muestras.entries()) {
+            if (!currentMuestraIds.has(m.muestraAguaId)) {
+              await tx.insert(orderMuestraAgua).values({
+                orderId: id,
+                muestraAguaId: m.muestraAguaId,
+                identificador: m.identificador ?? null,
+                sortOrder: m.sortOrder ?? idx,
+              });
+            } else {
+              const existing = muestrasForOrder.find((x) => x.muestraAguaId === m.muestraAguaId);
+              if (existing && (m.identificador !== undefined || m.sortOrder !== undefined)) {
+                await tx
+                  .update(orderMuestraAgua)
+                  .set({
+                    ...(m.identificador !== undefined && { identificador: m.identificador ?? null }),
+                    ...(m.sortOrder !== undefined && { sortOrder: m.sortOrder }),
+                  })
+                  .where(eq(orderMuestraAgua.id, existing.id));
+              }
+            }
+          }
+
+          muestrasForOrder.length = 0;
+          muestrasForOrder.push(
+            ...(await tx
+              .select()
+              .from(orderMuestraAgua)
+              .where(eq(orderMuestraAgua.orderId, id))
+              .orderBy(asc(orderMuestraAgua.sortOrder))),
+          );
+        }
+
+        // Key existing lines by (practiceId:muestraOrdenId) to support per-muestra dedup
+        const existingByKey = new Map<string, OrderPractice>(
           existingLines
             .filter((l) => l.practiceId !== null)
-            .map((l) => [l.practiceId!, l]),
+            .map((l) => [`${l.practiceId}:${l.muestraOrdenId ?? ''}`, l]),
         );
 
         const toInsert: NewOrderPractice[] = [];
         const toUpdateEntries: Array<{ rowId: number; mutable: Pick<NewOrderPractice, 'patientCopay' | 'authorizationCode' | 'authorizationStatus' | 'includeInReport' | 'sortOrder'> }> = [];
-        const keptPracticeIds = new Set<number>();
+        const keptKeys = new Set<string>();
 
-        for (const [idx, l] of pricing.lines.entries()) {
-          const userInput =
-            l.practiceId !== null ? userInputByPracticeId.get(l.practiceId) : undefined;
+        const iterMuestras: Array<OrderMuestraAgua | null> =
+          muestrasForOrder.length > 0 ? muestrasForOrder : [null];
 
-          const existing = l.practiceId !== null ? existingByPracticeId.get(l.practiceId) : undefined;
-          if (existing) {
-            // price_particular and price_insurer are also immutable by DB trigger.
-            toUpdateEntries.push({
-              rowId: existing.id,
-              mutable: {
+        for (const muestra of iterMuestras) {
+          for (const [idx, l] of pricing.lines.entries()) {
+            const userInput =
+              l.practiceId !== null ? userInputByPracticeId.get(l.practiceId) : undefined;
+            const key = `${l.practiceId}:${muestra?.id ?? ''}`;
+            const existing = l.practiceId !== null ? existingByKey.get(key) : undefined;
+
+            if (existing) {
+              toUpdateEntries.push({
+                rowId: existing.id,
+                mutable: {
+                  patientCopay: l.patientCopay,
+                  authorizationCode: userInput?.authorizationCode ?? null,
+                  includeInReport: l.synthetic ? false : (userInput?.includeInReport ?? true),
+                  sortOrder: userInput?.sortOrder ?? idx,
+                  authorizationStatus: 'no_aplica' as const,
+                },
+              });
+              keptKeys.add(key);
+            } else {
+              toInsert.push({
+                orderId: id,
+                practiceId: l.practiceId,
+                nbuCodeSnapshot: l.nbuCode,
+                nameSnapshot: l.name,
+                unitsSnapshot: l.units,
+                ubValueSnapshot: l.ubValue,
+                priceParticular: l.priceParticular,
+                priceInsurer: l.priceInsurer,
                 patientCopay: l.patientCopay,
                 authorizationCode: userInput?.authorizationCode ?? null,
                 includeInReport: l.synthetic ? false : (userInput?.includeInReport ?? true),
                 sortOrder: userInput?.sortOrder ?? idx,
                 authorizationStatus: 'no_aplica' as const,
-              },
-            });
-            keptPracticeIds.add(l.practiceId!);
-          } else {
-            toInsert.push({
-              orderId: id,
-              practiceId: l.practiceId,
-              nbuCodeSnapshot: l.nbuCode,
-              nameSnapshot: l.name,
-              unitsSnapshot: l.units,
-              ubValueSnapshot: l.ubValue,
-              priceParticular: l.priceParticular,
-              priceInsurer: l.priceInsurer,
-              patientCopay: l.patientCopay,
-              authorizationCode: userInput?.authorizationCode ?? null,
-              includeInReport: l.synthetic ? false : (userInput?.includeInReport ?? true),
-              sortOrder: userInput?.sortOrder ?? idx,
-              authorizationStatus: 'no_aplica' as const,
-            } as NewOrderPractice);
+                muestraOrdenId: muestra?.id ?? null,
+              } as NewOrderPractice);
+            }
           }
         }
 
         // Only delete synthetics and practices explicitly removed by the user
         const toDeleteIds = existingLines
-          .filter((l) => l.practiceId === null || !keptPracticeIds.has(l.practiceId))
+          .filter((l) => {
+            const key = `${l.practiceId}:${l.muestraOrdenId ?? ''}`;
+            return l.practiceId === null || !keptKeys.has(key);
+          })
           .map((l) => l.id);
 
         if (toDeleteIds.length > 0) {
@@ -471,7 +576,7 @@ export class OrdersService {
       );
 
       return this.db.transaction(async (tx) => {
-        // Load existing lines so we can UPDATE in place instead of delete+reinsert.
+        // Load existing lines and muestras so we can UPDATE in place instead of delete+reinsert.
         // Deleting order_practice rows cascades to result and order_practice_unidad_value,
         // wiping entered results. We preserve the row ID for any practice that stays.
         const existingLines = await tx
@@ -479,56 +584,72 @@ export class OrdersService {
           .from(orderPractice)
           .where(eq(orderPractice.orderId, id));
 
-        const existingByPracticeId = new Map<number, OrderPractice>(
+        const muestrasForOrder = await tx
+          .select()
+          .from(orderMuestraAgua)
+          .where(eq(orderMuestraAgua.orderId, id))
+          .orderBy(asc(orderMuestraAgua.sortOrder));
+
+        // Key existing lines by (practiceId:muestraOrdenId) to support per-muestra dedup
+        const existingByKey = new Map<string, OrderPractice>(
           existingLines
             .filter((l) => l.practiceId !== null)
-            .map((l) => [l.practiceId!, l]),
+            .map((l) => [`${l.practiceId}:${l.muestraOrdenId ?? ''}`, l]),
         );
 
         const toInsert: NewOrderPractice[] = [];
         const toUpdateEntries: Array<{ rowId: number; mutable: Pick<NewOrderPractice, 'patientCopay' | 'authorizationCode' | 'authorizationStatus' | 'includeInReport' | 'sortOrder'> }> = [];
-        const keptPracticeIds = new Set<number>();
+        const keptKeys = new Set<string>();
 
-        for (const [idx, l] of pricing.lines.entries()) {
-          const userInput =
-            l.practiceId !== null ? userInputByPracticeId.get(l.practiceId) : undefined;
+        const iterMuestras: Array<OrderMuestraAgua | null> =
+          muestrasForOrder.length > 0 ? muestrasForOrder : [null];
 
-          const existing = l.practiceId !== null ? existingByPracticeId.get(l.practiceId) : undefined;
-          if (existing) {
-            // price_particular and price_insurer are also immutable by DB trigger.
-            toUpdateEntries.push({
-              rowId: existing.id,
-              mutable: {
+        for (const muestra of iterMuestras) {
+          for (const [idx, l] of pricing.lines.entries()) {
+            const userInput =
+              l.practiceId !== null ? userInputByPracticeId.get(l.practiceId) : undefined;
+            const key = `${l.practiceId}:${muestra?.id ?? ''}`;
+            const existing = l.practiceId !== null ? existingByKey.get(key) : undefined;
+
+            if (existing) {
+              toUpdateEntries.push({
+                rowId: existing.id,
+                mutable: {
+                  patientCopay: l.patientCopay,
+                  authorizationCode: userInput?.authorizationCode ?? null,
+                  includeInReport: l.synthetic ? false : (userInput?.includeInReport ?? true),
+                  sortOrder: userInput?.sortOrder ?? idx,
+                  authorizationStatus: 'no_aplica' as const,
+                },
+              });
+              keptKeys.add(key);
+            } else {
+              toInsert.push({
+                orderId: id,
+                practiceId: l.practiceId,
+                nbuCodeSnapshot: l.nbuCode,
+                nameSnapshot: l.name,
+                unitsSnapshot: l.units,
+                ubValueSnapshot: l.ubValue,
+                priceParticular: l.priceParticular,
+                priceInsurer: l.priceInsurer,
                 patientCopay: l.patientCopay,
                 authorizationCode: userInput?.authorizationCode ?? null,
                 includeInReport: l.synthetic ? false : (userInput?.includeInReport ?? true),
                 sortOrder: userInput?.sortOrder ?? idx,
                 authorizationStatus: 'no_aplica' as const,
-              },
-            });
-            keptPracticeIds.add(l.practiceId!);
-          } else {
-            toInsert.push({
-              orderId: id,
-              practiceId: l.practiceId,
-              nbuCodeSnapshot: l.nbuCode,
-              nameSnapshot: l.name,
-              unitsSnapshot: l.units,
-              ubValueSnapshot: l.ubValue,
-              priceParticular: l.priceParticular,
-              priceInsurer: l.priceInsurer,
-              patientCopay: l.patientCopay,
-              authorizationCode: userInput?.authorizationCode ?? null,
-              includeInReport: l.synthetic ? false : (userInput?.includeInReport ?? true),
-              sortOrder: userInput?.sortOrder ?? idx,
-              authorizationStatus: 'no_aplica' as const,
-            } as NewOrderPractice);
+                muestraOrdenId: muestra?.id ?? null,
+              } as NewOrderPractice);
+            }
           }
         }
 
         // Only delete synthetics and practices explicitly removed by the user
         const toDeleteIds = existingLines
-          .filter((l) => l.practiceId === null || !keptPracticeIds.has(l.practiceId))
+          .filter((l) => {
+            const key = `${l.practiceId}:${l.muestraOrdenId ?? ''}`;
+            return l.practiceId === null || !keptKeys.has(key);
+          })
           .map((l) => l.id);
 
         if (toDeleteIds.length > 0) {
@@ -1033,6 +1154,25 @@ export class OrdersService {
       .where(and(eq(muestraAgua.id, id), eq(muestraAgua.labId, labId)))
       .limit(1);
     if (!row) throw new NotFoundException(`Muestra de agua ${id} no encontrada`);
+  }
+
+  async getMuestras(labId: number, orderId: number): Promise<Array<OrderMuestraAgua & { tipoMuestra: string }>> {
+    await this.ensureExists(labId, orderId);
+    const rows = await this.db
+      .select({
+        id: orderMuestraAgua.id,
+        orderId: orderMuestraAgua.orderId,
+        muestraAguaId: orderMuestraAgua.muestraAguaId,
+        identificador: orderMuestraAgua.identificador,
+        sortOrder: orderMuestraAgua.sortOrder,
+        createdAt: orderMuestraAgua.createdAt,
+        tipoMuestra: muestraAgua.tipoMuestra,
+      })
+      .from(orderMuestraAgua)
+      .innerJoin(muestraAgua, eq(muestraAgua.id, orderMuestraAgua.muestraAguaId))
+      .where(eq(orderMuestraAgua.orderId, orderId))
+      .orderBy(asc(orderMuestraAgua.sortOrder));
+    return rows;
   }
 
   private async resolveInsurer(id: number) {

@@ -106,6 +106,19 @@ export interface RenderInformeInput {
     analisisMicrobiologico: boolean;
     observaciones: string | null;
   };
+  /** Múltiples muestras (reemplaza muestraAgua cuando hay más de una). */
+  muestras?: Array<{
+    id: number;
+    identificador: string | null;
+    tipoMuestra: string;
+    fechaToma: string;
+    fechaRecepcion: string;
+    lugarToma: string | null;
+    descripcionPunto: string | null;
+    direccionPunto: string | null;
+    motivoAnalisis: string;
+    observaciones: string | null;
+  }>;
   insurer: { name: string };
   lines: OrderPractice[];
   resultsByLineId: Map<number, Result>;
@@ -278,6 +291,74 @@ function sanitizeText(s: string | null | undefined): string | null {
   return s?.replace(/\n/g, ' ') ?? null;
 }
 
+function buildResultRows(
+  filteredLines: OrderPractice[],
+  input: RenderInformeInput,
+): InformeData['results'] {
+  const { resultsByLineId, unidadValuesByLineId, practiceDataById } = input;
+  return filteredLines.map((l) => {
+    const r = resultsByLineId.get(l.id);
+    const value = r?.valueNumeric ? cleanNumber(r.valueNumeric) : (r?.valueText ?? '');
+    const rawUnidades = unidadValuesByLineId?.get(l.id) ?? [];
+    const unidades: InformeUnidadRow[] = rawUnidades.map((u) => {
+      const refKey = l.practiceId ? `${l.practiceId}:${u.unidadId}` : '';
+      const ref = refKey ? (input.unidadRefsByKey?.get(refKey) ?? null) : null;
+      return {
+        nombre: sanitizeText(u.unidadNombreSnapshot) ?? '',
+        simbolo: u.unidadSimboloSnapshot,
+        value: u.valueNumeric ? cleanNumber(u.valueNumeric) : sanitizeText(u.valueText) ?? '',
+        rangeLow: ref?.rangeLow ?? null,
+        rangeHigh: ref?.rangeHigh ?? null,
+        referenceText: sanitizeText(ref?.referenceText ?? null),
+        metodologia: sanitizeText(ref?.metodologia ?? null),
+      };
+    });
+    const practiceData = l.practiceId ? (practiceDataById?.get(l.practiceId) ?? null) : null;
+    const puList = l.practiceId ? (input.practiceUnidadsByPracticeId?.get(l.practiceId) ?? []) : [];
+    const hasUnidadValues = rawUnidades.length > 0;
+
+    let unit = r?.unit || practiceData?.defaultUnit || null;
+    if (!unit && !hasUnidadValues && puList.length > 0) {
+      unit = puList[0].simbolo ?? null;
+    }
+
+    let range: string | null = (() => {
+      const eRef = l.practiceId ? input.especieRefsByPractice?.get(l.practiceId) : null;
+      if (eRef && (eRef.rangeLow || eRef.rangeHigh)) {
+        return formatRange(eRef.rangeLow, eRef.rangeHigh, eRef.unit || unit);
+      }
+      if (r && (r.referenceRangeLow || r.referenceRangeHigh)) {
+        return formatRange(r.referenceRangeLow, r.referenceRangeHigh, unit);
+      }
+      return null;
+    })();
+    let referenceValue = practiceData?.referenceValue?.replace(/\r\n/g, '\n').replace(/\r/g, '\n') ?? null;
+    if (!range && !referenceValue && !hasUnidadValues && puList.length > 0) {
+      const firstPu = puList[0];
+      if (firstPu.rangeLow || firstPu.rangeHigh) {
+        const baseRange = formatRange(firstPu.rangeLow, firstPu.rangeHigh, unit);
+        range = firstPu.referenceText ? `${baseRange}. ${sanitizeText(firstPu.referenceText) ?? ''}` : baseRange;
+      } else if (firstPu.referenceText) {
+        referenceValue = sanitizeText(firstPu.referenceText);
+      }
+    }
+
+    return {
+      nbuCode: l.nbuCodeSnapshot,
+      name: l.nameSnapshot,
+      value,
+      unit,
+      range,
+      flag: r?.flag ?? null,
+      methodology: sanitizeText(r?.methodology || practiceData?.methodology || null),
+      referenceValue,
+      notes: sanitizeText(r?.notes ?? practiceData?.defaultObservation ?? null),
+      unidades: unidades.length > 0 ? unidades : undefined,
+      totalDefinedUnidades: puList.length > 0 ? puList.length : undefined,
+    };
+  });
+}
+
 export function buildInformeData(input: RenderInformeInput): InformeData {
   const {
     order,
@@ -345,7 +426,18 @@ export function buildInformeData(input: RenderInformeInput): InformeData {
         : { fullName: '—', dni: '—', sex: null, age: '—', birthDate: '—', streetAddress: null, city: null, phone: null },
     animalPatient: input.animalPatient ?? null,
     solicitanteAgua: input.solicitanteAgua ?? null,
-    muestraAgua: input.muestraAgua ?? null,
+    muestraAgua: input.muestraAgua ?? (input.muestras?.[0] ? {
+      tipoMuestra: input.muestras[0].tipoMuestra,
+      fechaToma: input.muestras[0].fechaToma,
+      fechaRecepcion: input.muestras[0].fechaRecepcion,
+      lugarToma: input.muestras[0].lugarToma,
+      descripcionPunto: input.muestras[0].descripcionPunto,
+      direccionPunto: input.muestras[0].direccionPunto,
+      motivoAnalisis: input.muestras[0].motivoAnalisis,
+      analisisFisicoquimico: true,
+      analisisMicrobiologico: false,
+      observaciones: input.muestras[0].observaciones,
+    } : null),
     insurer: {
       name: insurer.name,
       affiliateNumber: order.insuranceAffiliateNumber,
@@ -358,72 +450,18 @@ export function buildInformeData(input: RenderInformeInput): InformeData {
       isUrgent: order.isUrgent,
       notes: sanitizeText(order.notes),
     },
-    results: lines
-      .filter((l) => l.includeInReport && l.practiceId !== null)
-      .map((l) => {
-        const r = resultsByLineId.get(l.id);
-        const value = r?.valueNumeric ? cleanNumber(r.valueNumeric) : (r?.valueText ?? '');
-        const rawUnidades = unidadValuesByLineId?.get(l.id) ?? [];
-        const unidades: InformeUnidadRow[] = rawUnidades.map((u) => {
-          const refKey = l.practiceId ? `${l.practiceId}:${u.unidadId}` : '';
-          const ref = refKey ? (input.unidadRefsByKey?.get(refKey) ?? null) : null;
-          return {
-            nombre: sanitizeText(u.unidadNombreSnapshot) ?? '',
-            simbolo: u.unidadSimboloSnapshot,
-            value: u.valueNumeric ? cleanNumber(u.valueNumeric) : sanitizeText(u.valueText) ?? '',
-            rangeLow: ref?.rangeLow ?? null,
-            rangeHigh: ref?.rangeHigh ?? null,
-            referenceText: sanitizeText(ref?.referenceText ?? null),
-            metodologia: sanitizeText(ref?.metodologia ?? null),
-          };
-        });
-        const practiceData = l.practiceId ? (practiceDataById?.get(l.practiceId) ?? null) : null;
-        const puList = l.practiceId ? (input.practiceUnidadsByPracticeId?.get(l.practiceId) ?? []) : [];
-        const hasUnidadValues = rawUnidades.length > 0;
-
-        // Unidad: resultado > defaultUnit del catálogo > primera unidad configurada (si no hay sub-valores)
-        let unit = r?.unit || practiceData?.defaultUnit || null;
-        if (!unit && !hasUnidadValues && puList.length > 0) {
-          unit = puList[0].simbolo ?? null;
-        }
-
-        // Referencia: especie > rango del resultado > referencia de practiceUnidad (fallback cuando no hay sub-valores)
-        let range: string | null = (() => {
-          const eRef = l.practiceId ? input.especieRefsByPractice?.get(l.practiceId) : null;
-          if (eRef && (eRef.rangeLow || eRef.rangeHigh)) {
-            return formatRange(eRef.rangeLow, eRef.rangeHigh, eRef.unit || unit);
-          }
-          if (r && (r.referenceRangeLow || r.referenceRangeHigh)) {
-            return formatRange(r.referenceRangeLow, r.referenceRangeHigh, unit);
-          }
-          return null;
-        })();
-        // referenceValue: no stripear \n para que el template pueda renderizarlos como líneas separadas
-        let referenceValue = practiceData?.referenceValue?.replace(/\r\n/g, '\n').replace(/\r/g, '\n') ?? null;
-        if (!range && !referenceValue && !hasUnidadValues && puList.length > 0) {
-          const firstPu = puList[0];
-          if (firstPu.rangeLow || firstPu.rangeHigh) {
-            const baseRange = formatRange(firstPu.rangeLow, firstPu.rangeHigh, unit);
-            range = firstPu.referenceText ? `${baseRange}. ${sanitizeText(firstPu.referenceText) ?? ''}` : baseRange;
-          } else if (firstPu.referenceText) {
-            referenceValue = sanitizeText(firstPu.referenceText);
-          }
-        }
-
-        return {
-          nbuCode: l.nbuCodeSnapshot,
-          name: l.nameSnapshot,
-          value,
-          unit,
-          range,
-          flag: r?.flag ?? null,
-          methodology: sanitizeText(r?.methodology || practiceData?.methodology || null),
-          referenceValue,
-          notes: sanitizeText(r?.notes ?? practiceData?.defaultObservation ?? null),
-          unidades: unidades.length > 0 ? unidades : undefined,
-          totalDefinedUnidades: puList.length > 0 ? puList.length : undefined,
-        };
-      }),
+    results: buildResultRows(lines.filter((l) => l.includeInReport && l.practiceId !== null), input),
+    muestras: input.muestras && input.muestras.length > 0
+      ? input.muestras.map((m) => ({
+          id: m.id,
+          identificador: m.identificador,
+          tipoMuestra: m.tipoMuestra,
+          results: buildResultRows(
+            lines.filter((l) => l.includeInReport && l.practiceId !== null && l.muestraOrdenId === m.id),
+            input,
+          ),
+        }))
+      : undefined,
     signedBy: {
       name: lab.signingProfessionalName ?? '',
       matricula: lab.signingProfessionalMp

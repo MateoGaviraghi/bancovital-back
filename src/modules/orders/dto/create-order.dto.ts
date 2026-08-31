@@ -15,6 +15,25 @@ import {
   ValidateNested,
 } from 'class-validator';
 
+export class OrderMuestraInputDto {
+  @ApiProperty({ description: 'ID del tipo de muestra' })
+  @IsInt()
+  @Min(1)
+  muestraAguaId!: number;
+
+  @ApiProperty({ required: false, description: 'Etiqueta libre: "Punto A", "Canilla cocina", etc.' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  identificador?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  sortOrder?: number;
+}
+
 export class OrderPracticeInputDto {
   @ApiProperty({ description: 'Id de la practica del catalogo' })
   @IsInt()
@@ -138,9 +157,22 @@ export class CreateOrderDto {
   @Min(1)
   solicitanteAguaId?: number;
 
-  @ApiProperty({ required: false, description: 'Muestra de agua (solo agua y efluentes)' })
+  /** @deprecated usar muestras[] en su lugar */
+  @ApiProperty({ required: false, description: 'Muestra de agua (deprecated — usar muestras[])' })
   @IsOptional()
   @IsInt()
   @Min(1)
   muestraAguaId?: number;
+
+  @ApiProperty({
+    required: false,
+    type: [OrderMuestraInputDto],
+    description: 'Muestras de agua/efluente. Requerido para servicios usaMuestraAgua. Mínimo 1.',
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(1)
+  @ValidateNested({ each: true })
+  @Type(() => OrderMuestraInputDto)
+  muestras?: OrderMuestraInputDto[];
 }

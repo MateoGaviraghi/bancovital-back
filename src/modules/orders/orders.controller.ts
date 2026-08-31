@@ -48,6 +48,12 @@ export class OrdersController {
     return this.orders.lines(requireLabId(user), id);
   }
 
+  @Get(':id/muestras')
+  @ApiOperation({ summary: 'Muestras de agua/efluente asociadas a la orden' })
+  getMuestras(@CurrentUser() user: Session, @Param('id', ParseIntPipe) id: number) {
+    return this.orders.getMuestras(requireLabId(user), id);
+  }
+
   @Get(':id/results')
   @ApiOperation({
     summary: 'Lineas con resultados hidratados (incluye rango aplicable al paciente)',
