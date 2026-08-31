@@ -25,6 +25,7 @@ function lineFixture(overrides: Partial<OrderPractice> = {}): OrderPractice {
     authorizationCode: null,
     includeInReport: true,
     sortOrder: 0,
+    muestraOrdenId: null,
     createdAt: new Date(),
     ...overrides,
   };

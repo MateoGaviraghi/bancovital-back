@@ -9,6 +9,7 @@ import {
   labPracticeConfig,
   muestraAgua,
   order,
+  orderMuestraAgua,
   orderPractice,
   orderPracticeUnidadValue,
   pacienteAnimal,
@@ -517,7 +518,46 @@ export class ReportsService {
         };
       }
     }
-    if (ord.muestraAguaId) {
+    // Load muestras from the new multi-muestra table (backward compat: legacy orders use ord.muestraAguaId)
+    const muestrasRows = await this.db
+      .select({
+        id: orderMuestraAgua.id,
+        muestraAguaId: orderMuestraAgua.muestraAguaId,
+        identificador: orderMuestraAgua.identificador,
+        sortOrder: orderMuestraAgua.sortOrder,
+        tipoMuestra: muestraAgua.tipoMuestra,
+        fechaToma: muestraAgua.fechaToma,
+        fechaRecepcion: muestraAgua.fechaRecepcion,
+        lugarToma: muestraAgua.lugarToma,
+        descripcionPunto: muestraAgua.descripcionPunto,
+        direccionPunto: muestraAgua.direccionPunto,
+        motivoAnalisis: muestraAgua.motivoAnalisis,
+        analisisFisicoquimico: muestraAgua.analisisFisicoquimico,
+        analisisMicrobiologico: muestraAgua.analisisMicrobiologico,
+        observaciones: muestraAgua.observaciones,
+      })
+      .from(orderMuestraAgua)
+      .innerJoin(muestraAgua, eq(muestraAgua.id, orderMuestraAgua.muestraAguaId))
+      .where(eq(orderMuestraAgua.orderId, ord.id))
+      .orderBy(asc(orderMuestraAgua.sortOrder));
+
+    if (muestrasRows.length > 0) {
+      // Use the first muestra for the single-muestra display field
+      const first = muestrasRows[0];
+      muestraData = {
+        tipoMuestra: first.tipoMuestra,
+        fechaToma: first.fechaToma.toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Cordoba' }),
+        fechaRecepcion: first.fechaRecepcion.toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Cordoba' }),
+        lugarToma: first.lugarToma,
+        descripcionPunto: first.descripcionPunto,
+        direccionPunto: first.direccionPunto,
+        motivoAnalisis: first.motivoAnalisis,
+        analisisFisicoquimico: first.analisisFisicoquimico,
+        analisisMicrobiologico: first.analisisMicrobiologico,
+        observaciones: first.observaciones,
+      };
+    } else if (ord.muestraAguaId) {
+      // Legacy: order stored muestra directly (pre-migration orders not in order_muestra_agua)
       const [row] = await this.db
         .select()
         .from(muestraAgua)
@@ -728,6 +768,20 @@ export class ReportsService {
       veterinario: vetData ?? undefined,
       solicitanteAgua: solicitanteData ?? undefined,
       muestraAgua: muestraData ?? undefined,
+      muestras: muestrasRows.length > 0
+        ? muestrasRows.map((m) => ({
+            id: m.id,
+            identificador: m.identificador,
+            tipoMuestra: m.tipoMuestra,
+            fechaToma: m.fechaToma.toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Cordoba' }),
+            fechaRecepcion: m.fechaRecepcion.toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Cordoba' }),
+            lugarToma: m.lugarToma,
+            descripcionPunto: m.descripcionPunto,
+            direccionPunto: m.direccionPunto,
+            motivoAnalisis: m.motivoAnalisis,
+            observaciones: m.observaciones,
+          }))
+        : undefined,
       insurer: ins,
       lines,
       resultsByLineId,

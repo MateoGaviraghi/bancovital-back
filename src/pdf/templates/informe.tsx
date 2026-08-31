@@ -85,6 +85,13 @@ export interface InformeData {
     analisisMicrobiologico: boolean;
     observaciones: string | null;
   } | null;
+  /** Múltiples muestras con sus resultados individuales. Reemplaza muestraAgua cuando hay más de una. */
+  muestras?: Array<{
+    id: number;
+    identificador: string | null;
+    tipoMuestra: string;
+    results: InformeResultRow[];
+  }>;
   insurer: {
     name: string;
     affiliateNumber: string | null;
@@ -851,7 +858,29 @@ function WatermarkInforme({ data }: { data: InformeData }) {
         ) : null}
 
         {/* Tabla de resultados */}
-        {data.results.length > 0 ? (
+        {isAgua && data.muestras && data.muestras.length > 1 ? (
+          // Multi-muestra: una sección por muestra
+          <View>
+            {data.muestras.map((m, idx) => (
+              <View key={m.id} style={{ marginBottom: idx < (data.muestras?.length ?? 0) - 1 ? 14 : 0 }}>
+                <Text style={{ fontSize: 8, fontFamily: 'PublicSansSemiBold', color: tableColors.headerBg, marginBottom: 4 }}>
+                  {m.identificador ? `Muestra: ${m.identificador}` : `Muestra ${idx + 1}: ${m.tipoMuestra}`}
+                </Text>
+                {m.results.length > 0 ? (
+                  <AguaEfluentesTable
+                    results={m.results}
+                    accent={tableColors.headerBg}
+                    accentSoft={C.primarySoft}
+                    border={tableColors.borderColor}
+                    rowColor={tableColors.rowColor}
+                  />
+                ) : (
+                  <Text style={{ fontSize: 7, color: C.subtle }}>Sin resultados cargados.</Text>
+                )}
+              </View>
+            ))}
+          </View>
+        ) : data.results.length > 0 ? (
           isAgua ? (
             <AguaEfluentesTable
               results={data.results}
@@ -1248,11 +1277,26 @@ export function InformeTemplate({ data }: { data: InformeData }) {
         {/* Results */}
         <Text style={[styles.resultsTitle, { color: accent }]}>Resultados</Text>
 
-        <View style={{ gap: 0 }}>
-          {data.results.map((r) => (
-            <EstudioBlock key={r.nbuCode} r={r} />
-          ))}
-        </View>
+        {data.muestras && data.muestras.length > 1 ? (
+          data.muestras.map((m, mIdx) => (
+            <View key={m.id} style={{ marginBottom: mIdx < (data.muestras?.length ?? 0) - 1 ? 10 : 0 }}>
+              <Text style={{ fontSize: 8, fontFamily: 'PublicSansSemiBold', color: accent, marginBottom: 3, paddingBottom: 2, borderBottomWidth: 0.5, borderBottomColor: tBorder }}>
+                {m.identificador ? `Muestra: ${m.identificador}` : `Muestra ${mIdx + 1}: ${m.tipoMuestra}`}
+              </Text>
+              <View style={{ gap: 0 }}>
+                {m.results.map((r) => (
+                  <EstudioBlock key={`${m.id}-${r.nbuCode}`} r={r} />
+                ))}
+              </View>
+            </View>
+          ))
+        ) : (
+          <View style={{ gap: 0 }}>
+            {data.results.map((r) => (
+              <EstudioBlock key={r.nbuCode} r={r} />
+            ))}
+          </View>
+        )}
 
         {/* Firma + protocolo al final */}
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 6 }}>
@@ -1260,9 +1304,14 @@ export function InformeTemplate({ data }: { data: InformeData }) {
             Firma: {data.signedBy.name}
             {data.signedBy.matricula ? ` (MP: ${data.signedBy.matricula})` : ''}
           </Text>
-          <Text style={{ fontSize: 7, color: C.subtle }}>
-            Protocolo N° {data.protocol.number}  ·  {data.protocol.orderDate}
-          </Text>
+          <View style={{ alignItems: 'flex-end' }}>
+            <Text style={{ fontSize: 7, color: C.subtle }}>
+              Protocolo N° {data.protocol.number}  ·  {data.protocol.orderDate}
+            </Text>
+            <Text style={{ fontSize: 6, color: C.subtle }}>
+              Emitido: {data.protocol.issuedAt}
+            </Text>
+          </View>
         </View>
 
         <View style={styles.flexSpacer} />

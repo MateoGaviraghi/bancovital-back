@@ -16,6 +16,7 @@ export * from './lab-practice-config';
 export * from './laboratorio';
 export * from './muestra-agua';
 export * from './order';
+export * from './order-muestra-agua';
 export * from './order-practice';
 export * from './order-practice-unidad-value';
 export * from './paciente-animal';

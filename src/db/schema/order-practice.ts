@@ -10,6 +10,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import { authorizationStatusEnum } from './enums';
 import { order } from './order';
+import { orderMuestraAgua } from './order-muestra-agua';
 import { practice } from './practice';
 
 export const orderPractice = pgTable(
@@ -37,6 +38,10 @@ export const orderPractice = pgTable(
     authorizationCode: text('authorization_code'),
     includeInReport: boolean('include_in_report').notNull().default(true),
     sortOrder: integer('sort_order').notNull().default(0),
+    muestraOrdenId: bigint('muestra_orden_id', { mode: 'number' }).references(
+      () => orderMuestraAgua.id,
+      { onDelete: 'cascade' },
+    ),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({
