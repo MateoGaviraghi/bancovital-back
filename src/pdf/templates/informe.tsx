@@ -913,7 +913,7 @@ function WatermarkInforme({ data }: { data: InformeData }) {
             {data.signedBy.name}
           </Text>
           {data.signedBy.matricula ? (
-            <Text style={{ fontSize: 8, color: '#666', marginTop: 1 }}>MP {data.signedBy.matricula}</Text>
+            <Text style={{ fontSize: 8, color: '#666', marginTop: 1 }}>{data.signedBy.matricula}</Text>
           ) : null}
         </View>
 
@@ -1302,7 +1302,7 @@ export function InformeTemplate({ data }: { data: InformeData }) {
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 6 }}>
           <Text style={{ fontSize: 8, color: C.muted }}>
             Firma: {data.signedBy.name}
-            {data.signedBy.matricula ? ` (MP: ${data.signedBy.matricula})` : ''}
+            {data.signedBy.matricula ? ` (${data.signedBy.matricula})` : ''}
           </Text>
           <View style={{ alignItems: 'flex-end' }}>
             <Text style={{ fontSize: 7, color: C.subtle }}>
